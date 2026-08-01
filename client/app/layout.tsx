@@ -1,9 +1,4 @@
-import "./globals.css";
-
-export const metadata = {
-  title: "Ruang Tenang",
-  description: "Z-Solution",
-};
+import './globals.css'; // <-- Pastikan baris ini ada!
 
 export default function RootLayout({
   children,

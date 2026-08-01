@@ -1,99 +1,221 @@
-import Link from "next/link";
+'use client';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '../lib/supabase';// 1. IMPORT CLIENT SUPABASE
 
-export default function Login() {
+export default function LoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false); // State indikator loading
+
+  // HANDLER LOGIN DENGAN SUPABASE (SUPPORT NISN & EMAIL)
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setIsLoading(true);
+
+    const inputClean = email.trim();
+
+    try {
+      // 2. CEK LANGSUNG KE TABEL USERS DI SUPABASE
+      const { data: users, error } = await supabase
+        .from('users')
+        .select('*')
+        .or(`email.eq."${inputClean}",nisn.eq."${inputClean}"`)
+        .eq('password', password);
+
+      if (error) {
+        setErrorMessage('Gagal memproses database: ' + error.message);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!users || users.length === 0) {
+        setErrorMessage('Email/NISN atau password salah! Silakan periksa kembali.');
+        setIsLoading(false);
+        return;
+      }
+
+      const userFound = users[0];
+
+      // 3. SIMPAN SESSION SISWA/USER KE LOCALSTORAGE
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('userRole', userFound.role);
+      localStorage.setItem('userEmail', userFound.email || '');
+      localStorage.setItem('userNama', userFound.nama || 'Siswa');
+      localStorage.setItem('userKelas', userFound.kelas || '-');
+      localStorage.setItem('userNisn', userFound.nisn || '-');
+
+      // REDIRECT BERDASARKAN ROLE DARI DATABASE
+      let targetPath = '/dashboard';
+      if (userFound.role === 'Guru BK' || userFound.role === 'Admin') {
+        targetPath = '/bk';
+      } else if (userFound.role === 'Guru Piket') {
+        targetPath = '/piket';
+      }
+
+      router.push(targetPath);
+    } catch (err) {
+      setErrorMessage('Terjadi kesalahan koneksi ke server.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <div style={{ 
-      fontFamily: "sans-serif", 
-      minHeight: "100vh", 
-      display: "flex", 
-      alignItems: "center", 
-      justifyContent: "center", 
-      backgroundColor: "#d1f2d9" 
-    }}>
-      
-      <div style={{ 
-        display: "flex", 
-        width: "900px", 
-        minHeight: "550px", 
-        backgroundColor: "#fff", 
-        boxShadow: "0px 4px 15px rgba(0,0,0,0.1)", 
-        overflow: "hidden" 
-      }}>
+    <div className="login-wrapper">
+      <style jsx>{`
+        .login-wrapper {
+          font-family: sans-serif;
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background-color: #d1f2d9;
+          padding: 20px;
+          box-sizing: border-box;
+        }
 
-        {/* PANEL KIRI (PUTIH) - HALAMAN UTAMA CREATE ACCOUNT */}
-        <div style={{ 
-          flex: 1.1, 
-          padding: "40px", 
-          display: "flex", 
-          flexDirection: "column", 
-          alignItems: "center", 
-          position: "relative" 
-        }}>
-          
-          <div style={{ position: "absolute", top: "30px", left: "30px", display: "flex", alignItems: "center", justifyContent: "center", width: "50px", height: "50px", border: "2px solid #6cb2eb", borderRadius: "50%", color: "#000", fontWeight: "bold", fontSize: "20px" }}>
-            <span style={{ position: "absolute", fontSize: "8px", top: "-5px", whiteSpace: "nowrap", color: "#333" }}>Simply Innovative</span>
-            Zs
-            <span style={{ position: "absolute", fontSize: "8px", bottom: "-5px", whiteSpace: "nowrap", color: "#333" }}>Z-solution</span>
+        .login-card {
+          width: 100%;
+          max-width: 440px;
+          background-color: #ffffff;
+          box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.08);
+          border-radius: 24px;
+          padding: 36px 32px;
+          box-sizing: border-box;
+          border: 1px solid #b5d8b6;
+        }
+
+        .input-group {
+          display: flex;
+          align-items: center;
+          background-color: #f3f4f6;
+          padding: 12px 16px;
+          border-radius: 30px;
+          border: 1px solid #e5e7eb;
+          margin-top: 6px;
+        }
+
+        .input-field {
+          border: none;
+          background-color: transparent;
+          outline: none;
+          width: 100%;
+          font-weight: bold;
+          font-size: 13px;
+          color: #111827;
+        }
+
+        @media (max-width: 480px) {
+          .login-card {
+            padding: 28px 20px;
+            border-radius: 20px;
+          }
+        }
+      `}</style>
+
+      <div className="login-card">
+        {/* LOGO MINDGUARD */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginBottom: '24px' }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '12px', backgroundColor: '#1b3b2b', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' }}>
+            <span style={{ fontSize: '24px' }}>🛡️</span>
           </div>
-
-          <h1 style={{ fontSize: "32px", fontWeight: "900", color: "#000", marginTop: "60px", marginBottom: "30px" }}>
-            Create Account
-          </h1>
-          <p style={{ fontWeight: "bold", color: "#000", fontSize: "14px", marginBottom: "30px" }}>
-            of use your email for registration
-          </p>
-
-          <div style={{ width: "100%", maxWidth: "350px", display: "flex", flexDirection: "column", gap: "20px" }}>
-            <div style={{ display: "flex", alignItems: "center", backgroundColor: "#f4f4f4", padding: "12px 20px", borderRadius: "30px" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-              <input type="text" placeholder="USER NAME" style={{ border: "none", backgroundColor: "transparent", outline: "none", marginLeft: "15px", width: "100%", fontWeight: "bold", fontSize: "12px", color: "#000" }} />
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", backgroundColor: "#f4f4f4", padding: "12px 20px", borderRadius: "30px" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-              <input type="email" placeholder="EMAIL" style={{ border: "none", backgroundColor: "transparent", outline: "none", marginLeft: "15px", width: "100%", fontWeight: "bold", fontSize: "12px", color: "#000" }} />
-            </div>
-
-            <div style={{ display: "flex", alignItems: "center", backgroundColor: "#f4f4f4", padding: "12px 20px", borderRadius: "30px" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-              <input type="password" placeholder="PASSWORD" style={{ border: "none", backgroundColor: "transparent", outline: "none", marginLeft: "15px", width: "100%", fontWeight: "bold", fontSize: "12px", color: "#000" }} />
-            </div>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontWeight: '900', fontSize: '18px', color: '#1b3b2b', letterSpacing: '0.5px' }}>MindGuard</div>
+            <div style={{ fontSize: '11px', color: '#4b5563', fontWeight: 'bold' }}>SMK Budi Bakti Ciwidey</div>
           </div>
-
-          {/* Menuju ke Dashboard setelah submit */}
-          <Link href="/dashboard" style={{ textDecoration: "none" }}>
-            <button style={{ marginTop: "40px", padding: "12px 40px", backgroundColor: "#d6d6d6", color: "#000", fontWeight: "900", fontSize: "14px", border: "none", borderRadius: "30px", cursor: "pointer", width: "180px" }}>
-              SIGN UP
-            </button>
-          </Link>
-
         </div>
 
-        {/* PANEL KANAN (HIJAU SAGE) - LINK KE SIGNUP */}
-        <div style={{ 
-          flex: 0.9, 
-          backgroundColor: "#84a586", 
-          padding: "40px", 
-          display: "flex", 
-          flexDirection: "column", 
-          alignItems: "center", 
-          justifyContent: "center", 
-          color: "#fff", 
-          textAlign: "center" 
-        }}>
-          <h1 style={{ fontSize: "32px", fontWeight: "900", marginBottom: "30px" }}>Welcome Back!</h1>
-          <p style={{ fontSize: "14px", fontWeight: "bold", lineHeight: "1.6", marginBottom: "50px", maxWidth: "250px" }}>
-            To keep connected with us please login with your personal info
-          </p>
-
-          {/* DIUBAH: Mengarah ke halaman /signup */}
-          <Link href="/signup" style={{ textDecoration: "none" }}>
-            <button style={{ padding: "12px 40px", backgroundColor: "#769778", color: "#fff", fontWeight: "900", fontSize: "14px", border: "1px solid rgba(255,255,255,0.4)", borderRadius: "30px", cursor: "pointer", width: "180px" }}>
-              SIGN IN
-            </button>
-          </Link>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <h1 style={{ fontSize: '24px', fontWeight: '900', color: '#111827', margin: '0 0 6px 0' }}>Sign In</h1>
+          <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>Masukkan kredensial akun terdaftar Anda</p>
         </div>
 
+        {/* PESAN ERROR SAAT SALAH LOGIN */}
+        {errorMessage && (
+          <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', padding: '10px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', marginBottom: '16px', textAlign: 'center' }}>
+            ⚠️ {errorMessage}
+          </div>
+        )}
+
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* INPUT NISN / EMAIL (Diuat type="text" agar NISN tidak terbaca error) */}
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#374151' }}>Email / NISN</label>
+            <div className="input-group">
+              <span style={{ marginRight: '10px', opacity: 0.6 }}>👤</span>
+              <input
+                type="text"
+                required
+                placeholder="Masukkan NISN atau Email..."
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="input-field"
+              />
+            </div>
+          </div>
+
+          {/* INPUT PASSWORD */}
+          <div>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#374151' }}>Password</label>
+            <div className="input-group">
+              <span style={{ marginRight: '10px', opacity: 0.6 }}>🔒</span>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="input-field"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '15px',
+                  padding: '0 4px',
+                  outline: 'none',
+                  opacity: 0.7
+                }}
+                title={showPassword ? 'Sembunyikan Password' : 'Tampilkan Password'}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
+          </div>
+
+          {/* TOMBOL SIGN IN */}
+          <button
+            type="submit"
+            disabled={isLoading}
+            style={{
+              marginTop: '10px',
+              padding: '14px',
+              backgroundColor: isLoading ? '#6b7280' : '#1b3b2b',
+              color: '#ffffff',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              border: 'none',
+              borderRadius: '30px',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 12px rgba(27, 59, 43, 0.25)',
+              transition: 'all 0.2s'
+            }}
+          >
+            {isLoading ? 'Memeriksa Database...' : 'Masuk Aplikasi'}
+          </button>
+        </form>
+
+        <div style={{ marginTop: '24px', textAlign: 'center', borderTop: '1px solid #e5e7eb', paddingTop: '16px' }}>
+          <span style={{ fontSize: '11px', color: '#9ca3af' }}>Powered by Z-solution © 2026</span>
+        </div>
       </div>
     </div>
   );
