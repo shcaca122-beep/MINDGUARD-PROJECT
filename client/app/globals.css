@@ -262,3 +262,8 @@ button{
   background:#ddd;
   border-radius:8px;
 }
+
+/* Tambahkan di app/globals.css */
+.swal2-popup {
+  border-radius: 16px !important;
+}

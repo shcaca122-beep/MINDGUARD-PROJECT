@@ -1,13 +1,15 @@
 'use client';
 import { useState } from 'react';
+import { showSuccess } from '@/lib/swal';
 
 export default function FormPerizinanPage() {
   const [formData, setFormData] = useState({ jenis: 'Sakit', tanggalMulai: '', alasan: '' });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert('Pengajuan izin berhasil dikirim!');
-  };
+const handleSubmit = (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  // Pop-up profesional SweetAlert2
+  showSuccess('Pengajuan Berhasil!', 'Surat izin kamu telah berhasil dikirim ke Guru BK.');
+};
 
   return (
     <div style={{ backgroundColor: '#cbe3cd', minHeight: '100vh', fontFamily: 'sans-serif', color: '#1f2937', margin: 0, padding: 0 }}>
