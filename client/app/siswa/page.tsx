@@ -1,8 +1,9 @@
 'use client';
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { showSuccess, showError } from '@/lib/swal';
-
 
 // MASTER DAFTAR KELAS RESMI SMK BUDI BAKTI CIWIDEY
 const DAFTAR_KELAS = [
@@ -23,8 +24,10 @@ const DAFTAR_KELAS = [
 ];
 
 export default function PortalSiswa() {
+  const router = useRouter();
   const [tab, setTab] = useState<'curhat' | 'izin' | 'konseling' | 'kelompok'>('curhat');
   const [loading, setLoading] = useState(false);
+  const [siswaData, setSiswaData] = useState<any>(null);
 
   // 1. STATE FORM CURHAT ANONIM
   const [formCurhat, setFormCurhat] = useState({
@@ -33,12 +36,13 @@ export default function PortalSiswa() {
     jenis: 'Guru BK',
   });
 
-  // 2. STATE FORM IZIN / SAKIT
+  // 2. STATE FORM IZIN / SAKIT (DILENGKAPI FITUR SHIFT)
   const [formIzin, setFormIzin] = useState({
     nama: '',
     kelas: DAFTAR_KELAS[0],
     jenis: 'Sakit',
     tanggal: new Date().toISOString().split('T')[0],
+    shift: new Date().getHours() < 12 ? 'Shift Pagi' : 'Shift Siang', // 👈 OTOMATIS SESUAI JAM
     keterangan: '',
   });
 
@@ -58,12 +62,41 @@ export default function PortalSiswa() {
     tanggal: new Date().toISOString().split('T')[0],
   });
 
+  // BACA DATA LOGGED IN USER SAAT HALAMAN DIBUKA
+  useEffect(() => {
+    const savedUser = localStorage.getItem('mindguard_user');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setSiswaData(user);
+
+        const namaUser = user.nama || '';
+        const kelasUser = user.kelas || DAFTAR_KELAS[0];
+
+        setFormIzin((prev) => ({ ...prev, nama: namaUser, kelas: kelasUser }));
+        setFormKonseling((prev) => ({ ...prev, nama: namaUser, kelas: kelasUser }));
+        setFormKelompok((prev) => ({ ...prev, kelas: kelasUser, anggota: namaUser }));
+      } catch (e) {
+        console.error('Gagal membaca data login:', e);
+      }
+    }
+  }, []);
+
+  // LOGOUT HANDLER
+  const handleLogout = () => {
+    localStorage.removeItem('mindguard_user');
+    localStorage.removeItem('mindguard_nama_guru');
+    localStorage.removeItem('mindguard_role');
+    showSuccess('Berhasil Keluar', 'Sampai jumpa kembali!');
+    router.push('/login');
+  };
+
   // ==========================================
   // HANDLER 1: SUBMIT CURHAT ANONIM
   // ==========================================
   const handleKirimCurhat = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formCurhat.judul || !formCurhat.isi) {
+    if (!formCurhat.judul.trim() || !formCurhat.isi.trim()) {
       showError('Data Belum Lengkap', 'Judul dan isi curhatan wajib diisi!');
       return;
     }
@@ -71,10 +104,10 @@ export default function PortalSiswa() {
     setLoading(true);
     const { error } = await supabase.from('curhat_anonim').insert([
       {
-        judul: formCurhat.judul,
-        isi: formCurhat.isi,
+        judul: formCurhat.judul.trim(),
+        isi: formCurhat.isi.trim(),
         jenis: formCurhat.jenis,
-        status: 'Perlu Respon',
+        status: 'TERKIRIM',
         balasan: '',
         tanggal: new Date().toISOString().split('T')[0],
       },
@@ -91,37 +124,41 @@ export default function PortalSiswa() {
   };
 
   // ==========================================
-  // HANDLER 2: SUBMIT SURAT IZIN / SAKIT
+  // HANDLER 2: SUBMIT SURAT IZIN / SAKIT (DENGAN DUKUNGAN SHIFT PIKET)
   // ==========================================
   const handleKirimIzin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formIzin.nama || !formIzin.keterangan) {
+    if (!formIzin.nama.trim() || !formIzin.keterangan.trim()) {
       showError('Data Belum Lengkap', 'Nama dan keterangan izin wajib diisi!');
       return;
     }
 
     setLoading(true);
-    const { error } = await supabase.from('perizinan').insert([
-      {
-        nama: formIzin.nama,
-        kelas: formIzin.kelas,
-        jenis: formIzin.jenis,
-        tanggal: formIzin.tanggal,
-        keterangan: formIzin.keterangan,
-      },
-    ]);
+    const payload = {
+      nama: formIzin.nama.trim(),
+      kelas: formIzin.kelas,
+      jenis: formIzin.jenis,
+      tanggal: formIzin.tanggal,
+      shift: formIzin.shift, // 👈 KUNCI FITUR: Mengirimkan Shift Pagi / Shift Siang
+      keterangan: formIzin.keterangan.trim(),
+      alasan: formIzin.keterangan.trim(),
+      status: 'PENDING',
+    };
+
+    const { error } = await supabase.from('perizinan').insert([payload]);
 
     setLoading(false);
 
     if (error) {
-      showError('Gagal Mengirim', error.message);
+      showError('Gagal Mengirim Surat Izin', error.message);
     } else {
-      showSuccess('Pengajuan Berhasil!', 'Surat Izin/Sakit kamu telah tercatat di sistem Guru BK.');
+      showSuccess('Pengajuan Berhasil!', `Surat Izin terkirim ke Guru Piket (${formIzin.shift}).`);
       setFormIzin({
-        nama: '',
-        kelas: DAFTAR_KELAS[0],
+        nama: siswaData?.nama || '',
+        kelas: siswaData?.kelas || DAFTAR_KELAS[0],
         jenis: 'Sakit',
         tanggal: new Date().toISOString().split('T')[0],
+        shift: new Date().getHours() < 12 ? 'Shift Pagi' : 'Shift Siang',
         keterangan: '',
       });
     }
@@ -132,7 +169,7 @@ export default function PortalSiswa() {
   // ==========================================
   const handleKirimKonseling = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formKonseling.nama || !formKonseling.topik) {
+    if (!formKonseling.nama.trim() || !formKonseling.topik.trim()) {
       showError('Data Belum Lengkap', 'Nama dan topik bahasan wajib diisi!');
       return;
     }
@@ -140,10 +177,10 @@ export default function PortalSiswa() {
     setLoading(true);
     const { error } = await supabase.from('konseling_individual').insert([
       {
-        nama: formKonseling.nama,
+        nama: formKonseling.nama.trim(),
         kelas: formKonseling.kelas,
-        topik: formKonseling.topik,
-        status: 'TERJADWAL',
+        topik: formKonseling.topik.trim(),
+        status: 'MENUNGGU KONFIRMASI',
         tanggal: formKonseling.tanggal,
       },
     ]);
@@ -155,8 +192,8 @@ export default function PortalSiswa() {
     } else {
       showSuccess('Janji Temu Terbuat!', 'Permohonan konseling individual telah masuk ke jadwal Guru BK.');
       setFormKonseling({
-        nama: '',
-        kelas: DAFTAR_KELAS[0],
+        nama: siswaData?.nama || '',
+        kelas: siswaData?.kelas || DAFTAR_KELAS[0],
         topik: '',
         tanggal: new Date().toISOString().split('T')[0],
       });
@@ -168,7 +205,7 @@ export default function PortalSiswa() {
   // ==========================================
   const handleKirimKelompok = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formKelompok.topik || !formKelompok.anggota) {
+    if (!formKelompok.topik.trim() || !formKelompok.anggota.trim()) {
       showError('Data Belum Lengkap', 'Topik dan daftar nama anggota wajib diisi!');
       return;
     }
@@ -177,9 +214,9 @@ export default function PortalSiswa() {
     const { error } = await supabase.from('bimbingan_kelompok').insert([
       {
         kelas: formKelompok.kelas,
-        topik: formKelompok.topik,
-        anggota: formKelompok.anggota,
-        status: 'MENUNGGU',
+        topik: formKelompok.topik.trim(),
+        anggota: formKelompok.anggota.trim(),
+        status: 'MENUNGGU KONFIRMASI',
         tanggal: formKelompok.tanggal,
       },
     ]);
@@ -191,9 +228,9 @@ export default function PortalSiswa() {
     } else {
       showSuccess('Pengajuan Berhasil!', 'Pengajuan Bimbingan Kelompok telah dikirim ke Guru BK.');
       setFormKelompok({
-        kelas: DAFTAR_KELAS[0],
+        kelas: siswaData?.kelas || DAFTAR_KELAS[0],
         topik: '',
-        anggota: '',
+        anggota: siswaData?.nama || '',
         tanggal: new Date().toISOString().split('T')[0],
       });
     }
@@ -201,7 +238,30 @@ export default function PortalSiswa() {
 
   return (
     <div style={{ backgroundColor: '#e2efda', minHeight: '100vh', fontFamily: 'sans-serif', padding: '20px', color: '#1f2937' }}>
-      <div style={{ maxWidth: '650px', margin: '20px auto', backgroundColor: '#ffffff', borderRadius: '24px', padding: '28px', boxShadow: '0 10px 25px rgba(0,0,0,0.06)', border: '1px solid #b5d8b6' }}>
+      
+      {/* NAVBAR HEADER SISWA */}
+      <div style={{ maxWidth: '650px', margin: '0 auto 12px auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1b3b2b', color: '#ffffff', padding: '12px 20px', borderRadius: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '20px' }}>👤</span>
+          <div>
+            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>
+              {siswaData?.nama || 'Siswa SMK Budi Bakti'}
+            </div>
+            <div style={{ fontSize: '11px', color: '#a7f3d0' }}>
+              {siswaData?.kelas ? `Kelas: ${siswaData.kelas}` : 'Portal Resmi Siswa'}
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={handleLogout}
+          style={{ backgroundColor: '#dc2626', color: '#ffffff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
+        >
+          🚪 Keluar
+        </button>
+      </div>
+
+      <div style={{ maxWidth: '650px', margin: '0 auto', backgroundColor: '#ffffff', borderRadius: '24px', padding: '28px', boxShadow: '0 10px 25px rgba(0,0,0,0.06)', border: '1px solid #b5d8b6' }}>
         
         {/* HEADER PORTAL SISWA */}
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
@@ -213,24 +273,28 @@ export default function PortalSiswa() {
         {/* TAB MENU FORM */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '24px', backgroundColor: '#f3f4f6', padding: '6px', borderRadius: '14px' }}>
           <button
+            type="button"
             onClick={() => setTab('curhat')}
             style={{ padding: '10px 4px', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backgroundColor: tab === 'curhat' ? '#1b3b2b' : 'transparent', color: tab === 'curhat' ? '#ffffff' : '#4b5563', transition: '0.2s' }}
           >
             💬 Curhat
           </button>
           <button
+            type="button"
             onClick={() => setTab('izin')}
             style={{ padding: '10px 4px', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backgroundColor: tab === 'izin' ? '#1b3b2b' : 'transparent', color: tab === 'izin' ? '#ffffff' : '#4b5563', transition: '0.2s' }}
           >
             🏥 Izin/Sakit
           </button>
           <button
+            type="button"
             onClick={() => setTab('konseling')}
             style={{ padding: '10px 4px', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backgroundColor: tab === 'konseling' ? '#1b3b2b' : 'transparent', color: tab === 'konseling' ? '#ffffff' : '#4b5563', transition: '0.2s' }}
           >
             👤 Konseling
           </button>
           <button
+            type="button"
             onClick={() => setTab('kelompok')}
             style={{ padding: '10px 4px', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backgroundColor: tab === 'kelompok' ? '#1b3b2b' : 'transparent', color: tab === 'kelompok' ? '#ffffff' : '#4b5563', transition: '0.2s' }}
           >
@@ -284,7 +348,7 @@ export default function PortalSiswa() {
           </form>
         )}
 
-        {/* FORM 2: SURAT IZIN / SAKIT */}
+        {/* FORM 2: SURAT IZIN / SAKIT (DILENGKAPI PILIHAN SHIFT) */}
         {tab === 'izin' && (
           <form onSubmit={handleKirimIzin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div>
@@ -319,8 +383,25 @@ export default function PortalSiswa() {
               >
                 <option value="Sakit">Sakit</option>
                 <option value="Izin">Izin</option>
+                <option value="Dispensasi">Dispensasi</option>
               </select>
             </div>
+            
+            {/* INPUT SHIFT GURU PIKET */}
+            <div>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>
+                Shift Guru Piket: <span style={{ color: '#059669', fontSize: '11px' }}>(Terdeteksi otomatis)</span>
+              </label>
+              <select
+                value={formIzin.shift}
+                onChange={(e) => setFormIzin({ ...formIzin, shift: e.target.value })}
+                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #10b981', backgroundColor: '#f0fdf4', boxSizing: 'border-box', fontWeight: 'bold' }}
+              >
+                <option value="Shift Pagi">🌅 Shift Pagi (07:00 - 12:00 WIB)</option>
+                <option value="Shift Siang">☀️ Shift Siang (12:00 - 16:00 WIB)</option>
+              </select>
+            </div>
+
             <div>
               <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Tanggal Tidak Hadir:</label>
               <input

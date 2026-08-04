@@ -65,6 +65,32 @@ const PRESET_PELANGGARAN_GERBANG = [
 ];
 
 export default function DashboardBK() {
+  // 1. STATE UNTUK PENAMPUNG DATA LOCALSTORAGE (OSIS/MPK) & SUPABASE
+  const [dataPelanggaranLocal, setDataPelanggaranLocal] = useState<any[]>([]);
+
+  // 2. HOOK BACA LOCALSTORAGE & EVENT LISTENER
+  useEffect(() => {
+    const loadDataLocal = () => {
+      const saved = localStorage.getItem('mindguard_pelanggaran');
+      if (saved) {
+        try {
+          setDataPelanggaranLocal(JSON.parse(saved));
+        } catch (e) {
+          console.error('Gagal membaca data pelanggaran local:', e);
+        }
+      }
+    };
+
+    loadDataLocal();
+
+    window.addEventListener('storage', loadDataLocal);
+    window.addEventListener('update_pelanggaran', loadDataLocal);
+
+    return () => {
+      window.removeEventListener('storage', loadDataLocal);
+      window.removeEventListener('update_pelanggaran', loadDataLocal);
+    };
+  }, []);
 
   // STATE UNTUK PENCARIAN PELANGGARAN DI MODAL GERBANG
   const [searchPelanggaran, setSearchPelanggaran] = useState('');
@@ -87,7 +113,6 @@ export default function DashboardBK() {
   const [dataHomeVisit, setDataHomeVisit] = useState<any[]>([]);
   const [dataPanggilanOrtu, setDataPanggilanOrtu] = useState<any[]>([]);
   const [dataIzin, setDataIzin] = useState<any[]>([]);
-  const [dataSiswaPoin, setDataSiswaPoin] = useState<any[]>([]);
   const [dataLogPelanggaran, setDataLogPelanggaran] = useState<any[]>([]);
 
   // VIEW MODE UNTUK TAB PELANGGARAN
@@ -105,7 +130,7 @@ export default function DashboardBK() {
   const [showModalAddKlasikal, setShowModalAddKlasikal] = useState(false);
   const [formKlasikal, setFormKlasikal] = useState({ kelas: DAFTAR_KELAS_BK[0], materi: '', keterangan: '', tanggal: new Date().toISOString().split('T')[0] });
 
-  // MODAL STATE UNTUK OSIS / MPK / BK INPUT PELANGGARAN
+  // MODAL STATE UNTUK INPUT PELANGGARAN
   const [showModalAddPelanggaran, setShowModalAddPelanggaran] = useState(false);
   const [formPelanggaran, setFormPelanggaran] = useState({
     nama: '',
@@ -126,6 +151,35 @@ export default function DashboardBK() {
     }
 
     fetchAllData();
+  }, []);
+
+  // 🔄 GABUNGAN RIWAYAT LOG PELANGGARAN (SUPABASE + LOCALSTORAGE OSIS/MPK)
+  const combinedLogPelanggaran = sortBerurutanKelas([...dataLogPelanggaran, ...dataPelanggaranLocal]);
+
+  // 📊 AKUMULASI OTOMATIS POIN KREDIT PER SISWA
+  const rekapPoinSiswa = combinedLogPelanggaran.reduce((acc: any[], item: any) => {
+    const namaSiswa = item.nama || '';
+    const kelasSiswa = item.kelas || '';
+
+    const existing = acc.find(
+      (s) => s.nama.toLowerCase() === namaSiswa.toLowerCase() && s.kelas.toLowerCase() === kelasSiswa.toLowerCase()
+    );
+
+    const poin = Number(item.poin || item.poin_pelanggaran) || 5;
+
+    if (existing) {
+      existing.totalPoin += poin;
+      existing.jumlahKejadian += 1;
+    } else {
+      acc.push({
+        id: item.id || Math.random().toString(),
+        nama: namaSiswa,
+        kelas: kelasSiswa,
+        totalPoin: poin,
+        jumlahKejadian: 1,
+      });
+    }
+    return acc;
   }, []);
 
   // FUNGSI HELPER PENENTU STATUS SANKSI SESUAI DOKUMEN SMKBBC NO: 499/188.3-SMK.BBC/VII/2024
@@ -157,7 +211,7 @@ export default function DashboardBK() {
     showSuccess('Selamat Datang!', `Sistem siap digunakan oleh ${tempNamaGuru}`);
   };
 
-  const sortBerurutanKelas = (array: any[]) => {
+  function sortBerurutanKelas(array: any[]) {
     return [...array].sort((a, b) => {
       const kelasA = (a.kelas || '').toUpperCase();
       const kelasB = (b.kelas || '').toUpperCase();
@@ -166,7 +220,7 @@ export default function DashboardBK() {
       }
       return (a.nama || a.materi || a.topik || '').localeCompare(b.nama || b.materi || b.topik || '');
     });
-  };
+  }
 
   const fetchAllData = async () => {
     await Promise.all([
@@ -216,26 +270,10 @@ export default function DashboardBK() {
     if (data) setDataIzin(sortBerurutanKelas(data));
   };
 
-  // AKUMULASI OTOMATIS POIN KREDIT PELANGGARAN PER SISWA
   const fetchPelanggaran = async () => {
     const { data } = await supabase.from('pelanggaran').select('*').order('created_at', { ascending: false });
     if (data) {
       setDataLogPelanggaran(sortBerurutanKelas(data));
-      
-      const studentMap: { [key: string]: { nama: string; kelas: string; totalPoin: number } } = {};
-      data.forEach(item => {
-        const key = `${item.nama.trim().toLowerCase()}-${item.kelas.trim().toLowerCase()}`;
-        if (!studentMap[key]) studentMap[key] = { nama: item.nama, kelas: item.kelas, totalPoin: 0 };
-        studentMap[key].totalPoin += Number(item.poin || 0);
-      });
-      
-      const rekapArray = Object.values(studentMap).map((s, index) => ({
-        id: index.toString(),
-        nama: s.nama,
-        kelas: s.kelas,
-        totalPoin: s.totalPoin,
-      }));
-      setDataSiswaPoin(sortBerurutanKelas(rekapArray));
     }
   };
 
@@ -247,7 +285,7 @@ export default function DashboardBK() {
       ...dataHomeVisit.map(i => ({ ...i, jenisAktivitas: 'Home Visit', detail: i.alasan })),
       ...dataPanggilanOrtu.map(i => ({ ...i, jenisAktivitas: 'Pemanggilan Ortu', detail: i.alasan })),
       ...dataIzin.map(i => ({ ...i, jenisAktivitas: `Izin (${i.jenis})`, detail: i.keterangan })),
-      ...dataLogPelanggaran.map(i => ({ ...i, jenisAktivitas: `Pelanggaran (${i.role_petugas || 'Piket Gerbang'})`, detail: `${i.jenis_pelanggaran} (+${i.poin} Poin)` })),
+      ...combinedLogPelanggaran.map(i => ({ ...i, jenisAktivitas: `Pelanggaran (${i.role_petugas || 'Piket Gerbang'})`, detail: `${i.jenis_pelanggaran || i.jenis} (+${i.poin} Poin)` })),
     ];
 
     return sortBerurutanKelas(semuaAktivitas.filter(item => {
@@ -263,7 +301,7 @@ export default function DashboardBK() {
     }));
   };
 
-  const handleSimpanPelanggaran = async (e: React.FormEvent) => {
+const handleSimpanPelanggaran = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formPelanggaran.nama.trim()) {
       showError('Gagal Simpan', 'Nama Siswa yang melanggar wajib diisi!');
@@ -280,12 +318,21 @@ export default function DashboardBK() {
       tanggal: formPelanggaran.tanggal,
     };
 
+    // 🚀 KIRIM KE SUPABASE
     const { error } = await supabase.from('pelanggaran').insert([payload]);
 
     if (error) {
-      showError('Gagal Menyimpan', error.message);
+      console.error('Error Supabase:', error);
+      showError('Gagal Simpan Database', error.message);
     } else {
-      showSuccess('Pelanggaran Dicatat!', `Poin pelanggaran siswa ${formPelanggaran.nama} otomatis bertambah (+${formPelanggaran.poin} Poin).`);
+      // JUGA SIMPAN KAN KE LOCALSTORAGE AGAR OTOMATIS TERBACA REALTIME DI TAB OSIS/BK
+      const existingLocal = JSON.parse(localStorage.getItem('mindguard_pelanggaran') || '[]');
+      const newEntry = { ...payload, id: Date.now().toString(), jenis: formPelanggaran.jenis_pelanggaran, shift: formPelanggaran.role_petugas };
+      localStorage.setItem('mindguard_pelanggaran', JSON.stringify([newEntry, ...existingLocal]));
+      window.dispatchEvent(new Event('update_pelanggaran'));
+
+      showSuccess('Pelanggaran Dicatat!', `Poin pelanggaran siswa ${formPelanggaran.nama} berhasil tersimpan ke database (+${formPelanggaran.poin} Poin).`);
+      
       await fetchPelanggaran();
       setShowModalAddPelanggaran(false);
       setSearchPelanggaran('');
@@ -300,7 +347,6 @@ export default function DashboardBK() {
       });
     }
   };
-
   const handleSimpanKelompok = async (e: React.FormEvent) => {
     e.preventDefault();
     const { error } = await supabase.from('bimbingan_kelompok').insert([{ ...formKelompok, status: 'SELESAI' }]);
@@ -390,7 +436,7 @@ export default function DashboardBK() {
           </div>
           <div style={{ backgroundColor: '#fff', padding: '14px', borderRadius: '12px', border: '1px solid #b5d8b6', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
             <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 'bold' }}>🚨 PELANGGARAN GERBANG</span>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '4px', color: '#991b1b' }}>{dataLogPelanggaran.length} Catatan</div>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', marginTop: '4px', color: '#991b1b' }}>{combinedLogPelanggaran.length} Catatan</div>
           </div>
         </div>
 
@@ -686,7 +732,7 @@ export default function DashboardBK() {
             </div>
           )}
 
-          {/* TAB 8: PELANGGARAN & OSIS/MPK */}
+          {/* TAB 8: PELANGGARAN & OSIS/MPK (SUDAH TERINTEGRASI TOTAL) */}
           {tabBK === 'pelanggaran' && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
@@ -711,7 +757,7 @@ export default function DashboardBK() {
                         boxShadow: viewPelanggaranMode === 'rekap' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
                       }}
                     >
-                      📊 Rekap Poin Siswa
+                      📊 Rekap Poin Siswa ({rekapPoinSiswa.length})
                     </button>
                     <button
                       onClick={() => setViewPelanggaranMode('log_detail')}
@@ -727,7 +773,7 @@ export default function DashboardBK() {
                         boxShadow: viewPelanggaranMode === 'log_detail' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none',
                       }}
                     >
-                      📜 Riwayat Kejadian (Log)
+                      📜 Riwayat Kejadian (Log) ({combinedLogPelanggaran.length})
                     </button>
                   </div>
 
@@ -755,10 +801,10 @@ export default function DashboardBK() {
                     </tr>
                   </thead>
                   <tbody>
-                    {dataSiswaPoin.length === 0 ? (
+                    {rekapPoinSiswa.length === 0 ? (
                       <tr><td colSpan={4} style={{ padding: '16px', textAlign: 'center', color: '#6b7280' }}>Belum ada data akumulasi pelanggaran siswa.</td></tr>
                     ) : (
-                      dataSiswaPoin.map((s) => {
+                      rekapPoinSiswa.map((s) => {
                         const st = getStatusPoin(s.totalPoin);
                         return (
                           <tr key={s.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
@@ -766,7 +812,7 @@ export default function DashboardBK() {
                             <td style={{ padding: '12px 10px', fontWeight: 'bold' }}>{s.nama}</td>
                             <td style={{ padding: '12px 10px', textAlign: 'center' }}>
                               <span style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '4px 10px', borderRadius: '20px', fontWeight: 'bold' }}>
-                                {s.totalPoin} Poin
+                                {s.totalPoin} Poin ({s.jumlahKejadian}x Kejadian)
                               </span>
                             </td>
                             <td style={{ padding: '12px 10px' }}>
@@ -781,7 +827,7 @@ export default function DashboardBK() {
                   </tbody>
                 </table>
               ) : (
-                /* TAMPILAN RIWAYAT LOG DETAILED */
+                /* TAMPILAN RIWAYAT LOG DETAILED (SUPABASE + LOCALSTORAGE OSIS/MPK) */
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ backgroundColor: '#1b3b2b', color: '#fff' }}>
@@ -794,19 +840,19 @@ export default function DashboardBK() {
                     </tr>
                   </thead>
                   <tbody>
-                    {dataLogPelanggaran.length === 0 ? (
+                    {combinedLogPelanggaran.length === 0 ? (
                       <tr><td colSpan={6} style={{ padding: '16px', textAlign: 'center', color: '#6b7280' }}>Belum ada log catatan pelanggaran.</td></tr>
                     ) : (
-                      dataLogPelanggaran.map((l) => (
-                        <tr key={l.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                      combinedLogPelanggaran.map((l, idx) => (
+                        <tr key={l.id || idx} style={{ borderBottom: '1px solid #f3f4f6' }}>
                           <td style={{ padding: '12px 10px', fontSize: '11px', color: '#6b7280' }}>{l.tanggal}</td>
                           <td style={{ padding: '12px 10px', fontWeight: 'bold', color: '#1b3b2b' }}>{l.kelas}</td>
                           <td style={{ padding: '12px 10px', fontWeight: 'bold' }}>{l.nama}</td>
-                          <td style={{ padding: '12px 10px' }}>{l.jenis_pelanggaran}</td>
-                          <td style={{ padding: '12px 10px', textAlign: 'center', color: '#dc2626', fontWeight: 'bold' }}>+{l.poin}</td>
+                          <td style={{ padding: '12px 10px' }}>{l.jenis_pelanggaran || l.jenis}</td>
+                          <td style={{ padding: '12px 10px', textAlign: 'center', color: '#dc2626', fontWeight: 'bold' }}>+{l.poin || l.poin_pelanggaran}</td>
                           <td style={{ padding: '12px 10px', fontSize: '11px' }}>
                             <span style={{ backgroundColor: '#f3f4f6', padding: '3px 8px', borderRadius: '6px', fontWeight: 'bold' }}>
-                              {l.role_petugas || 'OSIS/MPK'}: {l.nama_petugas || '-'}
+                              {l.role_petugas || l.shift || 'OSIS/MPK'}: {l.nama_petugas || '-'}
                             </span>
                           </td>
                         </tr>
@@ -994,7 +1040,7 @@ export default function DashboardBK() {
         </div>
       )}
 
-      {/* MODAL INPUT PELANGGARAN KHUSUS GERBANG (DENGAN PENCARIAN / FILTER) */}
+      {/* MODAL INPUT PELANGGARAN KHUSUS GERBANG */}
       {showModalAddPelanggaran && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
           <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '18px', maxWidth: '520px', width: '90%', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)' }}>
