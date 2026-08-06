@@ -1,553 +1,378 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { showSuccess, showError } from '@/lib/swal';
+import { useRouter } from 'next/navigation';
 
-// MASTER DAFTAR KELAS RESMI SMK BUDI BAKTI CIWIDEY
-const DAFTAR_KELAS = [
-  // KELAS X
-  'X BRP 1', 'X BRP 2', 'X BRP 3', 'X BRP 4', 'X BRP 5', 'X BRP 6',
-  'X RPL 1', 'X RPL 2', 'X RPL 3', 'X RPL 4',
-  'X DKV 1', 'X DKV 2',
-
-  // KELAS XI
-  'XI BRP 1', 'XI BRP 2', 'XI BRP 3', 'XI BRP 4', 'XI BRP 5', 'XI BRP 6',
-  'XI RPL 1', 'XI RPL 2', 'XI RPL 3', 'XI RPL 4',
-  'XI DKV 1', 'XI DKV 2',
-
-  // KELAS XII
-  'XII BRP 1', 'XII BRP 2', 'XII BRP 3', 'XII BRP 4', 'XII BRP 5', 'XII BRP 6',
-  'XII RPL 1', 'XII RPL 2', 'XII RPL 3', 'XII RPL 4',
-  'XII DKV 1', 'XII DKV 2', 'XII DKV 3', 'XII DKV 4',
-];
-
-export default function PortalSiswa() {
+export default function StudentDashboardPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'curhat' | 'izin' | 'konseling' | 'kelompok'>('curhat');
-  const [loading, setLoading] = useState(false);
-  const [siswaData, setSiswaData] = useState<any>(null);
+  const [siswa, setSiswa] = useState<any>(null);
 
-  // 1. STATE FORM CURHAT ANONIM
+  // TAB NAVIGATION SISWA
+  const [activeTab, setActiveTab] = useState<'curhat' | 'izin' | 'riwayat'>('curhat');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // FORM CURHAT (DENGAN OPSIONAL ANONIM VIA EMAIL SISWA)
   const [formCurhat, setFormCurhat] = useState({
+    isAnonim: false,
+    tujuan: 'Guru BK',
     judul: '',
-    isi: '',
-    jenis: 'Guru BK',
+    pesan: ''
   });
 
-  // 2. STATE FORM IZIN / SAKIT (DILENGKAPI FITUR SHIFT)
+  // FORM IZIN / SAKIT
   const [formIzin, setFormIzin] = useState({
-    nama: '',
-    kelas: DAFTAR_KELAS[0],
     jenis: 'Sakit',
-    tanggal: new Date().toISOString().split('T')[0],
-    shift: new Date().getHours() < 12 ? 'Shift Pagi' : 'Shift Siang', // 👈 OTOMATIS SESUAI JAM
-    keterangan: '',
+    keterangan: ''
   });
+  const [previewFotoIzin, setPreviewFotoIzin] = useState<string | null>(null);
 
-  // 3. STATE FORM DAFTAR KONSELING INDIVIDUAL
-  const [formKonseling, setFormKonseling] = useState({
-    nama: '',
-    kelas: DAFTAR_KELAS[0],
-    topik: '',
-    tanggal: new Date().toISOString().split('T')[0],
-  });
+  // RIWAYAT DATA SISWA
+  const [myHistory, setMyHistory] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-  // 4. STATE FORM BIMBINGAN KELOMPOK
-  const [formKelompok, setFormKelompok] = useState({
-    kelas: DAFTAR_KELAS[0],
-    topik: '',
-    anggota: '',
-    tanggal: new Date().toISOString().split('T')[0],
-  });
+  // KAMERA REF & STATE
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // BACA DATA LOGGED IN USER SAAT HALAMAN DIBUKA
+  // VERIFIKASI SESI SISWA
   useEffect(() => {
-    const savedUser = localStorage.getItem('mindguard_user');
-    if (savedUser) {
-      try {
-        const user = JSON.parse(savedUser);
-        setSiswaData(user);
-
-        const namaUser = user.nama || '';
-        const kelasUser = user.kelas || DAFTAR_KELAS[0];
-
-        setFormIzin((prev) => ({ ...prev, nama: namaUser, kelas: kelasUser }));
-        setFormKonseling((prev) => ({ ...prev, nama: namaUser, kelas: kelasUser }));
-        setFormKelompok((prev) => ({ ...prev, kelas: kelasUser, anggota: namaUser }));
-      } catch (e) {
-        console.error('Gagal membaca data login:', e);
-      }
+    const rawSession = sessionStorage.getItem('siswa_session');
+    if (!rawSession) {
+      router.push('/'); // Tendang balik ke login jika belum login
+      return;
     }
+    const parsed = JSON.parse(rawSession);
+    setSiswa(parsed);
+    fetchMyHistory(parsed.email);
   }, []);
 
-  // LOGOUT HANDLER
   const handleLogout = () => {
-    localStorage.removeItem('mindguard_user');
-    localStorage.removeItem('mindguard_nama_guru');
-    localStorage.removeItem('mindguard_role');
-    showSuccess('Berhasil Keluar', 'Sampai jumpa kembali!');
-    router.push('/login');
+    sessionStorage.removeItem('siswa_session');
+    router.push('/');
   };
 
-  // ==========================================
-  // HANDLER 1: SUBMIT CURHAT ANONIM
-  // ==========================================
-  const handleKirimCurhat = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formCurhat.judul.trim() || !formCurhat.isi.trim()) {
-      showError('Data Belum Lengkap', 'Judul dan isi curhatan wajib diisi!');
-      return;
-    }
+  // FETCH RIWAYAT BERDASARKAN EMAIL SISWA YANG LOGIN
+  const fetchMyHistory = async (emailSiswa: string) => {
+    setIsLoadingHistory(true);
+    try {
+      const { data } = await supabase
+        .from('layanan_siswa')
+        .select('*')
+        .eq('email_siswa', emailSiswa)
+        .order('created_at', { ascending: false });
 
-    setLoading(true);
-    const { error } = await supabase.from('curhat_anonim').insert([
-      {
-        judul: formCurhat.judul.trim(),
-        isi: formCurhat.isi.trim(),
-        jenis: formCurhat.jenis,
+      setMyHistory(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  // KAMERA LOGIC
+  const startCamera = async () => {
+    setIsCameraActive(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (err) {
+      alert('Kamera browser tidak diizinkan. Silakan gunakan tombol Galeri!');
+      setIsCameraActive(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const takePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        setPreviewFotoIzin(canvas.toDataURL('image/jpeg', 0.8));
+      }
+      stopCamera();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setPreviewFotoIzin(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // SUBMIT CURHAT (ANONIM TERIKAT KE EMAIL SISWA)
+  const handleSubmitCurhat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formCurhat.judul || !formCurhat.pesan) return alert('Isi judul dan pesan curhat!');
+
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('layanan_siswa').insert([{
+        layanan: 'CURHAT',
+        nama_siswa: formCurhat.isAnonim ? 'Siswa Rahasia (Anonim)' : siswa.nama,
+        email_siswa: siswa.email, // SELALU DITERUSKAN SEBAGAI IDENTITAS RESMI DIBALIK LAYAR
+        kelas: formCurhat.isAnonim ? '-' : siswa.kelas,
+        judul_pesan: formCurhat.judul,
+        pesan: formCurhat.pesan,
+        tujuan_konselor: formCurhat.tujuan,
         status: 'TERKIRIM',
-        balasan: '',
-        tanggal: new Date().toISOString().split('T')[0],
-      },
-    ]);
+        created_at: new Date().toISOString()
+      }]);
 
-    setLoading(false);
+      if (error) throw error;
 
-    if (error) {
-      showError('Gagal Mengirim', error.message);
-    } else {
-      showSuccess('Curhatan Terkirim!', 'Curhat anonim kamu berhasil terkirim secara rahasia ke Guru BK.');
-      setFormCurhat({ judul: '', isi: '', jenis: 'Guru BK' });
+      alert(formCurhat.isAnonim ? '🔒 Curhatan Anonim berhasil dikirim! Nama disamarkan, namun terikat ke email akunmu.' : '✅ Curhatan kamu berhasil terkirim!');
+      setFormCurhat({ isAnonim: false, tujuan: 'Guru BK', judul: '', pesan: '' });
+      fetchMyHistory(siswa.email);
+    } catch (err: any) {
+      alert('❌ Error: ' + err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // ==========================================
-  // HANDLER 2: SUBMIT SURAT IZIN / SAKIT (DENGAN DUKUNGAN SHIFT PIKET)
-  // ==========================================
-  const handleKirimIzin = async (e: React.FormEvent) => {
+  // SUBMIT IZIN / SAKIT
+  const handleSubmitIzin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formIzin.nama.trim() || !formIzin.keterangan.trim()) {
-      showError('Data Belum Lengkap', 'Nama dan keterangan izin wajib diisi!');
-      return;
-    }
+    if (!formIzin.keterangan) return alert('Isi alasan izin/sakit!');
 
-    setLoading(true);
-    const payload = {
-      nama: formIzin.nama.trim(),
-      kelas: formIzin.kelas,
-      jenis: formIzin.jenis,
-      tanggal: formIzin.tanggal,
-      shift: formIzin.shift, // 👈 KUNCI FITUR: Mengirimkan Shift Pagi / Shift Siang
-      keterangan: formIzin.keterangan.trim(),
-      alasan: formIzin.keterangan.trim(),
-      status: 'PENDING',
-    };
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('layanan_siswa').insert([{
+        layanan: 'IZIN',
+        nama_siswa: siswa.nama,
+        email_siswa: siswa.email,
+        kelas: siswa.kelas,
+        jenis_izin: formIzin.jenis,
+        pesan: formIzin.keterangan,
+        foto_bukti: previewFotoIzin,
+        status: 'Menunggu Tanggapan',
+        created_at: new Date().toISOString()
+      }]);
 
-    const { error } = await supabase.from('perizinan').insert([payload]);
+      if (error) throw error;
 
-    setLoading(false);
-
-    if (error) {
-      showError('Gagal Mengirim Surat Izin', error.message);
-    } else {
-      showSuccess('Pengajuan Berhasil!', `Surat Izin terkirim ke Guru Piket (${formIzin.shift}).`);
-      setFormIzin({
-        nama: siswaData?.nama || '',
-        kelas: siswaData?.kelas || DAFTAR_KELAS[0],
-        jenis: 'Sakit',
-        tanggal: new Date().toISOString().split('T')[0],
-        shift: new Date().getHours() < 12 ? 'Shift Pagi' : 'Shift Siang',
-        keterangan: '',
-      });
+      alert('✅ Pengajuan surat izin/sakit berhasil dikirim!');
+      setFormIzin({ jenis: 'Sakit', keterangan: '' });
+      setPreviewFotoIzin(null);
+      stopCamera();
+      fetchMyHistory(siswa.email);
+    } catch (err: any) {
+      alert('❌ Error: ' + err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // ==========================================
-  // HANDLER 3: SUBMIT DAFTAR KONSELING INDIVIDUAL
-  // ==========================================
-  const handleKirimKonseling = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formKonseling.nama.trim() || !formKonseling.topik.trim()) {
-      showError('Data Belum Lengkap', 'Nama dan topik bahasan wajib diisi!');
-      return;
-    }
-
-    setLoading(true);
-    const { error } = await supabase.from('konseling_individual').insert([
-      {
-        nama: formKonseling.nama.trim(),
-        kelas: formKonseling.kelas,
-        topik: formKonseling.topik.trim(),
-        status: 'MENUNGGU KONFIRMASI',
-        tanggal: formKonseling.tanggal,
-      },
-    ]);
-
-    setLoading(false);
-
-    if (error) {
-      showError('Gagal Pendaftaran', error.message);
-    } else {
-      showSuccess('Janji Temu Terbuat!', 'Permohonan konseling individual telah masuk ke jadwal Guru BK.');
-      setFormKonseling({
-        nama: siswaData?.nama || '',
-        kelas: siswaData?.kelas || DAFTAR_KELAS[0],
-        topik: '',
-        tanggal: new Date().toISOString().split('T')[0],
-      });
-    }
-  };
-
-  // ==========================================
-  // HANDLER 4: SUBMIT BIMBINGAN KELOMPOK
-  // ==========================================
-  const handleKirimKelompok = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formKelompok.topik.trim() || !formKelompok.anggota.trim()) {
-      showError('Data Belum Lengkap', 'Topik dan daftar nama anggota wajib diisi!');
-      return;
-    }
-
-    setLoading(true);
-    const { error } = await supabase.from('bimbingan_kelompok').insert([
-      {
-        kelas: formKelompok.kelas,
-        topik: formKelompok.topik.trim(),
-        anggota: formKelompok.anggota.trim(),
-        status: 'MENUNGGU KONFIRMASI',
-        tanggal: formKelompok.tanggal,
-      },
-    ]);
-
-    setLoading(false);
-
-    if (error) {
-      showError('Gagal Pengajuan', error.message);
-    } else {
-      showSuccess('Pengajuan Berhasil!', 'Pengajuan Bimbingan Kelompok telah dikirim ke Guru BK.');
-      setFormKelompok({
-        kelas: siswaData?.kelas || DAFTAR_KELAS[0],
-        topik: '',
-        anggota: siswaData?.nama || '',
-        tanggal: new Date().toISOString().split('T')[0],
-      });
-    }
-  };
+  if (!siswa) return null;
 
   return (
-    <div style={{ backgroundColor: '#e2efda', minHeight: '100vh', fontFamily: 'sans-serif', padding: '20px', color: '#1f2937' }}>
+    <div style={{ backgroundColor: '#cbe3cd', minHeight: '100vh', fontFamily: 'sans-serif', color: '#1f2937', paddingBottom: '40px' }}>
       
-      {/* NAVBAR HEADER SISWA */}
-      <div style={{ maxWidth: '650px', margin: '0 auto 12px auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1b3b2b', color: '#ffffff', padding: '12px 20px', borderRadius: '16px' }}>
+      {/* NAVBAR DENGAN PROFIL SISWA */}
+      <nav style={{ backgroundColor: '#1b3b2b', color: '#ffffff', padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '20px' }}>👤</span>
+          <span style={{ fontSize: '24px' }}>🛡️</span>
           <div>
-            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>
-              {siswaData?.nama || 'Siswa SMK Budi Bakti'}
-            </div>
-            <div style={{ fontSize: '11px', color: '#a7f3d0' }}>
-              {siswaData?.kelas ? `Kelas: ${siswaData.kelas}` : 'Portal Resmi Siswa'}
-            </div>
+            <div style={{ fontSize: '16px', fontWeight: 'bold' }}>MindGuard - Panel Siswa</div>
+            <div style={{ fontSize: '10px', color: '#a7f3d0' }}>SMK Budi Bakti Ciwidey</div>
           </div>
         </div>
 
-        <button
-          onClick={handleLogout}
-          style={{ backgroundColor: '#dc2626', color: '#ffffff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-        >
-          🚪 Keluar
-        </button>
-      </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '12px', fontWeight: 'bold' }}>👤 {siswa.nama} ({siswa.kelas})</div>
+            <div style={{ fontSize: '10px', color: '#a7f3d0' }}>📧 {siswa.email}</div>
+          </div>
+          <button onClick={handleLogout} style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+            🚪 Keluar
+          </button>
+        </div>
+      </nav>
 
-      <div style={{ maxWidth: '650px', margin: '0 auto', backgroundColor: '#ffffff', borderRadius: '24px', padding: '28px', boxShadow: '0 10px 25px rgba(0,0,0,0.06)', border: '1px solid #b5d8b6' }}>
+      {/* MAIN CONTENT */}
+      <main style={{ maxWidth: '650px', margin: '20px auto', padding: '0 12px' }}>
         
-        {/* HEADER PORTAL SISWA */}
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <span style={{ fontSize: '40px' }}>🏫</span>
-          <h2 style={{ margin: '8px 0 4px 0', color: '#1b3b2b', fontSize: '22px' }}>Portal Layanan Siswa BK</h2>
-          <p style={{ margin: 0, fontSize: '13px', color: '#4b5563', fontWeight: '500' }}>SMK Budi Bakti Ciwidey • MindGuard System</p>
-        </div>
-
-        {/* TAB MENU FORM */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginBottom: '24px', backgroundColor: '#f3f4f6', padding: '6px', borderRadius: '14px' }}>
-          <button
-            type="button"
-            onClick={() => setTab('curhat')}
-            style={{ padding: '10px 4px', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backgroundColor: tab === 'curhat' ? '#1b3b2b' : 'transparent', color: tab === 'curhat' ? '#ffffff' : '#4b5563', transition: '0.2s' }}
-          >
-            💬 Curhat
+        {/* TAB BUTTONS */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+          <button onClick={() => setActiveTab('curhat')} style={{ padding: '12px 6px', borderRadius: '12px', border: 'none', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', backgroundColor: activeTab === 'curhat' ? '#1b3b2b' : '#ffffff', color: activeTab === 'curhat' ? '#ffffff' : '#1b3b2b' }}>
+            💭 Curhat Siswa
           </button>
-          <button
-            type="button"
-            onClick={() => setTab('izin')}
-            style={{ padding: '10px 4px', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backgroundColor: tab === 'izin' ? '#1b3b2b' : 'transparent', color: tab === 'izin' ? '#ffffff' : '#4b5563', transition: '0.2s' }}
-          >
-            🏥 Izin/Sakit
+          <button onClick={() => setActiveTab('izin')} style={{ padding: '12px 6px', borderRadius: '12px', border: 'none', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', backgroundColor: activeTab === 'izin' ? '#1b3b2b' : '#ffffff', color: activeTab === 'izin' ? '#ffffff' : '#1b3b2b' }}>
+            📝 Surat Izin/Sakit
           </button>
-          <button
-            type="button"
-            onClick={() => setTab('konseling')}
-            style={{ padding: '10px 4px', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backgroundColor: tab === 'konseling' ? '#1b3b2b' : 'transparent', color: tab === 'konseling' ? '#ffffff' : '#4b5563', transition: '0.2s' }}
-          >
-            👤 Konseling
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('kelompok')}
-            style={{ padding: '10px 4px', border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', backgroundColor: tab === 'kelompok' ? '#1b3b2b' : 'transparent', color: tab === 'kelompok' ? '#ffffff' : '#4b5563', transition: '0.2s' }}
-          >
-            👥 Kelompok
+          <button onClick={() => setActiveTab('riwayat')} style={{ padding: '12px 6px', borderRadius: '12px', border: 'none', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', backgroundColor: activeTab === 'riwayat' ? '#1b3b2b' : '#ffffff', color: activeTab === 'riwayat' ? '#ffffff' : '#1b3b2b' }}>
+            📜 Riwayat Saya ({myHistory.length})
           </button>
         </div>
 
-        {/* FORM 1: CURHAT ANONIM */}
-        {tab === 'curhat' && (
-          <form onSubmit={handleKirimCurhat} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Judul Curhatan:</label>
-              <input
-                required
-                type="text"
-                placeholder="Misal: Cemas Menghadapi Ujian / Masalah Pertemanan"
-                value={formCurhat.judul}
-                onChange={(e) => setFormCurhat({ ...formCurhat, judul: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Tujuan Layanan Konseling:</label>
-              <select
-                value={formCurhat.jenis}
-                onChange={(e) => setFormCurhat({ ...formCurhat, jenis: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-              >
-                <option value="Guru BK">Guru BK / Konselor Sekolah</option>
-                <option value="Peer Konseling">Peer Konseling (Konselor Teman Sebaya)</option>
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Isi Curhatan (Rahasia & Anonim):</label>
-              <textarea
-                required
-                rows={5}
-                placeholder="Ceritakan apa yang kamu rasakan secara terbuka di sini..."
-                value={formCurhat.isi}
-                onChange={(e) => setFormCurhat({ ...formCurhat, isi: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-              />
-            </div>
-            <button
-              disabled={loading}
-              type="submit"
-              style={{ backgroundColor: '#1b3b2b', color: '#fff', border: 'none', padding: '12px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', marginTop: '6px', fontSize: '14px' }}
-            >
-              {loading ? 'Mengirim...' : '🚀 Kirim Curhatan (Anonim)'}
-            </button>
-          </form>
+        {/* TAB 1: FORM CURHAT */}
+        {activeTab === 'curhat' && (
+          <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '18px', border: '1px solid #b5d8b6' }}>
+            <h3 style={{ margin: '0 0 4px 0', color: '#1b3b2b', fontSize: '16px' }}>💭 Kirim Curhatan / Konseling</h3>
+            <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 14px 0' }}>Sampaikan apa yang sedang kamu rasakan pada Guru BK atau OSIS.</p>
+
+            <form onSubmit={handleSubmitCurhat} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              
+              {/* OPSI ANONIM VIA EMAIL SISWA */}
+              <div style={{ backgroundColor: '#f0fdf4', padding: '12px', borderRadius: '12px', border: '1.5px solid #bbf7d0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <input
+                    type="checkbox"
+                    id="anonim"
+                    checked={formCurhat.isAnonim}
+                    onChange={(e) => setFormCurhat({ ...formCurhat, isAnonim: e.target.checked })}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  <label htmlFor="anonim" style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534', cursor: 'pointer' }}>
+                    🔒 Kirim Secara Anonim (Sembunyikan Nama Kamu)
+                  </label>
+                </div>
+                <p style={{ margin: 0, fontSize: '10px', color: '#15803d', paddingLeft: '26px', lineHeight: '1.4' }}>
+                  Nama dan kelas kamu akan disamarkan menjadi <i>"Siswa Rahasia"</i> di laporan, tetapi curhatan ini tetap resmi terhubung ke Email Siswa kamu (<code>{siswa.email}</code>).
+                </p>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>Tujuan Konselor:</label>
+                <select value={formCurhat.tujuan} onChange={(e) => setFormCurhat({ ...formCurhat, tujuan: e.target.value })} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '12px', backgroundColor: '#fff' }}>
+                  <option value="Guru BK">👩‍🏫 Guru BK (Bu Hj Eli, S.Pd)</option>
+                  <option value="Peer Konseling OSIS">🤝 Peer Counselor OSIS</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>Judul Masalah:</label>
+                <input type="text" required placeholder="Judul singkat..." value={formCurhat.judul} onChange={(e) => setFormCurhat({ ...formCurhat, judul: e.target.value })} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '12px', boxSizing: 'border-box' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>Isi Curhatan Detail:</label>
+                <textarea required rows={4} placeholder="Tuliskan curhatanmu..." value={formCurhat.pesan} onChange={(e) => setFormCurhat({ ...formCurhat, pesan: e.target.value })} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '12px', boxSizing: 'border-box', resize: 'vertical' }} />
+              </div>
+
+              <button type="submit" disabled={isSubmitting} style={{ padding: '11px', backgroundColor: '#1b3b2b', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
+                {isSubmitting ? '⌛ Mengirim...' : '🚀 Kirim Curhatan'}
+              </button>
+            </form>
+          </div>
         )}
 
-        {/* FORM 2: SURAT IZIN / SAKIT (DILENGKAPI PILIHAN SHIFT) */}
-        {tab === 'izin' && (
-          <form onSubmit={handleKirimIzin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Pilih Kelas:</label>
-              <select
-                value={formIzin.kelas}
-                onChange={(e) => setFormIzin({ ...formIzin, kelas: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box', fontWeight: 'bold' }}
-              >
-                {DAFTAR_KELAS.map((k) => (
-                  <option key={k} value={k}>{k}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Nama Lengkap Siswa:</label>
-              <input
-                required
-                type="text"
-                placeholder="Nama sesuai presensi kelas"
-                value={formIzin.nama}
-                onChange={(e) => setFormIzin({ ...formIzin, nama: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Jenis Ketidakhadiran:</label>
-              <select
-                value={formIzin.jenis}
-                onChange={(e) => setFormIzin({ ...formIzin, jenis: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-              >
-                <option value="Sakit">Sakit</option>
-                <option value="Izin">Izin</option>
-                <option value="Dispensasi">Dispensasi</option>
-              </select>
-            </div>
-            
-            {/* INPUT SHIFT GURU PIKET */}
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>
-                Shift Guru Piket: <span style={{ color: '#059669', fontSize: '11px' }}>(Terdeteksi otomatis)</span>
-              </label>
-              <select
-                value={formIzin.shift}
-                onChange={(e) => setFormIzin({ ...formIzin, shift: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #10b981', backgroundColor: '#f0fdf4', boxSizing: 'border-box', fontWeight: 'bold' }}
-              >
-                <option value="Shift Pagi">🌅 Shift Pagi (07:00 - 12:00 WIB)</option>
-                <option value="Shift Siang">☀️ Shift Siang (12:00 - 16:00 WIB)</option>
-              </select>
-            </div>
+        {/* TAB 2: FORM IZIN / SAKIT */}
+        {activeTab === 'izin' && (
+          <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '18px', border: '1px solid #b5d8b6' }}>
+            <h3 style={{ margin: '0 0 4px 0', color: '#1b3b2b', fontSize: '16px' }}>📝 Pengajuan Surat Izin / Sakit</h3>
+            <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 14px 0' }}>Data izin dikirim langsung menggunakan identitas akun siswa kamu.</p>
 
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Tanggal Tidak Hadir:</label>
-              <input
-                required
-                type="date"
-                value={formIzin.tanggal}
-                onChange={(e) => setFormIzin({ ...formIzin, tanggal: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Keterangan / Alasan Detail:</label>
-              <textarea
-                required
-                rows={3}
-                placeholder="Tuliskan alasan tidak dapat hadir di sekolah..."
-                value={formIzin.keterangan}
-                onChange={(e) => setFormIzin({ ...formIzin, keterangan: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-              />
-            </div>
-            <button
-              disabled={loading}
-              type="submit"
-              style={{ backgroundColor: '#1b3b2b', color: '#fff', border: 'none', padding: '12px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', marginTop: '6px', fontSize: '14px' }}
-            >
-              {loading ? 'Mengirim...' : '📩 Kirim Surat Izin / Sakit'}
-            </button>
-          </form>
+            <form onSubmit={handleSubmitIzin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>Jenis Izin:</label>
+                <select value={formIzin.jenis} onChange={(e) => setFormIzin({ ...formIzin, jenis: e.target.value })} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '12px', backgroundColor: '#fff' }}>
+                  <option value="Sakit">🤒 Sakit</option>
+                  <option value="Izin Meminta Keterangan">✉️ Izin Acara / Kepentingan</option>
+                  <option value="Dispensasi Sekolah">🏆 Dispensasi Lomba</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>Alasan / Keterangan:</label>
+                <textarea required rows={3} placeholder="Tuliskan alasan..." value={formIzin.keterangan} onChange={(e) => setFormIzin({ ...formIzin, keterangan: e.target.value })} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '12px', boxSizing: 'border-box' }} />
+              </div>
+
+              {/* FOTO / KAMERA */}
+              <div style={{ backgroundColor: '#f0fdf4', padding: '12px', borderRadius: '10px', border: '1.5px dashed #059669' }}>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#065f46', marginBottom: '6px' }}>📷 Lampiran Foto Dokter / Surat Izin:</label>
+                {!isCameraActive && !previewFotoIzin && (
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <label style={{ flex: 1, padding: '8px', backgroundColor: '#059669', color: '#fff', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', textAlign: 'center', cursor: 'pointer' }}>
+                      📸 Kamera HP
+                      <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} style={{ display: 'none' }} />
+                    </label>
+                    <button type="button" onClick={startCamera} style={{ flex: 1, padding: '8px', backgroundColor: '#1b3b2b', color: '#fff', borderRadius: '6px', border: 'none', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>💻 Webcam</button>
+                  </div>
+                )}
+                {isCameraActive && (
+                  <div style={{ textAlign: 'center' }}>
+                    <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '6px' }} />
+                    <button type="button" onClick={takePhoto} style={{ marginTop: '6px', backgroundColor: '#10b981', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>⚪ Ambil Foto</button>
+                  </div>
+                )}
+                {previewFotoIzin && (
+                  <div style={{ textAlign: 'center' }}>
+                    <img src={previewFotoIzin} alt="Bukti Foto" style={{ width: '100%', maxHeight: '160px', objectFit: 'contain', borderRadius: '6px', border: '2px solid #059669' }} />
+                    <button type="button" onClick={() => setPreviewFotoIzin(null)} style={{ marginTop: '4px', backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}>Hapus Foto</button>
+                  </div>
+                )}
+                <canvas ref={canvasRef} style={{ display: 'none' }} />
+              </div>
+
+              <button type="submit" disabled={isSubmitting} style={{ padding: '11px', backgroundColor: '#1b3b2b', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
+                {isSubmitting ? '⌛ Mengirim...' : '📤 Kirim Surat Izin'}
+              </button>
+            </form>
+          </div>
         )}
 
-        {/* FORM 3: DAFTAR KONSELING INDIVIDUAL */}
-        {tab === 'konseling' && (
-          <form onSubmit={handleKirimKonseling} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Pilih Kelas:</label>
-              <select
-                value={formKonseling.kelas}
-                onChange={(e) => setFormKonseling({ ...formKonseling, kelas: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box', fontWeight: 'bold' }}
-              >
-                {DAFTAR_KELAS.map((k) => (
-                  <option key={k} value={k}>{k}</option>
-                ))}
-              </select>
+        {/* TAB 3: RIWAYAT LAYANAN SAYA */}
+        {activeTab === 'riwayat' && (
+          <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '18px', border: '1px solid #b5d8b6' }}>
+            <h3 style={{ margin: '0 0 4px 0', color: '#1b3b2b', fontSize: '16px' }}>📜 Riwayat & Status Layanan Kamu</h3>
+            <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 14px 0' }}>Otomatis memuat semua pengajuan yang terikat pada email: <b>{siswa.email}</b></p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {isLoadingHistory ? (
+                <div style={{ textAlign: 'center', padding: '16px', fontSize: '12px', color: '#6b7280' }}>⌛ Memuat data...</div>
+              ) : myHistory.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '16px', color: '#9ca3af', fontSize: '12px', fontStyle: 'italic' }}>Belum ada riwayat pengajuan layanan.</div>
+              ) : (
+                myHistory.map((item) => (
+                  <div key={item.id} style={{ padding: '12px', borderRadius: '10px', border: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#2563eb', backgroundColor: '#dbeafe', padding: '2px 6px', borderRadius: '4px' }}>
+                        {item.layanan || 'LAYANAN'}
+                      </span>
+                      <span style={{ fontSize: '10px', fontWeight: 'bold', color: item.status === 'Disetujui' || item.status === 'Selesai' ? '#065f46' : '#92400e', backgroundColor: item.status === 'Disetujui' || item.status === 'Selesai' ? '#d1fae5' : '#fef3c7', padding: '2px 6px', borderRadius: '4px' }}>
+                        {item.status || 'Diproses'}
+                      </span>
+                    </div>
+
+                    <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1f2937' }}>{item.judul_pesan || item.jenis_izin}</div>
+                    <div style={{ fontSize: '11px', color: '#4b5563', margin: '2px 0 6px 0' }}>{item.pesan || item.keterangan}</div>
+
+                    {item.balasan && (
+                      <div style={{ backgroundColor: '#f0fdf4', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', marginTop: '6px', fontSize: '11px' }}>
+                        <strong style={{ color: '#166534' }}>💬 Balasan Konselor:</strong>
+                        <p style={{ margin: '2px 0 0 0', color: '#14532d' }}>"{item.balasan}"</p>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Nama Lengkap Siswa:</label>
-              <input
-                required
-                type="text"
-                placeholder="Nama lengkap kamu"
-                value={formKonseling.nama}
-                onChange={(e) => setFormKonseling({ ...formKonseling, nama: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Rencana Tanggal Konseling:</label>
-              <input
-                required
-                type="date"
-                value={formKonseling.tanggal}
-                onChange={(e) => setFormKonseling({ ...formKonseling, tanggal: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Topik Bahasan / Masalah:</label>
-              <textarea
-                required
-                rows={3}
-                placeholder="Topik atau hal yang ingin kamu konselingkan bersama Guru BK..."
-                value={formKonseling.topik}
-                onChange={(e) => setFormKonseling({ ...formKonseling, topik: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-              />
-            </div>
-            <button
-              disabled={loading}
-              type="submit"
-              style={{ backgroundColor: '#1b3b2b', color: '#fff', border: 'none', padding: '12px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', marginTop: '6px', fontSize: '14px' }}
-            >
-              {loading ? 'Mengirim...' : '🗓️ Buat Janji Konseling'}
-            </button>
-          </form>
+          </div>
         )}
 
-        {/* FORM 4: BIMBINGAN KELOMPOK */}
-        {tab === 'kelompok' && (
-          <form onSubmit={handleKirimKelompok} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Pilih Kelas:</label>
-              <select
-                value={formKelompok.kelas}
-                onChange={(e) => setFormKelompok({ ...formKelompok, kelas: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box', fontWeight: 'bold' }}
-              >
-                {DAFTAR_KELAS.map((k) => (
-                  <option key={k} value={k}>{k}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Topik Bimbingan Kelompok:</label>
-              <input
-                required
-                type="text"
-                placeholder="Misal: Diskusi Persiapan PKL / Kerjasama Tim"
-                value={formKelompok.topik}
-                onChange={(e) => setFormKelompok({ ...formKelompok, topik: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Daftar Nama Anggota Kelompok:</label>
-              <textarea
-                required
-                rows={3}
-                placeholder="Tuliskan nama-nama anggota kelompok kamu..."
-                value={formKelompok.anggota}
-                onChange={(e) => setFormKelompok({ ...formKelompok, anggota: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>Rencana Tanggal Pelaksanaan:</label>
-              <input
-                required
-                type="date"
-                value={formKelompok.tanggal}
-                onChange={(e) => setFormKelompok({ ...formKelompok, tanggal: e.target.value })}
-                style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
-              />
-            </div>
-            <button
-              disabled={loading}
-              type="submit"
-              style={{ backgroundColor: '#1b3b2b', color: '#fff', border: 'none', padding: '12px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', marginTop: '6px', fontSize: '14px' }}
-            >
-              {loading ? 'Mengirim...' : '👥 Ajukan Bimbingan Kelompok'}
-            </button>
-          </form>
-        )}
+      </main>
 
-      </div>
     </div>
   );
 }

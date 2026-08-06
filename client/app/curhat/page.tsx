@@ -1,205 +1,217 @@
 'use client';
-import { useState } from "react";
-import Link from "next/link";
 
-export default function Curhat() {
-  // State untuk mengontrol pop-up modal
-  const [showModal, setShowModal] = useState(false);
-  const [judul, setJudul] = useState("");
-  const [isi, setIsi] = useState("");
+import { useState } from 'react';
+import Sidebar from '@/components/Sidebar';
+import { supabase } from '@/lib/supabase';
 
-  const handleSubmit = (e: React.FormEvent) => {
+export default function CurhatPage() {
+  // 1. STATE INPUT FORM
+  const [nama, setNama] = useState('');
+  const [kelas, setKelas] = useState('');
+  const [judul, setJudul] = useState('');
+  const [pesan, setPesan] = useState('');
+  const [tujuan, setTujuan] = useState<'Guru BK' | 'Peer Konseling'>('Peer Konseling');
+  const [isAnonim, setIsAnonim] = useState(false);
+
+  // 2. STATE LOADING & MODAL POPUP
+  const [isLoading, setIsLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // 3. HANDLER SUBMIT CURHAT
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setShowModal(true); // Tampilkan pop-up saat tombol dikirim
+    setIsLoading(true);
+
+    // Otomatis tentukan nama & kelas jika centang 'Anonim' diaktifkan
+    const namaSiswaFinal = isAnonim || !nama.trim() ? 'Anonim' : nama;
+    const kelasFinal = isAnonim || !kelas.trim() ? '-' : kelas;
+
+    try {
+      const { error } = await supabase
+        .from('layanan_siswa')
+        .insert([
+          {
+            layanan: 'CURHAT',
+            nama_siswa: namaSiswaFinal,
+            kelas: kelasFinal,
+            judul_pesan: judul,
+            pesan: pesan,
+            topik: `[Tujuan: ${tujuan}] - ${pesan}`, // Menyimpan ringkasan agar kompatibel di tabel
+            tujuan_konselor: tujuan,
+            status: 'Perlu Respon',
+            created_at: new Date().toISOString()
+          }
+        ]);
+
+      if (error) {
+        alert('Gagal mengirim curhat: ' + error.message);
+      } else {
+        setShowSuccessModal(true);
+        // Reset Form setelah berhasil
+        setNama('');
+        setKelas('');
+        setJudul('');
+        setPesan('');
+        setIsAnonim(false);
+      }
+    } catch (err: any) {
+      alert('Terjadi kesalahan: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCloseModal = () => {
-    setShowModal(false);
-    setJudul(""); // Reset inputan
-    setIsi("");
+    setShowSuccessModal(false);
   };
 
   return (
-    <div style={{ fontFamily: "sans-serif", minHeight: "100vh", display: "flex", flexDirection: "column", backgroundColor: "#d1f2d9" }}>
-      {/* NAVBAR */}
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: "30px", padding: "15px 40px", backgroundColor: "#fff", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}>
-        <Link href="/dashboard" style={{ textDecoration: "none", color: "#000", fontSize: "14px" }}>Beranda</Link>
-        <Link href="/curhat" style={{ textDecoration: "none", color: "#000", fontSize: "14px", fontWeight: "bold" }}>Curhat Anonim</Link>
-        <Link href="/jurnal" style={{ textDecoration: "none", color: "#000", fontSize: "14px" }}>Jurnal Pribadi</Link>
-      </div>
+    <div style={{ fontFamily: 'sans-serif', minHeight: '100vh', display: 'flex', backgroundColor: '#d1f2d9' }}>
+      
+      {/* 🟢 SIDEBAR NAVIGASI PERMANEN */}
+      <Sidebar />
 
-      <div style={{ flex: 1, padding: "20px", maxWidth: "800px", margin: "0 auto", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center" }}>
+      {/* ⚪ KONTEN UTAMA */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto' }}>
         
-        {/* TOMBOL KEMBALI (DISAMAKAN PERSIS DENGAN JURNAL) */}
-        <div style={{ width: "100%", display: "flex", justifyContent: "flex-start", marginBottom: "20px" }}>
-          <Link href="/dashboard" style={{ textDecoration: "none" }}>
-            <button style={{ padding: "8px 20px", borderRadius: "20px", border: "1px solid #777", backgroundColor: "#d1f2d9", cursor: "pointer", fontSize: "14px", color: "#000", fontWeight: "bold" }}>
-              ← Kembali
-            </button>
-          </Link>
+        {/* TOP BAR */}
+        <div style={{ backgroundColor: '#ffffff', padding: '16px 30px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+          <h2 style={{ margin: 0, fontSize: '18px', color: '#1b3b2b', fontWeight: 'bold' }}>
+            💬 Layanan Curhat Siswa
+          </h2>
         </div>
 
-        {/* HEADER UTAMA */}
-        <div style={{ textAlign: "center", marginBottom: "25px", color: "#000" }}>
-          <h1 style={{ fontSize: "26px", fontWeight: "bold", margin: "0 0 8px 0", display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
-            💬 Curhat Anonim
-          </h1>
-          <p style={{ margin: 0, fontSize: "14px", color: "#4b5563" }}>Ceritakan perasaanmu tanpa takut dihakimi. Identitasmu aman di sini.</p>
-        </div>
-
-        {/* KARTU FORM */}
-        <div style={{ backgroundColor: "#fff", padding: "30px", borderRadius: "20px", border: "1px solid #777", boxShadow: "0 4px 10px rgba(0,0,0,0.05)", width: "100%", boxSizing: "border-box" }}>
-          <form onSubmit={handleSubmit}>
-            <h2 style={{ display: "flex", alignItems: "center", gap: "10px", margin: "0 0 20px 0", fontSize: "20px", color: "#1b3b2b" }}>
-              📝 Bagikan Ceritamu
-            </h2>
-
-            {/* INPUT JUDUL */}
-            <div style={{ marginBottom: "20px" }}>
-              <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold", fontSize: "14px", color: "#000" }}>
-                Judul Curhatan
-              </label>
-              <input
-                required
-                placeholder="Contoh: Hari yang lelah..."
-                value={judul}
-                onChange={(e) => setJudul(e.target.value)}
-                style={{ width: "100%", padding: "12px", borderRadius: "15px", border: "1px solid #999", boxSizing: "border-box", fontSize: "14px" }}
-              />
-            </div>
-
-            {/* TEXTAREA ISI CURHATAN */}
-            <div style={{ marginBottom: "20px" }}>
-              <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold", fontSize: "14px", color: "#000" }}>
-                Ceritakan perasaanmu
-              </label>
-              <textarea
-                required
-                placeholder="Tuliskan apa yang ada di hatimu. Tidak ada yang akan menghakimi..."
-                rows={6}
-                value={isi}
-                onChange={(e) => setIsi(e.target.value)}
-                style={{ width: "100%", padding: "12px", borderRadius: "15px", border: "1px solid #999", boxSizing: "border-box", fontSize: "14px", fontFamily: "sans-serif", resize: "vertical" }}
-              />
-            </div>
-
-            {/* PILIHAN BANTUAN */}
-            <h3 style={{ marginTop: "20px", fontSize: "16px", color: "#1b3b2b", marginBottom: "8px" }}>
-              Butuh Bantuan Profesional?
+        {/* BODY CONTENT */}
+        <div style={{ flex: 1, padding: '30px 20px', maxWidth: '800px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+          
+          <div style={{ backgroundColor: '#ffffff', padding: '28px', borderRadius: '16px', border: '1px solid #b5d8b6', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+            <h3 style={{ margin: '0 0 6px 0', color: '#1b3b2b', fontSize: '18px', fontWeight: 'bold' }}>
+              Sampaikan Keluh Kesahmu dengan Aman 🔒
             </h3>
-
-            <select style={{ width: "100%", padding: "12px", borderRadius: "15px", border: "1px solid #999", fontSize: "14px" }}>
-              <option>Peer Konseling (Gratis)</option>
-              <option>Guru BK / Konselor Sekolah</option>
-            </select>
-            <small style={{ display: "block", marginTop: "6px", color: "#666" }}>
-              *Pilih jenis bantuan yang kamu butuhkan
-            </small>
-
-            {/* TOMBOL KIRIM */}
-            <button
-              type="submit"
-              style={{
-                marginTop: "30px",
-                width: "100%",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: "8px",
-                backgroundColor: "#1b3b2b",
-                color: "#ffffff",
-                padding: "14px",
-                borderRadius: "25px",
-                border: "none",
-                fontWeight: "bold",
-                fontSize: "15px",
-                cursor: "pointer",
-                boxShadow: "0 4px 10px rgba(0,0,0,0.1)"
-              }}
-            >
-              💌 Kirim Curhat
-            </button>
-          </form>
-        </div>
-      </div>
-
-      {/* 🔮 POP-UP MODAL CONFIRMATION */}
-      {showModal && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          zIndex: 1000,
-          backdropFilter: "blur(4px)"
-        }}>
-          <div style={{
-            backgroundColor: "#ffffff",
-            padding: "32px 24px",
-            borderRadius: "20px",
-            maxWidth: "420px",
-            width: "90%",
-            textAlign: "center",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-            border: "2px solid #b5d8b6"
-          }}>
-            <div style={{ fontSize: "52px", marginBottom: "12px" }}>🕊️</div>
-            <h2 style={{ color: "#1b3b2b", margin: "0 0 10px 0", fontSize: "22px", fontWeight: "bold" }}>
-              Curhatan Berhasil Terkirim!
-            </h2>
-            <p style={{ color: "#4b5563", fontSize: "14px", lineHeight: "1.5", marginBottom: "24px" }}>
-              Terima kasih sudah berani melepaskan bebanmu. Perasaanmu valid dan identitasmu dipastikan <strong>100% aman anonim</strong>.
+            <p style={{ fontSize: '13px', color: '#4b5563', marginTop: 0, marginBottom: '20px' }}>
+              Kamu bisa memilih untuk mengirimkan cerita ini secara anonim (tanpa nama & kelas).
             </p>
 
-            <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
-              <button
-                onClick={handleCloseModal}
-                style={{
-                  backgroundColor: "#e5e7eb",
-                  color: "#374151",
-                  border: "none",
-                  padding: "10px 20px",
-                  borderRadius: "10px",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                  fontSize: "13px"
-                }}
-              >
-                Tulis Cerita Lain
-              </button>
-              <Link href="/dashboard" style={{ textDecoration: "none" }}>
-                <button
-                  style={{
-                    backgroundColor: "#1b3b2b",
-                    color: "#ffffff",
-                    border: "none",
-                    padding: "10px 20px",
-                    borderRadius: "10px",
-                    cursor: "pointer",
-                    fontWeight: "bold",
-                    fontSize: "13px"
-                  }}
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              
+              {/* PILIHAN ANONIM */}
+              <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #b5d8b6', padding: '12px 16px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  type="checkbox"
+                  id="checkboxAnonim"
+                  checked={isAnonim}
+                  onChange={(e) => setIsAnonim(e.target.checked)}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#1b3b2b' }}
+                />
+                <label htmlFor="checkboxAnonim" style={{ fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', color: '#1b3b2b' }}>
+                  🔒 Kirim Secara Anonim (Sembunyikan Nama & Kelas)
+                </label>
+              </div>
+
+              {/* INPUT NAMA & KELAS (DISEMBUNYIKAN JIKA ANONIM) */}
+              {!isAnonim && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#1b3b2b', marginBottom: '4px' }}>Nama Lengkap</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Budi Santoso"
+                      value={nama}
+                      onChange={(e) => setNama(e.target.value)}
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box', outline: 'none' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#1b3b2b', marginBottom: '4px' }}>Kelas</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: X RPL 1"
+                      value={kelas}
+                      onChange={(e) => setKelas(e.target.value)}
+                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box', outline: 'none' }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* TUJUAN KONSELOR */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#1b3b2b', marginBottom: '4px' }}>Tujuan Curhat / Konselor</label>
+                <select
+                  value={tujuan}
+                  onChange={(e) => setTujuan(e.target.value as any)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box', backgroundColor: '#fff', outline: 'none' }}
                 >
-                  Ke Beranda 🏠
-                </button>
-              </Link>
-            </div>
+                  <option value="Peer Konseling">🪷 Peer Counselor / Pengurus OSIS</option>
+                  <option value="Guru BK">🧠 Guru BK (Bimbingan Konseling)</option>
+                </select>
+              </div>
+
+              {/* JUDUL PESAN */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#1b3b2b', marginBottom: '4px' }}>Judul Pesan</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Sebutkan topik singkat curhatanmu..."
+                  value={judul}
+                  onChange={(e) => setJudul(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box', outline: 'none' }}
+                />
+              </div>
+
+              {/* ISI CURHATAN */}
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#1b3b2b', marginBottom: '4px' }}>Isi Curhatan</label>
+                <textarea
+                  required
+                  rows={5}
+                  placeholder="Ceritakan masalah atau perasaanmu secara detail di sini..."
+                  value={pesan}
+                  onChange={(e) => setPesan(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', boxSizing: 'border-box', fontSize: '13px', outline: 'none', resize: 'vertical' }}
+                />
+              </div>
+
+              {/* TOMBOL SUBMIT */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                style={{ width: '100%', backgroundColor: '#1b3b2b', color: '#ffffff', border: 'none', padding: '12px', borderRadius: '10px', fontWeight: 'bold', cursor: isLoading ? 'not-allowed' : 'pointer', fontSize: '14px', marginTop: '6px' }}
+              >
+                {isLoading ? '⏳ Memproses Pengiriman...' : '🚀 Kirim Curhatan'}
+              </button>
+            </form>
+          </div>
+
+        </div>
+
+        {/* FOOTER */}
+        <footer style={{ backgroundColor: '#1b3b2b', color: '#ffffff', textAlign: 'center', padding: '15px', marginTop: 'auto' }}>
+          <p style={{ margin: '0', fontSize: '11px', color: '#a7f3d0' }}>&copy; 2026 Ruang Tenang MindGuard - SMK Budi Bakti Ciwidey</p>
+        </footer>
+
+      </div>
+
+      {/* MODAL BERHASIL TERKIRIM */}
+      {showSuccessModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#ffffff', padding: '28px', borderRadius: '20px', maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+            <div style={{ fontSize: '40px', marginBottom: '12px' }}>🎉</div>
+            <h3 style={{ margin: '0 0 8px 0', color: '#1b3b2b' }}>Curhat Berhasil Terkirim!</h3>
+            <p style={{ fontSize: '13px', color: '#4b5563', lineHeight: '1.5', marginBottom: '20px' }}>
+              Pesan kamu sudah diteruskan ke <strong>{tujuan}</strong>. Terima kasih telah berani bercerita!
+            </p>
+            <button
+              onClick={handleCloseModal}
+              style={{ backgroundColor: '#1b3b2b', color: '#ffffff', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              Tutup
+            </button>
           </div>
         </div>
       )}
 
-      {/* FOOTER */}
-      <footer style={{ backgroundColor: "#000", color: "#fff", textAlign: "center", padding: "40px 20px", marginTop: "40px" }}>
-        <p style={{ margin: "5px 0", fontSize: "14px" }}>Ruang Tenang - Tempat Berbagi Cerita</p>
-        <p style={{ margin: "5px 0", fontSize: "14px" }}>Identitasmu aman. Semua curhat anonim</p>
-        <p style={{ margin: "15px 0 5px 0", fontSize: "14px" }}>© 2026 Ruang Tenang. Made With Z-solution</p>
-        <p style={{ margin: "0", fontWeight: "bold", fontSize: "14px" }}>SMK BUDI BAKTI CIWIDEY</p>
-      </footer>
     </div>
   );
 }

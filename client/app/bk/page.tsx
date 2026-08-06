@@ -1,4 +1,5 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { showSuccess, showError } from '@/lib/swal';
@@ -65,32 +66,11 @@ const PRESET_PELANGGARAN_GERBANG = [
 ];
 
 export default function DashboardBK() {
-  // 1. STATE UNTUK PENAMPUNG DATA LOCALSTORAGE (OSIS/MPK) & SUPABASE
+  // STATE PENAMPUNG DATA LOCALSTORAGE & SUPABASE
   const [dataPelanggaranLocal, setDataPelanggaranLocal] = useState<any[]>([]);
 
-  // 2. HOOK BACA LOCALSTORAGE & EVENT LISTENER
-  useEffect(() => {
-    const loadDataLocal = () => {
-      const saved = localStorage.getItem('mindguard_pelanggaran');
-      if (saved) {
-        try {
-          setDataPelanggaranLocal(JSON.parse(saved));
-        } catch (e) {
-          console.error('Gagal membaca data pelanggaran local:', e);
-        }
-      }
-    };
-
-    loadDataLocal();
-
-    window.addEventListener('storage', loadDataLocal);
-    window.addEventListener('update_pelanggaran', loadDataLocal);
-
-    return () => {
-      window.removeEventListener('storage', loadDataLocal);
-      window.removeEventListener('update_pelanggaran', loadDataLocal);
-    };
-  }, []);
+  // STATE UNTUK MODAL PREVIEW FOTO SURAT IZIN/SAKIT
+  const [selectedFotoPreview, setSelectedFotoPreview] = useState<string | null>(null);
 
   // STATE UNTUK PENCARIAN PELANGGARAN DI MODAL GERBANG
   const [searchPelanggaran, setSearchPelanggaran] = useState('');
@@ -142,6 +122,7 @@ export default function DashboardBK() {
     tanggal: new Date().toISOString().split('T')[0],
   });
 
+  // HOOK INISIALISASI DATA & REALTIME LISTENERS
   useEffect(() => {
     const savedNama = localStorage.getItem('mindguard_nama_guru');
     if (savedNama) {
@@ -150,7 +131,29 @@ export default function DashboardBK() {
       setShowModalNama(true);
     }
 
+    const loadDataLocal = () => {
+      const saved = localStorage.getItem('mindguard_pelanggaran');
+      if (saved) {
+        try {
+          setDataPelanggaranLocal(JSON.parse(saved));
+        } catch (e) {
+          console.error('Gagal membaca data pelanggaran local:', e);
+        }
+      }
+    };
+
+    loadDataLocal();
     fetchAllData();
+
+    window.addEventListener('storage', loadDataLocal);
+    window.addEventListener('update_pelanggaran', loadDataLocal);
+    window.addEventListener('update_perizinan', fetchAllData);
+
+    return () => {
+      window.removeEventListener('storage', loadDataLocal);
+      window.removeEventListener('update_pelanggaran', loadDataLocal);
+      window.removeEventListener('update_perizinan', fetchAllData);
+    };
   }, []);
 
   // 🔄 GABUNGAN RIWAYAT LOG PELANGGARAN (SUPABASE + LOCALSTORAGE OSIS/MPK)
@@ -301,7 +304,7 @@ export default function DashboardBK() {
     }));
   };
 
-const handleSimpanPelanggaran = async (e: React.FormEvent) => {
+  const handleSimpanPelanggaran = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formPelanggaran.nama.trim()) {
       showError('Gagal Simpan', 'Nama Siswa yang melanggar wajib diisi!');
@@ -318,14 +321,12 @@ const handleSimpanPelanggaran = async (e: React.FormEvent) => {
       tanggal: formPelanggaran.tanggal,
     };
 
-    // 🚀 KIRIM KE SUPABASE
     const { error } = await supabase.from('pelanggaran').insert([payload]);
 
     if (error) {
       console.error('Error Supabase:', error);
       showError('Gagal Simpan Database', error.message);
     } else {
-      // JUGA SIMPAN KAN KE LOCALSTORAGE AGAR OTOMATIS TERBACA REALTIME DI TAB OSIS/BK
       const existingLocal = JSON.parse(localStorage.getItem('mindguard_pelanggaran') || '[]');
       const newEntry = { ...payload, id: Date.now().toString(), jenis: formPelanggaran.jenis_pelanggaran, shift: formPelanggaran.role_petugas };
       localStorage.setItem('mindguard_pelanggaran', JSON.stringify([newEntry, ...existingLocal]));
@@ -347,6 +348,7 @@ const handleSimpanPelanggaran = async (e: React.FormEvent) => {
       });
     }
   };
+
   const handleSimpanKelompok = async (e: React.FormEvent) => {
     e.preventDefault();
     const { error } = await supabase.from('bimbingan_kelompok').insert([{ ...formKelompok, status: 'SELESAI' }]);
@@ -695,7 +697,7 @@ const handleSimpanPelanggaran = async (e: React.FormEvent) => {
             </div>
           )}
 
-          {/* TAB 7: PERIZINAN */}
+          {/* TAB 7: PERIZINAN & DOKUMEN FOTO */}
           {tabBK === 'perizinan' && (
             <div>
               <h3 style={{ margin: '0 0 12px 0', color: '#1b3b2b', fontSize: '16px' }}>🏥 Surat Izin / Dispensasi / Sakit Siswa</h3>
@@ -706,12 +708,13 @@ const handleSimpanPelanggaran = async (e: React.FormEvent) => {
                     <th style={{ padding: '10px', textAlign: 'left' }}>Nama Siswa</th>
                     <th style={{ padding: '10px', textAlign: 'left' }}>Jenis Izin</th>
                     <th style={{ padding: '10px', textAlign: 'left' }}>Tanggal</th>
-                    <th style={{ padding: '10px', textAlign: 'left', borderRadius: '0 6px 6px 0' }}>Keterangan</th>
+                    <th style={{ padding: '10px', textAlign: 'left' }}>Keterangan</th>
+                    <th style={{ padding: '10px', textAlign: 'center', borderRadius: '0 6px 6px 0' }}>Lampiran Foto</th>
                   </tr>
                 </thead>
                 <tbody>
                   {dataIzin.length === 0 ? (
-                    <tr><td colSpan={5} style={{ padding: '16px', textAlign: 'center', color: '#6b7280' }}>Belum ada catatan perizinan siswa.</td></tr>
+                    <tr><td colSpan={6} style={{ padding: '16px', textAlign: 'center', color: '#6b7280' }}>Belum ada catatan perizinan siswa.</td></tr>
                   ) : (
                     dataIzin.map((iz) => (
                       <tr key={iz.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
@@ -724,6 +727,33 @@ const handleSimpanPelanggaran = async (e: React.FormEvent) => {
                         </td>
                         <td style={{ padding: '12px 10px' }}>{iz.tanggal}</td>
                         <td style={{ padding: '12px 10px' }}>{iz.keterangan}</td>
+                        <td style={{ padding: '12px 10px', textAlign: 'center' }}>
+                          {/* 📷 TOMBOL LIHAT FOTO SURAT */}
+                          {iz.foto_url ? (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedFotoPreview(iz.foto_url)}
+                              style={{
+                                backgroundColor: '#059669',
+                                color: '#ffffff',
+                                border: 'none',
+                                padding: '5px 10px',
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                boxShadow: '0 2px 4px rgba(5, 150, 105, 0.15)'
+                              }}
+                            >
+                              📷 Lihat Surat
+                            </button>
+                          ) : (
+                            <span style={{ color: '#9ca3af', fontSize: '11px', fontStyle: 'italic' }}>Tanpa Foto</span>
+                          )}
+                        </td>
                       </tr>
                     ))
                   )}
@@ -732,7 +762,7 @@ const handleSimpanPelanggaran = async (e: React.FormEvent) => {
             </div>
           )}
 
-          {/* TAB 8: PELANGGARAN & OSIS/MPK (SUDAH TERINTEGRASI TOTAL) */}
+          {/* TAB 8: PELANGGARAN & OSIS/MPK */}
           {tabBK === 'pelanggaran' && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
@@ -827,7 +857,7 @@ const handleSimpanPelanggaran = async (e: React.FormEvent) => {
                   </tbody>
                 </table>
               ) : (
-                /* TAMPILAN RIWAYAT LOG DETAILED (SUPABASE + LOCALSTORAGE OSIS/MPK) */
+                /* TAMPILAN RIWAYAT LOG DETAILED */
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
                     <tr style={{ backgroundColor: '#1b3b2b', color: '#fff' }}>
@@ -1243,6 +1273,61 @@ const handleSimpanPelanggaran = async (e: React.FormEvent) => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🔍 MODAL PREVIEW FOTO SURAT BUKTI */}
+      {selectedFotoPreview && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '16px',
+            padding: '20px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ margin: 0, color: '#1b3b2b', fontSize: '16px', fontWeight: 'bold' }}>📄 Bukti Lampiran Surat Izin / Dokter</h3>
+              <button
+                onClick={() => setSelectedFotoPreview(null)}
+                style={{ backgroundColor: '#dc2626', color: '#ffffff', border: 'none', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ overflowY: 'auto', width: '100%', textAlign: 'center', borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: '#f9fafb', padding: '10px' }}>
+              <img
+                src={selectedFotoPreview}
+                alt="Lampiran Foto Surat"
+                style={{ maxWidth: '100%', maxHeight: '65vh', borderRadius: '8px', objectFit: 'contain' }}
+              />
+            </div>
+
+            <button
+              onClick={() => setSelectedFotoPreview(null)}
+              style={{ marginTop: '16px', backgroundColor: '#1b3b2b', color: '#ffffff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}
+            >
+              Tutup Preview
+            </button>
           </div>
         </div>
       )}

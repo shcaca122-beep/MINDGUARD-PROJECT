@@ -267,3 +267,91 @@ button{
 .swal2-popup {
   border-radius: 16px !important;
 }
+
+/* Responsive helpers for sidebar and general layout */
+.hamburger{
+  display:none;
+  position:fixed;
+  top:12px;
+  left:12px;
+  z-index:60;
+  background:#1b3b2b;
+  color:white;
+  border-radius:8px;
+  padding:8px 10px;
+  font-size:20px;
+  border:none;
+}
+
+.sidebar{
+  width:260px;
+  min-width:260px;
+  background-color:#1b3b2b;
+  color:#ffffff;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  padding:20px 15px;
+  box-shadow:4px 0 10px rgba(0,0,0,0.1);
+  position:sticky;
+  top:0;
+  height:100vh;
+  box-sizing:border-box;
+  z-index:50;
+}
+
+.sidebar .brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:35px;
+  padding:0 10px;
+}
+
+.sidebar .brand .title{ font-size:18px; font-weight:bold; color:#ffffff; letter-spacing:0.5px }
+.sidebar .brand .subtitle{ font-size:11px; color:#a7f3d0 }
+
+.sidebar nav{ display:flex; flex-direction:column; gap:8px }
+.sidebar nav a{ display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:10px; text-decoration:none; font-size:14px }
+
+.sidebar .footer{ border-top:1px solid #2d523e; padding-top:15px; padding-left:10px; padding-right:10px }
+
+/* Responsive tweaks for content blocks */
+.auth-card{ width:90%; max-width:780px; height:auto; display:flex; background:white; box-shadow:0 4px 10px rgba(0,0,0,.3); flex-direction:row; }
+.auth-left, .auth-right{ padding:24px }
+
+.quote-box{ width:90%; max-width:600px }
+.feature-grid{ display:flex; justify-content:center; gap:20px; flex-wrap:wrap }
+.feature-card{ width:calc(33% - 26px); max-width:220px; min-width:120px }
+
+/* Forms and cards should be fluid */
+.form-card{ width:95%; max-width:900px }
+.prompt-card, .mood-card{ width:95%; max-width:800px }
+
+/* Small screens */
+@media (max-width: 768px){
+  .hamburger{ display:block }
+
+  .sidebar{ position:fixed; left:-320px; top:0; height:100vh; transition: left 0.25s ease; width:260px }
+  .sidebar.open{ left:0 }
+
+  .sidebar{ box-shadow: 0 6px 20px rgba(0,0,0,0.25) }
+
+  /* Stack auth card vertically on mobile */
+  .auth-card{ flex-direction:column; width:90%; padding:16px }
+  .auth-left{ order:1 }
+  .auth-right{ order:2 }
+
+  .quote-box{ width:95% }
+
+  .home-buttons{ flex-direction:column; gap:12px }
+
+  .feature-card{ width:45% }
+
+  .navbar{ height:auto; padding:10px; justify-content:center }
+}
+
+@media (max-width: 480px){
+  .feature-card{ width:100% }
+  .feature-grid{ gap:12px }
+}
