@@ -3,6 +3,7 @@
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
 import { useState, useEffect } from 'react';
+import { ShieldCheck, RefreshCw, Send, AlertTriangle } from 'lucide-react';
 
 type MasterPelanggaranItem = {
   id?: number | string;
@@ -14,104 +15,137 @@ type MasterPelanggaranItem = {
   poin?: number | string;
 };
 
-// Fallback Master Data jika tabel di Supabase belum ada isinya / RLS aktif
-const DEFAULT_MASTER_PELANGGARAN: MasterPelanggaranItem[] = [
-  { id: 1, nama_pelanggaran: 'Terlambat Masuk Sekolah (< 15 Menit)', kategori: 'Kedisiplinan', poin: 5 },
-  { id: 2, nama_pelanggaran: 'Terlambat Masuk Sekolah (> 15 Menit)', kategori: 'Kedisiplinan', poin: 10 },
-  { id: 3, nama_pelanggaran: 'Seragam / Atribut Tidak Lengkap', kategori: 'Kerapihan', poin: 5 },
-  { id: 4, nama_pelanggaran: 'Rambut Panjang / Tidak Sesuai Aturan', kategori: 'Kerapihan', poin: 10 },
-  { id: 5, nama_pelanggaran: 'Menggunakan HP Saat KBM Tanpa Izin', kategori: 'Kedisiplinan', poin: 10 },
-  { id: 6, nama_pelanggaran: 'Cabut / Membolos Saat Jam Pelajaran', kategori: 'Kedisiplinan', poin: 15 },
-  { id: 7, nama_pelanggaran: 'Merokok / Vape di Lingkungan Sekolah', kategori: 'Pelanggaran Berat', poin: 25 },
+// Daftar Master Pelanggaran Khusus Pemeriksaan Gerbang Sekolah
+const GERBANG_MASTER_PELANGGARAN: MasterPelanggaranItem[] = [
+  { id: 1, nama_pelanggaran: 'Terlambat masuk lebih dari 10 menit', kategori: 'Keterlambatan', poin: 5 },
+  { id: 2, nama_pelanggaran: 'Datang di lingkungan sekolah tidak senonoh / tidak sesuai', kategori: 'Keterlambatan', poin: 10 },
+  { id: 3, nama_pelanggaran: 'Tidak memasukkan pakaian / Baju dikeluarkan', kategori: 'Seragam', poin: 5 },
+  { id: 4, nama_pelanggaran: 'Seragam tidak sesuai dengan ketentuan', kategori: 'Seragam', poin: 10 },
+  { id: 5, nama_pelanggaran: 'Tidak bersepatu / kaos kaki / memakai kaos kaki selain putih', kategori: 'Seragam', poin: 10 },
+  { id: 6, nama_pelanggaran: 'Seragam tidak lengkap', kategori: 'Seragam', poin: 10 },
+  { id: 7, nama_pelanggaran: 'Memakai topi bebas / selain topi sekolah', kategori: 'Seragam', poin: 10 },
+  { id: 8, nama_pelanggaran: 'Tidak memakai ikat pinggang / sabuk hitam', kategori: 'Seragam', poin: 5 },
+  { id: 9, nama_pelanggaran: 'Memakai ikat pinggang berkepala besar', kategori: 'Seragam', poin: 10 },
+  { id: 10, nama_pelanggaran: 'Memakai sweater / jaket di lingkungan sekolah', kategori: 'Seragam', poin: 10 },
+  { id: 11, nama_pelanggaran: 'Berjilbab selain warna putih / abu-abu', kategori: 'Seragam', poin: 10 },
+  { id: 12, nama_pelanggaran: 'Memakai gelang / kalung bagi laki-laki', kategori: 'Seragam', poin: 10 },
+  { id: 13, nama_pelanggaran: 'Tidak memakai Badge Lokasi / Badge OSIS', kategori: 'Seragam', poin: 5 },
+  { id: 14, nama_pelanggaran: 'Tidak memakai sepatu hitam', kategori: 'Seragam', poin: 10 },
+  { id: 15, nama_pelanggaran: 'Tidak memakai kaos dalam', kategori: 'Seragam', poin: 5 },
+  { id: 16, nama_pelanggaran: 'Siswa berhias / bersolek berlebihan', kategori: 'Kepribadian', poin: 5 },
+  { id: 17, nama_pelanggaran: 'Siswa berambut gondrong', kategori: 'Kepribadian', poin: 20 },
+  { id: 18, nama_pelanggaran: 'Siswa berambut dicat / dimode / nyentrik', kategori: 'Kepribadian', poin: 10 },
+  { id: 19, nama_pelanggaran: 'Tidak ikut upacara / atribut tidak lengkap', kategori: 'Ketertiban', poin: 10 },
 ];
-
-const normalizeMasterItem = (item: any, index: number): MasterPelanggaranItem => {
-  const rawName = item?.nama_pelanggaran || item?.nama || item?.jenis_pelanggaran || item?.jenis || `Pelanggaran ${index + 1}`;
-  const rawPoin = Number(item?.poin ?? item?.points ?? 5);
-
-  return {
-    id: item?.id ?? index + 1,
-    nama_pelanggaran: rawName,
-    nama: rawName,
-    jenis_pelanggaran: rawName,
-    jenis: rawName,
-    kategori: item?.kategori || item?.kategori_pelanggaran || 'Kedisiplinan',
-    poin: Number.isFinite(rawPoin) ? rawPoin : 5,
-  };
-};
 
 export default function OsisPage() {
   const today = new Date().toISOString().split('T')[0];
 
-  // State Form Input
   const [namaSiswa, setNamaSiswa] = useState('');
-  const [kelas, setKelas] = useState('X PPLG 1');
+  const [kelas, setKelas] = useState('');
   const [jamKejadian, setJamKejadian] = useState('07:15');
   const [namaPetugas, setNamaPetugas] = useState('');
   const [keterangan, setKeterangan] = useState('');
   const [tindakan, setTindakan] = useState('Peringatan Lisan & Binaan OSIS');
 
-  // State Master Pelanggaran
-  const [masterPelanggaranList, setMasterPelanggaranList] = useState<MasterPelanggaranItem[]>(DEFAULT_MASTER_PELANGGARAN);
-  const [selectedPelanggaran, setSelectedPelanggaran] = useState<string>(DEFAULT_MASTER_PELANGGARAN[0].nama_pelanggaran || '');
-  const [selectedKategori, setSelectedKategori] = useState<string>(DEFAULT_MASTER_PELANGGARAN[0].kategori || 'Kedisiplinan');
-  const [selectedPoin, setSelectedPoin] = useState<number>(Number(DEFAULT_MASTER_PELANGGARAN[0].poin ?? 5));
-  const [masterLoading, setMasterLoading] = useState(true);
-  const [masterSource, setMasterSource] = useState<'supabase' | 'fallback'>('fallback');
+  const [kelasOptions, setKelasOptions] = useState<string[]>([]);
+  const [siswaByKelas, setSiswaByKelas] = useState<{ [kelas: string]: string[] }>({});
 
-  // Data List & Loader
+  const [masterPelanggaranList, setMasterPelanggaranList] = useState<MasterPelanggaranItem[]>(GERBANG_MASTER_PELANGGARAN);
+  const [selectedPelanggaran, setSelectedPelanggaran] = useState<string>(GERBANG_MASTER_PELANGGARAN[0].nama_pelanggaran || '');
+  const [selectedKategori, setSelectedKategori] = useState<string>(GERBANG_MASTER_PELANGGARAN[0].kategori || 'Keterlambatan');
+  const [selectedPoin, setSelectedPoin] = useState<number>(Number(GERBANG_MASTER_PELANGGARAN[0].poin ?? 5));
+
   const [listPelanggaran, setListPelanggaran] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filterText, setFilterText] = useState('');
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Auto-fill Nama Petugas dari User Session
+  // Auto-fill Nama Petugas dan bersihkan format kelas dalam kurung pada nama sesi
   useEffect(() => {
     const sessionData = localStorage.getItem('user_session');
     if (sessionData) {
       try {
         const session = JSON.parse(sessionData);
         if (session.nama) {
-          setNamaPetugas(session.nama);
+          const cleanName = session.nama.replace(/\s*\(.*?\)\s*/g, '').trim();
+          setNamaPetugas(cleanName);
         }
-      } catch (err) {
-        console.error('Error parsing session:', err);
-      }
+      } catch (err) {}
     }
   }, []);
 
-  // 1. Fetch Master Pelanggaran dari Supabase (dengan Smart Fallback)
-  const fetchMasterPelanggaran = async () => {
-    setMasterLoading(true);
+  // Fetch dan Parse CSV DATAMURIDPROYEK.csv secara lengkap dan terurut
+  useEffect(() => {
+    fetch('/DATAMURIDPROYEK.csv')
+      .then((res) => {
+        if (!res.ok) throw new Error('File CSV tidak ditemukan di folder public');
+        return res.text();
+      })
+      .then((csvText) => {
+        const lines = csvText.split(/\r?\n/);
+        const mapSiswa: { [kelas: string]: string[] } = {};
+        const kelasSet = new Set<string>();
 
-    try {
-      const { data, error } = await supabase
-        .from('master_pelanggaran')
-        .select('*');
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          const parts = line.split(';');
+          if (parts.length >= 6) {
+            const nama = parts[4]?.trim();
+            const kls = parts[5]?.trim();
 
-      if (!error && data && data.length > 0) {
-        setMasterPelanggaranList(data);
-        // Fleksibel menangani nama kolom (nama_pelanggaran / nama / jenis)
-        const firstItem = data[0];
-        const nama = firstItem.nama_pelanggaran || firstItem.nama || firstItem.jenis_pelanggaran || 'Pelanggaran';
-        setSelectedPelanggaran(nama);
-        setSelectedKategori(firstItem.kategori || 'Kedisiplinan');
-        setSelectedPoin(firstItem.poin ?? 5);
-      } else {
-        // Jika data DB kosong atau kena RLS, gunakan default bawaan
-        setMasterPelanggaranList(DEFAULT_MASTER_PELANGGARAN);
-        setSelectedPelanggaran(DEFAULT_MASTER_PELANGGARAN[0].nama_pelanggaran);
-        setSelectedKategori(DEFAULT_MASTER_PELANGGARAN[0].kategori);
-        setSelectedPoin(DEFAULT_MASTER_PELANGGARAN[0].poin);
-      }
-    } catch (err) {
-      console.error('Error fetch master:', err);
-      setMasterPelanggaranList(DEFAULT_MASTER_PELANGGARAN);
+            if (kls && nama && kls !== 'XII') {
+              kelasSet.add(kls);
+              if (!mapSiswa[kls]) mapSiswa[kls] = [];
+              if (!mapSiswa[kls].includes(nama)) {
+                mapSiswa[kls].push(nama);
+              }
+            }
+          }
+        }
+
+        const sortedKelas = Array.from(kelasSet).sort((a, b) => {
+          const order: { [key: string]: number } = { 'X': 1, 'XI': 2, 'XII': 3 };
+          const prefixA = a.split('.')[0];
+          const prefixB = b.split('.')[0];
+          const levelA = order[prefixA] || 99;
+          const levelB = order[prefixB] || 99;
+          if (levelA !== levelB) return levelA - levelB;
+          return a.localeCompare(b, 'id', { numeric: true });
+        });
+
+        Object.keys(mapSiswa).forEach((kls) => {
+          mapSiswa[kls].sort((a, b) => a.localeCompare(b, 'id'));
+        });
+
+        setKelasOptions(sortedKelas);
+        setSiswaByKelas(mapSiswa);
+
+        if (sortedKelas.length > 0) {
+          setKelas(sortedKelas[0]);
+          if (mapSiswa[sortedKelas[0]] && mapSiswa[sortedKelas[0]].length > 0) {
+            setNamaSiswa(mapSiswa[sortedKelas[0]][0]);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error('Gagal memuat DATAMURIDPROYEK.csv:', err);
+      });
+  }, []);
+
+  const handleKelasChange = (newKelas: string) => {
+    setKelas(newKelas);
+    const listSiswaKelas = siswaByKelas[newKelas] || [];
+    if (listSiswaKelas.length > 0) {
+      setNamaSiswa(listSiswaKelas[0]);
+    } else {
+      setNamaSiswa('');
     }
   };
 
-  // 2. Fetch Catatan Pelanggaran Siswa
   const fetchPelanggaranSiswa = async () => {
     setLoading(true);
     try {
@@ -120,22 +154,17 @@ export default function OsisPage() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data) {
-        setListPelanggaran(data);
-      }
+      if (!error && data) setListPelanggaran(data);
     } catch (err) {
-      console.error('Error fetching pelanggaran:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchMasterPelanggaran();
     fetchPelanggaranSiswa();
   }, []);
 
-  // Handler saat user memilih Jenis Pelanggaran dari Dropdown
   const handleSelectPelanggaranChange = (namaPelanggaran: string) => {
     setSelectedPelanggaran(namaPelanggaran);
     const found = masterPelanggaranList.find((item) => {
@@ -144,12 +173,11 @@ export default function OsisPage() {
     });
 
     if (found) {
-      setSelectedKategori(found.kategori || 'Kedisiplinan');
-      setSelectedPoin(found.poin ?? 5);
+      setSelectedKategori(found.kategori || 'Keterlambatan');
+      setSelectedPoin(Number(found.poin ?? 5));
     }
   };
 
-  // Submit Form Input Pelanggaran
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -172,7 +200,6 @@ export default function OsisPage() {
       };
 
       const { error } = await supabase.from('pelanggaran_siswa').insert([payload]);
-
       if (error) throw error;
 
       setStatusMsg({
@@ -180,11 +207,9 @@ export default function OsisPage() {
         message: `Pelanggaran "${selectedPelanggaran}" (+${selectedPoin} Poin) atas nama ${namaSiswa} berhasil dicatat!`,
       });
 
-      setNamaSiswa('');
       setKeterangan('');
       fetchPelanggaranSiswa();
     } catch (err: any) {
-      console.error(err);
       setStatusMsg({
         type: 'error',
         message: err.message || 'Gagal menyimpan data pelanggaran.',
@@ -194,7 +219,6 @@ export default function OsisPage() {
     }
   };
 
-  // Filter Data Rekap Pelanggaran
   const filteredData = listPelanggaran.filter(
     (item) =>
       item.nama_siswa?.toLowerCase().includes(filterText.toLowerCase()) ||
@@ -204,262 +228,296 @@ export default function OsisPage() {
   );
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#d1f2d9', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <Sidebar />
-
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto' }}>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        body, html {
+          background-color: #021f18 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          overflow-x: hidden !important;
+        }
+      ` }} />
+      {/* DIPERBAIKI: Menggunakan width 100% agar simetris dan seimbang di tengah */}
+      <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         
-        {/* TOP BAR */}
-        <div style={{ backgroundColor: '#ffffff', padding: '16px 30px', borderBottom: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '22px' }}>🛡️</span>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#1b3b2b' }}>
-                Panel Kedisiplinan OSIS & MPK
-              </h2>
-              <span style={{ fontSize: '11px', color: '#64748b' }}>Pencatatan & Monitoring Pelanggaran Kedisiplinan Siswa</span>
-            </div>
-          </div>
-          <button onClick={() => { fetchMasterPelanggaran(); fetchPelanggaranSiswa(); }} style={{ backgroundColor: '#1b3b2b', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>
-            🔄 Refresh Data
-          </button>
+        {/* SIDEBAR DENGAN LATAR BELAKANG HIJAU GELAP MENYATU */}
+        <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
+          <Sidebar />
         </div>
 
-        {/* MAIN CONTENT */}
-        <div style={{ padding: '25px 30px', flex: 1 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
           
-          {statusMsg && (
-            <div style={{ padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontWeight: 'bold', fontSize: '13px', backgroundColor: statusMsg.type === 'success' ? '#dcfce7' : '#fee2e2', color: statusMsg.type === 'success' ? '#15803d' : '#991b1b', border: `1px solid ${statusMsg.type === 'success' ? '#86efac' : '#fca5a5'}` }}>
-              {statusMsg.type === 'success' ? '✅ ' : '⚠️ '} {statusMsg.message}
+          {/* TOP BAR GRADASI HIJAU GELAP ELEGAN */}
+          <div style={{ 
+            background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', 
+            color: '#ffffff', 
+            padding: '18px 30px', 
+            borderBottom: '1px solid rgba(52, 211, 153, 0.2)', 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            width: '100%',
+            boxSizing: 'border-box'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <ShieldCheck size={24} color="#34d399" />
+              <div>
+                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                  Panel Kedisiplinan OSIS & MPK (Pemeriksaan Gerbang)[cite: 12]
+                </h2>
+                <span style={{ fontSize: '11.5px', color: '#a7f3d0', fontWeight: '500' }}>Pencatatan Kedisiplinan & Atribut Siswa di Gerbang Sekolah[cite: 12]</span>
+              </div>
             </div>
-          )}
+            <button onClick={() => { fetchPelanggaranSiswa(); }} style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '9px 16px', borderRadius: '8px', color: '#ffffff', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s' }}>
+              <RefreshCw size={14} color="#34d399" />
+              <span>Refresh Data</span>
+            </button>
+          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '25px', alignItems: 'start' }}>
+          {/* MAIN CONTENT - DISIMETRISKAN KE TENGAH */}
+          <div style={{ padding: '30px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
             
-            {/* FORM CATAT PELANGGARAN SISWA */}
-            <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #cbd5e1', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
-              <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#1b3b2b', borderBottom: '2px solid #1b3b2b', paddingBottom: '8px' }}>
-                📝 Form Input Pelanggaran Siswa
-              </h3>
+            {statusMsg && (
+              <div style={{ padding: '12px 16px', borderRadius: '10px', marginBottom: '20px', fontWeight: '700', fontSize: '13px', backgroundColor: statusMsg.type === 'success' ? '#064e3b' : '#7f1d1d', color: statusMsg.type === 'success' ? '#dcfce7' : '#fee2e2', border: `1px solid ${statusMsg.type === 'success' ? '#10b981' : '#f87171'}`, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', width: '100%', boxSizing: 'border-box' }}>
+                {statusMsg.type === 'success' ? '✅ ' : '⚠️ '} {statusMsg.message}
+              </div>
+            )}
 
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {/* NAMA SISWA */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', color: '#1b3b2b', marginBottom: '5px' }}>
-                    Nama Siswa Melanggar
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Masukkan nama lengkap siswa..."
-                    value={namaSiswa}
-                    onChange={(e) => setNamaSiswa(e.target.value)}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-
-                {/* KELAS & JAM KEJADIAN */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', color: '#1b3b2b', marginBottom: '5px' }}>
-                      Kelas
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Contoh: X PPLG 1"
-                      value={kelas}
-                      onChange={(e) => setKelas(e.target.value)}
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', color: '#1b3b2b', marginBottom: '5px' }}>
-                      Jam Tiba / Kejadian
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="07:15 WIB"
-                      value={jamKejadian}
-                      onChange={(e) => setJamKejadian(e.target.value)}
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                </div>
-
-                {/* INPUT NAMA PETUGAS */}
-                <div>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 'bold', color: '#1b3b2b', marginBottom: '6px' }}>
-                    <span style={{ color: '#4c1d95' }}>👤</span> Nama Petugas
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Pengurus OSIS & MPK"
-                    value={namaPetugas}
-                    onChange={(e) => setNamaPetugas(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid #cbd5e1',
-                      fontSize: '13.5px',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                      backgroundColor: '#ffffff',
-                      color: '#1e293b'
-                    }}
-                  />
-                </div>
-
-                {/* DROPDOWN DATA MASTER */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', color: '#1b3b2b', marginBottom: '5px' }}>
-                    📌 Pilih Jenis Pelanggaran
-                  </label>
-                  <select
-                    value={selectedPelanggaran}
-                    onChange={(e) => handleSelectPelanggaranChange(e.target.value)}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #1b3b2b', fontSize: '13px', outline: 'none', backgroundColor: '#f0fdf4', color: '#166534', fontWeight: 'bold' }}
-                  >
-                    {masterPelanggaranList.map((item, index) => {
-                      const nama = item.nama_pelanggaran || item.nama || item.jenis_pelanggaran || 'Pelanggaran';
-                      return (
-                        <option key={item.id || index} value={nama}>
-                          {nama} (+{item.poin ?? 5} Poin)
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                {/* INDIKATOR POIN OTOMATIS */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', padding: '10px 14px', borderRadius: '8px' }}>
-                  <div>
-                    <span style={{ fontSize: '11px', color: '#991b1b', fontWeight: 'bold', display: 'block' }}>Kategori: {selectedKategori}</span>
-                    <span style={{ fontSize: '12px', color: '#7f1d1d', fontWeight: '600' }}>Poin Yang Akan Ditambahkan:</span>
-                  </div>
-                  <span style={{ fontSize: '18px', fontWeight: '900', color: '#dc2626', backgroundColor: '#fff', padding: '2px 10px', borderRadius: '6px', border: '1px solid #fca5a5' }}>
-                    +{selectedPoin} POIN
-                  </span>
-                </div>
-
-                {/* KETERANGAN */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', color: '#1b3b2b', marginBottom: '5px' }}>
-                    Keterangan / Detail Kejadian
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="Contoh: Tidak memakai topi saat upacara / Terlambat 20 menit karena mogok..."
-                    value={keterangan}
-                    onChange={(e) => setKeterangan(e.target.value)}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
-                  />
-                </div>
-
-                {/* SANKSI */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 'bold', color: '#1b3b2b', marginBottom: '5px' }}>
-                    Tindakan / Sanksi OSIS & MPK
-                  </label>
-                  <select
-                    value={tindakan}
-                    onChange={(e) => setTindakan(e.target.value)}
-                    style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', backgroundColor: '#fff' }}
-                  >
-                    <option value="Peringatan Lisan & Binaan OSIS">📢 Peringatan Lisan & Binaan OSIS</option>
-                    <option value="Bersih-bersih Lingkungan Sekolah">🧹 Bersih-bersih Lingkungan Sekolah</option>
-                    <option value="Tugas Baca Buku di Perpustakaan">📚 Tugas Baca Buku di Perpustakaan</option>
-                    <option value="Diserahkan ke Guru Piket / BK">⚠️ Diserahkan ke Guru Piket / BK</option>
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  style={{
-                    backgroundColor: '#1b3b2b',
-                    color: '#ffffff',
-                    padding: '12px',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    marginTop: '6px'
-                  }}
-                >
-                  {isSubmitting ? '⌛ Menyimpan...' : '💾 Simpan Data Pelanggaran'}
-                </button>
-              </form>
-            </div>
-
-            {/* TABEL / REKAP PELANGGARAN SISWA */}
-            <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #cbd5e1', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
-              <div style={{ marginBottom: '15px' }}>
-                <h3 style={{ margin: '0 0 10px 0', fontSize: '16px', color: '#1b3b2b' }}>
-                  📋 Rekap Pelanggaran Siswa
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '25px', alignItems: 'start', width: '100%', boxSizing: 'border-box' }}>
+              
+              {/* FORM CATAT PELANGGARAN SISWA */}
+              <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ecfdf5', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertTriangle size={18} color="#34d399" />
+                  Form Input Pemeriksaan Gerbang[cite: 12]
                 </h3>
-                <input
-                  type="text"
-                  placeholder="🔍 Cari nama, kelas, jenis pelanggaran, atau nama petugas..."
-                  value={filterText}
-                  onChange={(e) => setFilterText(e.target.value)}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '12.5px', outline: 'none', boxSizing: 'border-box' }}
-                />
+
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%', boxSizing: 'border-box' }}>
+                  
+                  {/* PILIH KELAS & NAMA SISWA */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
+                        Kelas & Jurusan
+                      </label>
+                      <select
+                        value={kelas}
+                        onChange={(e) => handleKelasChange(e.target.value)}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', backgroundColor: '#021f18', color: '#fff', outline: 'none', boxSizing: 'border-box' }}
+                      >
+                        {kelasOptions.map((k) => (
+                          <option key={k} value={k}>{k}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
+                        Nama Siswa Melanggar
+                      </label>
+                      <select
+                        value={namaSiswa}
+                        onChange={(e) => setNamaSiswa(e.target.value)}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', backgroundColor: '#021f18', color: '#fff', outline: 'none', boxSizing: 'border-box' }}
+                      >
+                        {(siswaByKelas[kelas] || []).map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* JAM KEJADIAN & PETUGAS */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
+                        Jam Tiba / Kejadian
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={jamKejadian}
+                        onChange={(e) => setJamKejadian(e.target.value)}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', backgroundColor: '#021f18', color: '#fff', outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
+                        Nama Petugas OSIS
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={namaPetugas}
+                        onChange={(e) => setNamaPetugas(e.target.value)}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', outline: 'none', boxSizing: 'border-box', backgroundColor: '#021f18', color: '#fff' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* DROPDOWN PELANGGARAN GERBANG */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
+                      Pilih Jenis Pelanggaran Gerbang
+                    </label>
+                    <select
+                      value={selectedPelanggaran}
+                      onChange={(e) => handleSelectPelanggaranChange(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', outline: 'none', backgroundColor: '#021f18', color: '#a7f3d0', fontWeight: '700', boxSizing: 'border-box' }}
+                    >
+                      {masterPelanggaranList.map((item, index) => {
+                        const nama = item.nama_pelanggaran || item.nama || item.jenis_pelanggaran || 'Pelanggaran';
+                        return (
+                          <option key={item.id || index} value={nama}>
+                            {nama} (+{item.poin ?? 5} Poin)
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {/* INDIKATOR POIN OTOMATIS */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(127, 29, 29, 0.3)', border: '1px solid rgba(248, 113, 113, 0.4)', padding: '10px 14px', borderRadius: '8px', width: '100%', boxSizing: 'border-box' }}>
+                    <div>
+                      <span style={{ fontSize: '11px', color: '#fca5a5', fontWeight: '700', display: 'block' }}>Kategori: {selectedKategori}</span>
+                      <span style={{ fontSize: '12px', color: '#fee2e2', fontWeight: '700' }}>Poin Yang Akan Ditambahkan:</span>
+                    </div>
+                    <span style={{ fontSize: '16px', fontWeight: '800', color: '#f87171', backgroundColor: '#021f18', padding: '2px 10px', borderRadius: '6px', border: '1px solid rgba(248, 113, 113, 0.4)' }}>
+                      +{selectedPoin} POIN
+                    </span>
+                  </div>
+
+                  {/* KETERANGAN */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
+                      Keterangan / Detail Kejadian
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="Contoh: Tidak memakai kaos kaki putih / rambut dicat..."
+                      value={keterangan}
+                      onChange={(e) => setKeterangan(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', backgroundColor: '#021f18', color: '#fff', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  {/* SANKSI */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
+                      Tindakan / Sanksi OSIS & MPK
+                    </label>
+                    <select
+                      value={tindakan}
+                      onChange={(e) => setTindakan(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', outline: 'none', backgroundColor: '#021f18', color: '#fff', boxSizing: 'border-box' }}
+                    >
+                      <option value="Peringatan Lisan & Binaan OSIS">Peringatan Lisan & Binaan OSIS</option>
+                      <option value="Penyitaan Atribut / Barang Pelanggaran">Penyitaan Atribut / Barang Pelanggaran</option>
+                      <option value="Bersih-bersih Lingkungan Sekolah">Bersih-bersih Lingkungan Sekolah</option>
+                      <option value="Diserahkan ke Guru Piket / BK">Diserahkan ke Guru Piket / BK</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    style={{
+                      background: 'linear-gradient(135deg, #059669 0%, #047857 50%, #064e3b 100%)',
+                      color: '#ffffff',
+                      padding: '12px',
+                      border: 'none',
+                      borderRadius: '10px',
+                      fontSize: '13.5px',
+                      fontWeight: '700',
+                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                      marginTop: '4px',
+                      boxShadow: '0 4px 15px rgba(5, 150, 105, 0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <Send size={15} color="#a7f3d0" />
+                    <span>{isSubmitting ? 'Menyimpan...' : 'Simpan Data Pelanggaran'}</span>
+                  </button>
+                </form>
               </div>
 
-              {loading ? (
-                <p style={{ textAlign: 'center', color: '#64748b', fontSize: '13px' }}>⌛ Memuat data...</p>
-              ) : filteredData.length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#64748b', fontSize: '13px', margin: '30px 0' }}>Belum ada pelanggaran yang dicatat.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '520px', overflowY: 'auto' }}>
-                  {filteredData.map((item) => (
-                    <div key={item.id} style={{ padding: '12px 14px', borderRadius: '8px', backgroundColor: '#f8fafc', borderLeft: '4px solid #dc2626', borderTop: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 'bold', fontSize: '13.5px', color: '#1b3b2b' }}>{item.nama_siswa}</span>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 'bold', backgroundColor: '#e2e8f0', color: '#334155', padding: '2px 8px', borderRadius: '4px' }}>
-                            {item.kelas}
-                          </span>
-                          <span style={{ fontSize: '11px', fontWeight: 'bold', backgroundColor: '#fee2e2', color: '#dc2626', padding: '2px 8px', borderRadius: '4px', border: '1px solid #fca5a5' }}>
-                            🚩 +{item.poin ?? 5} Poin
-                          </span>
+              {/* TABEL / REKAP PELANGGARAN SISWA */}
+              <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ marginBottom: '16px', width: '100%', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                    <h3 style={{ margin: 0, fontSize: '16px', color: '#ecfdf5', fontWeight: '700' }}>
+                      Rekap Pelanggaran Siswa[cite: 12]
+                    </h3>
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#a7f3d0' }}>Total: {filteredData.length} Kasus[cite: 12]</span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Cari nama, kelas, jenis pelanggaran, atau petugas..."
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', backgroundColor: '#021f18', color: '#fff', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                {loading ? (
+                  <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>Memuat data...</p>
+                ) : filteredData.length === 0 ? (
+                  <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', margin: '40px 0' }}>Belum ada pelanggaran yang dicatat.[cite: 12]</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '520px', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
+                    {filteredData.map((item) => (
+                      <div key={item.id} style={{ padding: '14px', borderRadius: '12px', backgroundColor: '#021f18', borderLeft: '4px solid #34d399', border: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                          <span style={{ fontWeight: '700', fontSize: '14px', color: '#f8fafc' }}>{item.nama_siswa}</span>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <span style={{ fontSize: '11px', fontWeight: '700', backgroundColor: '#064e3b', color: '#a7f3d0', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
+                              {item.kelas}
+                            </span>
+                            <span style={{ fontSize: '11px', fontWeight: '700', backgroundColor: '#451a03', color: '#f87171', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(248, 113, 113, 0.3)' }}>
+                              +{item.poin ?? 5} Poin[cite: 12]
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#fca5a5', marginTop: '6px' }}>
+                          ⚠️ {item.jenis_pelanggaran}
+                        </div>
+
+                        <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
+                          <strong>Waktu:</strong> {item.jam_kejadian} WIB ({item.tanggal})[cite: 12]
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+                          <strong>Detail:</strong> {item.keterangan || '-'}[cite: 12]
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#38bdf8', marginTop: '4px', fontWeight: '700' }}>
+                          Sanksi: {item.tindakan}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#cbd5e1', marginTop: '8px', textAlign: 'right', fontWeight: '700', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '6px' }}>
+                          Petugas: <span style={{ color: '#34d399' }}>{item.pencatat || 'Pengurus OSIS & MPK'}</span>[cite: 12]
                         </div>
                       </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-                      <div style={{ fontSize: '12.5px', fontWeight: 'bold', color: '#991b1b', marginTop: '6px' }}>
-                        ⚠️ {item.jenis_pelanggaran}
-                      </div>
-
-                      <div style={{ fontSize: '11.5px', color: '#475569', marginTop: '3px' }}>
-                        <strong>⏰ Waktu:</strong> {item.jam_kejadian} WIB ({item.tanggal})
-                      </div>
-                      <div style={{ fontSize: '11.5px', color: '#475569', marginTop: '2px' }}>
-                        <strong>📝 Detail:</strong> {item.keterangan || '-'}
-                      </div>
-                      <div style={{ fontSize: '11.5px', color: '#0369a1', marginTop: '4px', fontWeight: 'bold' }}>
-                        🏷️ Sanksi: {item.tindakan}
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#1e293b', marginTop: '6px', textAlign: 'right', fontWeight: '600' }}>
-                        👤 Petugas: <span style={{ color: '#166534' }}>{item.pencatat || 'Pengurus OSIS & MPK'}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
-
           </div>
-        </div>
 
-        <footer style={{ backgroundColor: '#1b3b2b', color: '#ffffff', padding: '12px', textAlign: 'center', fontSize: '11px' }}>
-          &copy; 2026 Panel Kedisiplinan OSIS & MPK MindGuard - SMK Budi Bakti Ciwidey
-        </footer>
+          <footer style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#a7f3d0', padding: '16px', textAlign: 'center', fontSize: '11.5px', borderTop: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
+            &copy; 2026 Panel Kedisiplinan OSIS & MPK MindGuard - SMK Budi Bakti Ciwidey[cite: 12]
+          </footer>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

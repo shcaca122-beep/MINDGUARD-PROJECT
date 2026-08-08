@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { Shield, Lock, Mail, Eye, EyeOff, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -78,160 +79,296 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        backgroundColor: '#d1f2d9',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-      }}
-    >
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        body, html {
+          background-color: #021f18 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          overflow-x: hidden !important;
+        }
+        @media (max-width: 768px) {
+          .login-card {
+            flex-direction: column !important;
+            max-width: 100% !important;
+            margin: 12px !important;
+            border-radius: 16px !important;
+          }
+          .login-right-panel {
+            display: none !important;
+          }
+          .login-left-panel {
+            padding: 32px 20px !important;
+          }
+        }
+      ` }} />
       <div
         style={{
-          backgroundColor: '#ffffff',
-          padding: '36px 32px',
-          borderRadius: '16px',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.06)',
-          width: '100%',
-          maxWidth: '400px',
-          textAlign: 'center',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          width: '100vw',
+          background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          padding: '16px',
+          boxSizing: 'border-box',
         }}
       >
-        {/* LOGO BRAND */}
+        {/* CARD UTAMA (RESPONSIF SPLIT SCREEN) */}
         <div
+          className="login-card"
           style={{
-            width: '56px',
-            height: '56px',
-            backgroundColor: '#1b3b2b',
-            borderRadius: '50%',
             display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            margin: '0 auto 16px',
-            fontSize: '28px',
+            flexDirection: 'row',
+            backgroundColor: 'rgba(2, 31, 24, 0.92)',
+            backdropFilter: 'blur(12px)',
+            borderRadius: '24px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
+            width: '100%',
+            maxWidth: '920px',
+            overflow: 'hidden',
+            position: 'relative',
+            border: '1px solid rgba(52, 211, 153, 0.2)',
           }}
         >
-          🛡️
-        </div>
-
-        <h2 style={{ margin: '0 0 4px 0', fontSize: '22px', fontWeight: 'bold', color: '#1b3b2b' }}>
-          MindGuard Login
-        </h2>
-        <p style={{ margin: '0 0 24px 0', fontSize: '12px', color: '#059669', fontWeight: 'bold' }}>
-          SMK Budi Bakti Ciwidey
-        </p>
-
-        {/* ALERT ERROR */}
-        {errorMsg && (
+          {/* SISI KIRI: FORM LOGIN */}
           <div
+            className="login-left-panel"
             style={{
-              backgroundColor: '#fee2e2',
-              color: '#991b1b',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              fontSize: '12px',
-              fontWeight: 'bold',
-              marginBottom: '18px',
-              border: '1px solid #fca5a5',
-              textAlign: 'left',
+              flex: 1,
+              padding: '48px 40px',
               display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              zIndex: 2,
+              boxSizing: 'border-box',
             }}
           >
-            ⚠️ {errorMsg}
-          </div>
-        )}
-
-        {/* FORM LOGIN */}
-        <form onSubmit={handleLogin} style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '6px' }}>
-              📧 Email
-            </label>
-            <input
-              type="email"
-              required
-              placeholder="Contoh: bk@smkbudibakti.sch.id"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '13px',
-                boxSizing: 'border-box',
-                outline: 'none',
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#334155', marginBottom: '6px' }}>
-              🔒 Password
-            </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                placeholder="Masukkan Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <div
                 style={{
-                  width: '100%',
-                  padding: '10px 36px 10px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '14px',
+                  width: '40px',
+                  height: '40px',
+                  backgroundColor: '#064e3b',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  color: '#34d399',
+                  border: '1px solid rgba(52, 211, 153, 0.3)',
                 }}
               >
-                {showPassword ? '🙈' : '👁️'}
-              </button>
+                <Shield size={22} />
+              </div>
+              <span style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff' }}>MindGuard</span>
             </div>
+
+            <h2 style={{ margin: '0 0 6px 0', fontSize: '24px', fontWeight: '800', color: '#ffffff' }}>
+              Masuk ke Sistem
+            </h2>
+            <p style={{ margin: '0 0 24px 0', fontSize: '13px', color: '#a7f3d0' }}>
+              Sistem Monitoring Kedisiplinan & Bimbingan Siswa
+            </p>
+
+            {/* ALERT ERROR */}
+            {errorMsg && (
+              <div
+                style={{
+                  backgroundColor: '#7f1d1d',
+                  color: '#fee2e2',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  marginBottom: '16px',
+                  border: '1px solid #f87171',
+                }}
+              >
+                ⚠️ {errorMsg}
+              </div>
+            )}
+
+            {/* FORM LOGIN */}
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
+                  Email / Akun
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Mail size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input
+                    type="email"
+                    required
+                    placeholder="nama@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px 10px 38px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(52, 211, 153, 0.3)',
+                      fontSize: '13px',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      backgroundColor: '#021f18',
+                      color: '#ffffff',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
+                  Password
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 38px 10px 38px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(52, 211, 153, 0.3)',
+                      fontSize: '13px',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      backgroundColor: '#021f18',
+                      color: '#ffffff',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#94a3b8',
+                    }}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                style={{
+                  background: 'linear-gradient(135deg, #059669 0%, #047857 50%, #064e3b 100%)',
+                  color: '#ffffff',
+                  padding: '12px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  marginTop: '10px',
+                  boxShadow: '0 4px 15px rgba(5, 150, 105, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span>{isLoading ? 'Memeriksa Akun...' : 'Masuk ke Sistem'}</span>
+                {!isLoading && <ArrowRight size={16} />}
+              </button>
+            </form>
+
+            <span style={{ marginTop: '24px', fontSize: '11px', color: '#94a3b8', textAlign: 'center' }}>
+              &copy; 2026 Z-Solution - SMK Budi Bakti Ciwidey
+            </span>
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
+          {/* SISI KANAN: PANEL BRANDING & FITUR (HIDDEN ON MOBILE) */}
+          <div
+            className="login-right-panel"
             style={{
-              backgroundColor: '#1b3b2b',
+              flex: 1.1,
+              background: 'linear-gradient(135deg, #047857 0%, #065f46 50%, #022c22 100%)',
               color: '#ffffff',
-              padding: '12px',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              marginTop: '8px',
+              padding: '48px 48px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+              borderTopLeftRadius: '140px',
+              borderBottomLeftRadius: '140px',
+              borderLeft: '1px solid rgba(52, 211, 153, 0.2)',
+              boxSizing: 'border-box',
             }}
           >
-            {isLoading ? '⌛ Memeriksa Akun...' : 'Masuk ke Sistem'}
-          </button>
-        </form>
+            {/* Ornamen Lingkaran Transparan Latar Belakang */}
+            <div
+              style={{
+                position: 'absolute',
+                right: '-60px',
+                bottom: '-60px',
+                width: '280px',
+                height: '280px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.05)',
+                zIndex: 1,
+              }}
+            />
 
-        <p style={{ marginTop: '24px', fontSize: '11px', color: '#64748b' }}>
-          &copy; 2026 Z-Solution - SMK Budi Bakti Ciwidey
-        </p>
+            <div style={{ position: 'relative', zIndex: 2 }}>
+              <span
+                style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  color: '#a7f3d0',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  display: 'inline-block',
+                  marginBottom: '16px',
+                  border: '1px solid rgba(167, 243, 208, 0.3)',
+                }}
+              >
+                SMK Budi Bakti Ciwidey
+              </span>
+
+              <h1 style={{ margin: '0 0 12px 0', fontSize: '36px', fontWeight: '900', letterSpacing: '-0.5px' }}>
+                MindGuard
+              </h1>
+              
+              <p style={{ margin: '0 0 24px 0', fontSize: '13px', lineHeight: '1.6', color: '#e2e8f0', maxWidth: '360px' }}>
+                Platform terintegrasi untuk pemantauan kedisiplinan siswa, pencatatan pelanggaran gerbang, layanan bimbingan konseling, dan perizinan sekolah secara real-time.
+              </p>
+
+              {/* DAFTAR FITUR UTAMA */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#a7f3d0' }}>
+                  <CheckCircle2 size={16} color="#34d399" />
+                  <span>Panel Khusus OSIS & MPK (Pemeriksaan Gerbang)</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#a7f3d0' }}>
+                  <CheckCircle2 size={16} color="#34d399" />
+                  <span>Monitoring Poin Pelanggaran & Guru BK</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#a7f3d0' }}>
+                  <CheckCircle2 size={16} color="#34d399" />
+                  <span>Layanan Konseling & Curhat Anonim Siswa</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
