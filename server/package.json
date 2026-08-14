@@ -11,8 +11,10 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^6.19.3",
     "@prisma/config": "^7.8.0",
+    "pg": "^8.22.0",
     "prisma": "^6.19.3"
   }
 }

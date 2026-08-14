@@ -3,8 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider = "postgresql"
 }
 
 model Siswa {
@@ -17,15 +16,24 @@ model Siswa {
 }
 
 model GuruBK {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   nama      String
   spesialis String
-  isOnline  Boolean  @default(false)
+  isOnline  Boolean @default(false)
 }
 
 model JadwalKonsul {
-  id        Int      @id @default(autoincrement())
-  hari      String
-  jam       String
-  status    String   @default("Tersedia")
+  id     Int    @id @default(autoincrement())
+  hari   String
+  jam    String
+  status String @default("Tersedia")
+}
+
+model Perizinan {
+  id           String   @id @default(uuid())
+  jenis        String   // SAKIT / IZIN
+  tanggalMulai DateTime
+  alasan       String
+  status       String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt    DateTime @default(now())
 }
