@@ -155,10 +155,10 @@ export default function KonselingBKPage() {
                 </div>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: '700', color: '#ecfdf5' }}>
-                    Total {konselingList.length} Sesi Permohonan Konseling[cite: 6]
+                    Total {konselingList.length} Sesi Permohonan Konseling
                   </div>
                   <div style={{ fontSize: '11.5px', color: '#a7f3d0' }}>
-                    Setujui atau ubah status sesi jika perjumpaan konseling telah selesai[cite: 6]
+                    Setujui atau ubah status sesi jika perjumpaan konseling telah selesai
                   </div>
                 </div>
               </div>
@@ -172,7 +172,7 @@ export default function KonselingBKPage() {
                 fontWeight: '700',
                 border: '1px solid rgba(52, 211, 153, 0.3)'
               }}>
-                Manajemen Sesi BK[cite: 6]
+                Manajemen Sesi BK
               </span>
             </div>
 
@@ -213,7 +213,7 @@ export default function KonselingBKPage() {
                           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
                             <Inbox size={28} />
                           </div>
-                          <span>Belum ada permohonan konseling individual dari siswa.[cite: 6]</span>
+                          <span>Belum ada permohonan konseling individual dari siswa.</span>
                         </td>
                       </tr>
                     ) : (
@@ -334,7 +334,7 @@ export default function KonselingBKPage() {
           </div>
 
           <footer style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#a7f3d0', padding: '16px', textAlign: 'center', fontSize: '11.5px', borderTop: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
-            &copy; 2026 Panel Bimbingan Konseling MindGuard - SMK Budi Bakti Ciwidey[cite: 6]
+            &copy; 2026 Panel Bimbingan Konseling MindGuard - SMK Budi Bakti Ciwidey
           </footer>
 
         </div>

@@ -85,7 +85,7 @@ export default function HomeVisitPage() {
               </div>
               <div>
                 <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>Pendataan Home Visit (Kunjungan Rumah)</h2>
-                <span style={{ fontSize: '12px', color: '#a7f3d0' }}>SMK Budi Bakti Ciwidey[cite: 7] • Sinkronisasi Database Real-time</span>
+                <span style={{ fontSize: '12px', color: '#a7f3d0' }}>SMK Budi Bakti Ciwidey • Sinkronisasi Database Real-time</span>
               </div>
             </div>
             <button onClick={fetchHomeVisit} style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '9px 16px', borderRadius: '10px', color: '#fff', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -100,7 +100,7 @@ export default function HomeVisitPage() {
             <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.92)', backdropFilter: 'blur(16px)', borderRadius: '18px', padding: '26px 30px', marginBottom: '28px', border: '1.5px solid rgba(52, 211, 153, 0.35)', boxShadow: '0 10px 35px rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
               <div>
                 <h3 style={{ margin: '0 0 5px 0', color: '#ecfdf5', fontSize: '16.5px', fontWeight: '800' }}>Modul Koordinasi Kunjungan Rumah</h3>
-                <p style={{ margin: 0, color: '#94a3b8', fontSize: '12.5px' }}>Pencatatan resmi pendampingan intensif bersama orang tua / wali siswa berdasarkan database server[cite: 7].</p>
+                <p style={{ margin: 0, color: '#94a3b8', fontSize: '12.5px' }}>Pencatatan resmi pendampingan intensif bersama orang tua / wali siswa berdasarkan database server.</p>
               </div>
               <button onClick={() => setShowModal(true)} style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: '#fff', border: 'none', padding: '12px 20px', borderRadius: '10px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(5, 150, 105, 0.4)' }}>
                 <Plus size={16} /> Tambah Jadwal Home Visit Baru
@@ -112,7 +112,7 @@ export default function HomeVisitPage() {
               {dataHomeVisit.length === 0 ? (
                 <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#94a3b8', background: 'rgba(2,31,24,0.6)', borderRadius: '16px', border: '1px solid rgba(52,211,153,0.2)' }}>
                   <ClipboardList size={38} color="#34d399" style={{ marginBottom: '10px', opacity: 0.8 }} />
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>Belum ada data jadwal home visit yang tersimpan di database[cite: 7].</p>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>Belum ada data jadwal home visit yang tersimpan di database.</p>
                 </div>
               ) : (
                 dataHomeVisit.map((item) => (
@@ -164,7 +164,7 @@ export default function HomeVisitPage() {
                   </div>
                   <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '12px' }}>
                     <button type="button" onClick={() => setShowModal(false)} style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: '#fff', border: '1px solid rgba(52,211,153,0.3)', padding: '10px 18px', borderRadius: '10px', fontWeight: '700', cursor: 'pointer' }}>Batal</button>
-                    <button type="submit" style={{ background: '#059669', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 12px rgba(5,150,105,0.4)' }}>Simpan ke Database[cite: 7]</button>
+                    <button type="submit" style={{ background: '#059669', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '10px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 12px rgba(5,150,105,0.4)' }}>Simpan ke Database</button>
                   </div>
                 </form>
               </div>
@@ -172,7 +172,7 @@ export default function HomeVisitPage() {
           )}
 
           <footer style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#a7f3d0', padding: '16px', textAlign: 'center', fontSize: '11.5px', borderTop: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
-            &copy; 2026 Panel Bimbingan Konseling MindGuard - SMK Budi Bakti Ciwidey[cite: 7]
+            &copy; 2026 Panel Bimbingan Konseling MindGuard - SMK Budi Bakti Ciwidey
           </footer>
         </div>
       </div>

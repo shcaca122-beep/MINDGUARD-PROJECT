@@ -91,7 +91,7 @@ export default function PanggilanOrtuPage() {
             <div class="instansi">
               <h3 style="font-size: 14px;">YAYASAN PENDIDIKAN BUDI BAKTI</h3>
               <h2 style="font-size: 18px;">SMK BUDI BAKTI CIWIDEY</h2>
-              <p style="font-size: 12px;">Terakreditasi A | Program Keahlian: TKR, TBSM, TKJ, RPL</p>
+              <p style="font-size: 12px;">Terakreditasi A | Program Keahlian:  BRP, DKV, RPL</p>
               <p style="font-size: 10.5px;">Jl. Babakan Tiga No. 99 Ciwidey - Kabupaten Bandung 40973</p>
             </div>
           </div>
@@ -157,7 +157,7 @@ export default function PanggilanOrtuPage() {
               </div>
               <div>
                 <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>Surat & Log Panggilan Orang Tua</h2>
-                <span style={{ fontSize: '12px', color: '#a7f3d0' }}>SMK Budi Bakti Ciwidey[cite: 8] • Sinkronisasi Database Real-time</span>
+                <span style={{ fontSize: '12px', color: '#a7f3d0' }}>SMK Budi Bakti Ciwidey• Sinkronisasi Database Real-time</span>
               </div>
             </div>
           </div>
@@ -169,7 +169,7 @@ export default function PanggilanOrtuPage() {
             <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.92)', backdropFilter: 'blur(16px)', borderRadius: '18px', padding: '26px 30px', marginBottom: '28px', border: '1.5px solid rgba(52, 211, 153, 0.35)', boxShadow: '0 10px 35px rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
               <div>
                 <h3 style={{ margin: '0 0 5px 0', color: '#ecfdf5', fontSize: '16.5px', fontWeight: '800' }}>Penerbitan Surat Resmi Orang Tua / Wali Siswa</h3>
-                <p style={{ margin: 0, color: '#94a3b8', fontSize: '12.5px' }}>Buat dan cetak surat undangan resmi lengkap dengan kop institusi dan logo sekolah[cite: 8].</p>
+                <p style={{ margin: 0, color: '#94a3b8', fontSize: '12.5px' }}>Buat dan cetak surat undangan resmi lengkap dengan kop institusi dan logo sekolah.</p>
               </div>
               <button onClick={() => setShowModal(true)} style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: '#fff', border: 'none', padding: '12px 20px', borderRadius: '10px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(5, 150, 105, 0.4)' }}>
                 <Plus size={16} /> Buat Surat Panggilan Ortu
@@ -181,7 +181,7 @@ export default function PanggilanOrtuPage() {
               {dataPanggilan.length === 0 ? (
                 <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#94a3b8', background: 'rgba(2,31,24,0.6)', borderRadius: '16px', border: '1px solid rgba(52,211,153,0.2)' }}>
                   <ClipboardList size={38} color="#34d399" style={{ marginBottom: '10px', opacity: 0.8 }} />
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>Belum ada surat panggilan orang tua yang diterbitkan[cite: 8].</p>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>Belum ada surat panggilan orang tua yang diterbitkan.</p>
                 </div>
               ) : (
                 dataPanggilan.map((item) => (
@@ -213,11 +213,11 @@ export default function PanggilanOrtuPage() {
                 <form onSubmit={handleSimpanPanggilan} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div>
                     <label style={{ fontSize: '12px', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '5px' }}>Nama Siswa</label>
-                    <input type="text" required value={namaSiswa} onChange={(e) => setNamaSiswa(e.target.value)} placeholder="Contoh: Budi Santoso" style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', background: '#064e3b', color: '#fff', border: '1px solid rgba(52,211,153,0.3)', boxSizing: 'border-box', outline: 'none' }} />
+                    <input type="text" required value={namaSiswa} onChange={(e) => setNamaSiswa(e.target.value)} placeholder="Contoh: gesya fikry" style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', background: '#064e3b', color: '#fff', border: '1px solid rgba(52,211,153,0.3)', boxSizing: 'border-box', outline: 'none' }} />
                   </div>
                   <div>
                     <label style={{ fontSize: '12px', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '5px' }}>Kelas</label>
-                    <input type="text" required value={kelas} onChange={(e) => setKelas(e.target.value)} placeholder="Contoh: XI TKR 2" style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', background: '#064e3b', color: '#fff', border: '1px solid rgba(52,211,153,0.3)', boxSizing: 'border-box', outline: 'none' }} />
+                    <input type="text" required value={kelas} onChange={(e) => setKelas(e.target.value)} placeholder="Contoh: XI RPL 2" style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', background: '#064e3b', color: '#fff', border: '1px solid rgba(52,211,153,0.3)', boxSizing: 'border-box', outline: 'none' }} />
                   </div>
                   <div>
                     <label style={{ fontSize: '12px', color: '#cbd5e1', fontWeight: '700', display: 'block', marginBottom: '5px' }}>Keperluan / Alasan Pemanggilan</label>
@@ -243,7 +243,7 @@ export default function PanggilanOrtuPage() {
           )}
 
           <footer style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#a7f3d0', padding: '16px', textAlign: 'center', fontSize: '11.5px', borderTop: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
-            &copy; 2026 Panel Bimbingan Konseling MindGuard - SMK Budi Bakti Ciwidey[cite: 8]
+            &copy; 2026 Panel Bimbingan Konseling MindGuard - SMK Budi Bakti Ciwidey
           </footer>
         </div>
       </div>

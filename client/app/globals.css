@@ -1,28 +1,67 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* ================= BASE RESET ================= */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: Arial, Helvetica, sans-serif;
+@theme {
+  --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
-body {
-  background: #c7e6c5;
-  min-height: 100vh;
+/* Keep reset styles in Tailwind's base layer so utilities can override them. */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  body {
+    background: #c7e6c5;
+    min-height: 100vh;
+  }
+
+  a {
+    text-decoration: none;
+    color: black;
+  }
+
+  button {
+    cursor: pointer;
+    border: none;
+  }
 }
 
-a {
-  text-decoration: none;
-  color: black;
+.admin-panel,
+.admin-panel * {
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
-button {
-  cursor: pointer;
-  border: none;
+.student-journal-page,
+.student-journal-page * {
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+@media (max-width: 768px) {
+  body:has(.sidebar-container) {
+    padding-top: 60px !important;
+  }
+
+  .admin-panel {
+    width: 100% !important;
+    flex-direction: column;
+    padding: 8px !important;
+    gap: 8px !important;
+  }
+
+  .admin-panel-sidebar {
+    width: 100% !important;
+    min-height: auto !important;
+    max-height: 42vh;
+    overflow-y: auto;
+  }
+
+  .admin-panel-main {
+    width: 100%;
+    padding: 16px !important;
+  }
 }
 
 /* ================= LAYOUT CONTAINER ================= */

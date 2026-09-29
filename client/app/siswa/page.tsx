@@ -1,377 +1,352 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
-export default function StudentDashboardPage() {
+export default function BKDashboardPage() {
   const router = useRouter();
-  const [siswa, setSiswa] = useState<any>(null);
+  const [bkUser, setBkUser] = useState<any>(null);
+  const [curhatList, setCurhatList] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState<string>('SEMUA');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // TAB NAVIGATION SISWA
-  const [activeTab, setActiveTab] = useState<'curhat' | 'izin' | 'riwayat'>('curhat');
+  // State Modal / Form Balasan Curhat
+  const [selectedCurhat, setSelectedCurhat] = useState<any>(null);
+  const [balasanText, setBalasanText] = useState<string>('');
+  const [newStatus, setNewStatus] = useState<string>('DIBALAS');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // FORM CURHAT (DENGAN OPSIONAL ANONIM VIA EMAIL SISWA)
-  const [formCurhat, setFormCurhat] = useState({
-    isAnonim: false,
-    tujuan: 'Guru BK',
-    judul: '',
-    pesan: ''
-  });
-
-  // FORM IZIN / SAKIT
-  const [formIzin, setFormIzin] = useState({
-    jenis: 'Sakit',
-    keterangan: ''
-  });
-  const [previewFotoIzin, setPreviewFotoIzin] = useState<string | null>(null);
-
-  // RIWAYAT DATA SISWA
-  const [myHistory, setMyHistory] = useState<any[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-
-  // KAMERA REF & STATE
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  // VERIFIKASI SESI SISWA
   useEffect(() => {
-    const rawSession = sessionStorage.getItem('siswa_session');
+    // Verifikasi Sesi Guru BK / Admin
+    const rawSession = sessionStorage.getItem('bk_session') || sessionStorage.getItem('admin_session');
     if (!rawSession) {
-      router.push('/'); // Tendang balik ke login jika belum login
+      router.push('/'); // Mengarahkan ke login jika belum ada sesi
       return;
     }
     const parsed = JSON.parse(rawSession);
-    setSiswa(parsed);
-    fetchMyHistory(parsed.email);
+    setBkUser(parsed);
+
+    fetchCurhatData();
   }, []);
 
+  // HANYA AMBIL DATA CURHAT (LAYANAN = 'CURHAT')
+  const fetchCurhatData = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('layanan_siswa')
+        .select('*')
+        .eq('layanan', 'CURHAT')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCurhatList(data || []);
+    } catch (err: any) {
+      console.error('Error fetching curhat:', err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleLogout = () => {
-    sessionStorage.removeItem('siswa_session');
+    sessionStorage.removeItem('bk_session');
+    sessionStorage.removeItem('admin_session');
     router.push('/');
   };
 
-  // FETCH RIWAYAT BERDASARKAN EMAIL SISWA YANG LOGIN
-  const fetchMyHistory = async (emailSiswa: string) => {
-    setIsLoadingHistory(true);
+  const handleOpenBalasModal = (item: any) => {
+    setSelectedCurhat(item);
+    setBalasanText(item.balasan || '');
+    setNewStatus(item.status === 'TERKIRIM' ? 'DIBALAS' : item.status);
+  };
+
+  const handleSaveBalasan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCurhat) return;
+
+    setIsSubmitting(true);
     try {
-      const { data } = await supabase
+      const { error } = await supabase
         .from('layanan_siswa')
-        .select('*')
-        .eq('email_siswa', emailSiswa)
-        .order('created_at', { ascending: false });
-
-      setMyHistory(data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  };
-
-  // KAMERA LOGIC
-  const startCamera = async () => {
-    setIsCameraActive(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-    } catch (err) {
-      alert('Kamera browser tidak diizinkan. Silakan gunakan tombol Galeri!');
-      setIsCameraActive(false);
-    }
-  };
-
-  const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setIsCameraActive(false);
-  };
-
-  const takePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        setPreviewFotoIzin(canvas.toDataURL('image/jpeg', 0.8));
-      }
-      stopCamera();
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setPreviewFotoIzin(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // SUBMIT CURHAT (ANONIM TERIKAT KE EMAIL SISWA)
-  const handleSubmitCurhat = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formCurhat.judul || !formCurhat.pesan) return alert('Isi judul dan pesan curhat!');
-
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabase.from('layanan_siswa').insert([{
-        layanan: 'CURHAT',
-        nama_siswa: formCurhat.isAnonim ? 'Siswa Rahasia (Anonim)' : siswa.nama,
-        email_siswa: siswa.email, // SELALU DITERUSKAN SEBAGAI IDENTITAS RESMI DIBALIK LAYAR
-        kelas: formCurhat.isAnonim ? '-' : siswa.kelas,
-        judul_pesan: formCurhat.judul,
-        pesan: formCurhat.pesan,
-        tujuan_konselor: formCurhat.tujuan,
-        status: 'TERKIRIM',
-        created_at: new Date().toISOString()
-      }]);
+        .update({
+          balasan: balasanText,
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedCurhat.id);
 
       if (error) throw error;
 
-      alert(formCurhat.isAnonim ? '🔒 Curhatan Anonim berhasil dikirim! Nama disamarkan, namun terikat ke email akunmu.' : '✅ Curhatan kamu berhasil terkirim!');
-      setFormCurhat({ isAnonim: false, tujuan: 'Guru BK', judul: '', pesan: '' });
-      fetchMyHistory(siswa.email);
+      alert('✅ Balasan berhasil disimpan!');
+      setSelectedCurhat(null);
+      setBalasanText('');
+      fetchCurhatData();
     } catch (err: any) {
-      alert('❌ Error: ' + err.message);
+      alert('❌ Gagal menyimpan balasan: ' + err.message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // SUBMIT IZIN / SAKIT
-  const handleSubmitIzin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formIzin.keterangan) return alert('Isi alasan izin/sakit!');
+  // Filter pencarian dan status
+  const filteredData = curhatList.filter((item) => {
+    const matchStatus = filterStatus === 'SEMUA' || item.status === filterStatus;
+    const matchQuery =
+      item.nama_siswa?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.judul_pesan?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.pesan?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.kelas?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabase.from('layanan_siswa').insert([{
-        layanan: 'IZIN',
-        nama_siswa: siswa.nama,
-        email_siswa: siswa.email,
-        kelas: siswa.kelas,
-        jenis_izin: formIzin.jenis,
-        pesan: formIzin.keterangan,
-        foto_bukti: previewFotoIzin,
-        status: 'Menunggu Tanggapan',
-        created_at: new Date().toISOString()
-      }]);
+    return matchStatus && matchQuery;
+  });
 
-      if (error) throw error;
+  // Hitung Statistik
+  const totalCurhat = curhatList.length;
+  const pendingCurhat = curhatList.filter((c) => c.status === 'TERKIRIM' || !c.status).length;
+  const completedCurhat = curhatList.filter((c) => c.status === 'DIBALAS' || c.status === 'SELESAI').length;
 
-      alert('✅ Pengajuan surat izin/sakit berhasil dikirim!');
-      setFormIzin({ jenis: 'Sakit', keterangan: '' });
-      setPreviewFotoIzin(null);
-      stopCamera();
-      fetchMyHistory(siswa.email);
-    } catch (err: any) {
-      alert('❌ Error: ' + err.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  if (!siswa) return null;
+  if (!bkUser) return null;
 
   return (
-    <div style={{ backgroundColor: '#cbe3cd', minHeight: '100vh', fontFamily: 'sans-serif', color: '#1f2937', paddingBottom: '40px' }}>
+    <div style={{ backgroundColor: '#f3f4f6', minHeight: '100vh', fontFamily: 'sans-serif', color: '#1f2937', paddingBottom: '40px' }}>
       
-      {/* NAVBAR DENGAN PROFIL SISWA */}
-      <nav style={{ backgroundColor: '#1b3b2b', color: '#ffffff', padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '24px' }}>🛡️</span>
+      {/* NAVBAR */}
+      <nav style={{ backgroundColor: '#1b3b2b', color: '#ffffff', padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '28px' }}>👩‍🏫</span>
           <div>
-            <div style={{ fontSize: '16px', fontWeight: 'bold' }}>MindGuard - Panel Siswa</div>
-            <div style={{ fontSize: '10px', color: '#a7f3d0' }}>SMK Budi Bakti Ciwidey</div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold' }}>MindGuard - Panel Guru BK</div>
+            <div style={{ fontSize: '11px', color: '#a7f3d0' }}>Manajemen Curhat & Konseling Siswa</div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '12px', fontWeight: 'bold' }}>👤 {siswa.nama} ({siswa.kelas})</div>
-            <div style={{ fontSize: '10px', color: '#a7f3d0' }}>📧 {siswa.email}</div>
+            <div style={{ fontSize: '13px', fontWeight: 'bold' }}>{bkUser.nama || 'Guru BK'}</div>
+            <div style={{ fontSize: '11px', color: '#a7f3d0' }}>{bkUser.email || 'Konselor'}</div>
           </div>
-          <button onClick={handleLogout} style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>
+          <button onClick={handleLogout} style={{ backgroundColor: '#dc2626', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
             🚪 Keluar
           </button>
         </div>
       </nav>
 
       {/* MAIN CONTENT */}
-      <main style={{ maxWidth: '650px', margin: '20px auto', padding: '0 12px' }}>
+      <main style={{ maxWidth: '1000px', margin: '24px auto', padding: '0 16px' }}>
         
-        {/* TAB BUTTONS */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '16px' }}>
-          <button onClick={() => setActiveTab('curhat')} style={{ padding: '12px 6px', borderRadius: '12px', border: 'none', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', backgroundColor: activeTab === 'curhat' ? '#1b3b2b' : '#ffffff', color: activeTab === 'curhat' ? '#ffffff' : '#1b3b2b' }}>
-            💭 Curhat Siswa
-          </button>
-          <button onClick={() => setActiveTab('izin')} style={{ padding: '12px 6px', borderRadius: '12px', border: 'none', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', backgroundColor: activeTab === 'izin' ? '#1b3b2b' : '#ffffff', color: activeTab === 'izin' ? '#ffffff' : '#1b3b2b' }}>
-            📝 Surat Izin/Sakit
-          </button>
-          <button onClick={() => setActiveTab('riwayat')} style={{ padding: '12px 6px', borderRadius: '12px', border: 'none', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', backgroundColor: activeTab === 'riwayat' ? '#1b3b2b' : '#ffffff', color: activeTab === 'riwayat' ? '#ffffff' : '#1b3b2b' }}>
-            📜 Riwayat Saya ({myHistory.length})
-          </button>
+        {/* STATISTIK CARDS */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+          <div style={{ backgroundColor: '#ffffff', padding: '18px', borderRadius: '14px', borderLeft: '5px solid #2563eb', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+            <div style={{ fontSize: '12px', color: '#6b7280', fontWeight: 'bold' }}>TOTAL CURHATAN</div>
+            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#1f2937', marginTop: '4px' }}>{totalCurhat}</div>
+          </div>
+
+          <div style={{ backgroundColor: '#ffffff', padding: '18px', borderRadius: '14px', borderLeft: '5px solid #d97706', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+            <div style={{ fontSize: '12px', color: '#6b7280', fontWeight: 'bold' }}>MENUNGGU TANGGAPAN</div>
+            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#d97706', marginTop: '4px' }}>{pendingCurhat}</div>
+          </div>
+
+          <div style={{ backgroundColor: '#ffffff', padding: '18px', borderRadius: '14px', borderLeft: '5px solid #16a34a', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+            <div style={{ fontSize: '12px', color: '#6b7280', fontWeight: 'bold' }}>SUDAH DIBALAS / SELESAI</div>
+            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#16a34a', marginTop: '4px' }}>{completedCurhat}</div>
+          </div>
         </div>
 
-        {/* TAB 1: FORM CURHAT */}
-        {activeTab === 'curhat' && (
-          <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '18px', border: '1px solid #b5d8b6' }}>
-            <h3 style={{ margin: '0 0 4px 0', color: '#1b3b2b', fontSize: '16px' }}>💭 Kirim Curhatan / Konseling</h3>
-            <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 14px 0' }}>Sampaikan apa yang sedang kamu rasakan pada Guru BK atau OSIS.</p>
+        {/* SEARCH & FILTER BAR */}
+        <div style={{ backgroundColor: '#ffffff', padding: '16px', borderRadius: '14px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'space-between', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="🔍 Cari nama siswa, kelas, atau isi curhat..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ flex: '1', minWidth: '240px', padding: '10px 14px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '13px' }}
+          />
 
-            <form onSubmit={handleSubmitCurhat} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              
-              {/* OPSI ANONIM VIA EMAIL SISWA */}
-              <div style={{ backgroundColor: '#f0fdf4', padding: '12px', borderRadius: '12px', border: '1.5px solid #bbf7d0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <input
-                    type="checkbox"
-                    id="anonim"
-                    checked={formCurhat.isAnonim}
-                    onChange={(e) => setFormCurhat({ ...formCurhat, isAnonim: e.target.checked })}
-                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                  />
-                  <label htmlFor="anonim" style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534', cursor: 'pointer' }}>
-                    🔒 Kirim Secara Anonim (Sembunyikan Nama Kamu)
-                  </label>
-                </div>
-                <p style={{ margin: 0, fontSize: '10px', color: '#15803d', paddingLeft: '26px', lineHeight: '1.4' }}>
-                  Nama dan kelas kamu akan disamarkan menjadi <i>"Siswa Rahasia"</i> di laporan, tetapi curhatan ini tetap resmi terhubung ke Email Siswa kamu (<code>{siswa.email}</code>).
-                </p>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>Tujuan Konselor:</label>
-                <select value={formCurhat.tujuan} onChange={(e) => setFormCurhat({ ...formCurhat, tujuan: e.target.value })} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '12px', backgroundColor: '#fff' }}>
-                  <option value="Guru BK">👩‍🏫 Guru BK (Bu Hj Eli, S.Pd)</option>
-                  <option value="Peer Konseling OSIS">🤝 Peer Counselor OSIS</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>Judul Masalah:</label>
-                <input type="text" required placeholder="Judul singkat..." value={formCurhat.judul} onChange={(e) => setFormCurhat({ ...formCurhat, judul: e.target.value })} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '12px', boxSizing: 'border-box' }} />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>Isi Curhatan Detail:</label>
-                <textarea required rows={4} placeholder="Tuliskan curhatanmu..." value={formCurhat.pesan} onChange={(e) => setFormCurhat({ ...formCurhat, pesan: e.target.value })} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '12px', boxSizing: 'border-box', resize: 'vertical' }} />
-              </div>
-
-              <button type="submit" disabled={isSubmitting} style={{ padding: '11px', backgroundColor: '#1b3b2b', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
-                {isSubmitting ? '⌛ Mengirim...' : '🚀 Kirim Curhatan'}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {['SEMUA', 'TERKIRIM', 'DIBALAS', 'SELESAI'].map((st) => (
+              <button
+                key={st}
+                onClick={() => setFilterStatus(st)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  backgroundColor: filterStatus === st ? '#1b3b2b' : '#e5e7eb',
+                  color: filterStatus === st ? '#ffffff' : '#374151'
+                }}
+              >
+                {st === 'TERKIRIM' ? 'Belum Dibalas' : st}
               </button>
-            </form>
+            ))}
           </div>
-        )}
+        </div>
 
-        {/* TAB 2: FORM IZIN / SAKIT */}
-        {activeTab === 'izin' && (
-          <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '18px', border: '1px solid #b5d8b6' }}>
-            <h3 style={{ margin: '0 0 4px 0', color: '#1b3b2b', fontSize: '16px' }}>📝 Pengajuan Surat Izin / Sakit</h3>
-            <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 14px 0' }}>Data izin dikirim langsung menggunakan identitas akun siswa kamu.</p>
-
-            <form onSubmit={handleSubmitIzin} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>Jenis Izin:</label>
-                <select value={formIzin.jenis} onChange={(e) => setFormIzin({ ...formIzin, jenis: e.target.value })} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '12px', backgroundColor: '#fff' }}>
-                  <option value="Sakit">🤒 Sakit</option>
-                  <option value="Izin Meminta Keterangan">✉️ Izin Acara / Kepentingan</option>
-                  <option value="Dispensasi Sekolah">🏆 Dispensasi Lomba</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>Alasan / Keterangan:</label>
-                <textarea required rows={3} placeholder="Tuliskan alasan..." value={formIzin.keterangan} onChange={(e) => setFormIzin({ ...formIzin, keterangan: e.target.value })} style={{ width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '12px', boxSizing: 'border-box' }} />
-              </div>
-
-              {/* FOTO / KAMERA */}
-              <div style={{ backgroundColor: '#f0fdf4', padding: '12px', borderRadius: '10px', border: '1.5px dashed #059669' }}>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#065f46', marginBottom: '6px' }}>📷 Lampiran Foto Dokter / Surat Izin:</label>
-                {!isCameraActive && !previewFotoIzin && (
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <label style={{ flex: 1, padding: '8px', backgroundColor: '#059669', color: '#fff', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', textAlign: 'center', cursor: 'pointer' }}>
-                      📸 Kamera HP
-                      <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} style={{ display: 'none' }} />
-                    </label>
-                    <button type="button" onClick={startCamera} style={{ flex: 1, padding: '8px', backgroundColor: '#1b3b2b', color: '#fff', borderRadius: '6px', border: 'none', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>💻 Webcam</button>
-                  </div>
-                )}
-                {isCameraActive && (
-                  <div style={{ textAlign: 'center' }}>
-                    <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '6px' }} />
-                    <button type="button" onClick={takePhoto} style={{ marginTop: '6px', backgroundColor: '#10b981', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}>⚪ Ambil Foto</button>
-                  </div>
-                )}
-                {previewFotoIzin && (
-                  <div style={{ textAlign: 'center' }}>
-                    <img src={previewFotoIzin} alt="Bukti Foto" style={{ width: '100%', maxHeight: '160px', objectFit: 'contain', borderRadius: '6px', border: '2px solid #059669' }} />
-                    <button type="button" onClick={() => setPreviewFotoIzin(null)} style={{ marginTop: '4px', backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}>Hapus Foto</button>
-                  </div>
-                )}
-                <canvas ref={canvasRef} style={{ display: 'none' }} />
-              </div>
-
-              <button type="submit" disabled={isSubmitting} style={{ padding: '11px', backgroundColor: '#1b3b2b', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' }}>
-                {isSubmitting ? '⌛ Mengirim...' : '📤 Kirim Surat Izin'}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* TAB 3: RIWAYAT LAYANAN SAYA */}
-        {activeTab === 'riwayat' && (
-          <div style={{ backgroundColor: '#ffffff', padding: '20px', borderRadius: '18px', border: '1px solid #b5d8b6' }}>
-            <h3 style={{ margin: '0 0 4px 0', color: '#1b3b2b', fontSize: '16px' }}>📜 Riwayat & Status Layanan Kamu</h3>
-            <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 14px 0' }}>Otomatis memuat semua pengajuan yang terikat pada email: <b>{siswa.email}</b></p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {isLoadingHistory ? (
-                <div style={{ textAlign: 'center', padding: '16px', fontSize: '12px', color: '#6b7280' }}>⌛ Memuat data...</div>
-              ) : myHistory.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '16px', color: '#9ca3af', fontSize: '12px', fontStyle: 'italic' }}>Belum ada riwayat pengajuan layanan.</div>
-              ) : (
-                myHistory.map((item) => (
-                  <div key={item.id} style={{ padding: '12px', borderRadius: '10px', border: '1px solid #e5e7eb', backgroundColor: '#f9fafb' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 'bold', color: '#2563eb', backgroundColor: '#dbeafe', padding: '2px 6px', borderRadius: '4px' }}>
-                        {item.layanan || 'LAYANAN'}
-                      </span>
-                      <span style={{ fontSize: '10px', fontWeight: 'bold', color: item.status === 'Disetujui' || item.status === 'Selesai' ? '#065f46' : '#92400e', backgroundColor: item.status === 'Disetujui' || item.status === 'Selesai' ? '#d1fae5' : '#fef3c7', padding: '2px 6px', borderRadius: '4px' }}>
-                        {item.status || 'Diproses'}
-                      </span>
-                    </div>
-
-                    <div style={{ fontWeight: 'bold', fontSize: '13px', color: '#1f2937' }}>{item.judul_pesan || item.jenis_izin}</div>
-                    <div style={{ fontSize: '11px', color: '#4b5563', margin: '2px 0 6px 0' }}>{item.pesan || item.keterangan}</div>
-
-                    {item.balasan && (
-                      <div style={{ backgroundColor: '#f0fdf4', padding: '8px', borderRadius: '6px', border: '1px solid #bbf7d0', marginTop: '6px', fontSize: '11px' }}>
-                        <strong style={{ color: '#166534' }}>💬 Balasan Konselor:</strong>
-                        <p style={{ margin: '2px 0 0 0', color: '#14532d' }}>"{item.balasan}"</p>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
+        {/* LIST CURHATAN */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {isLoading ? (
+            <div style={{ backgroundColor: '#ffffff', padding: '30px', textAlign: 'center', borderRadius: '14px', color: '#6b7280' }}>
+              ⌛ Memuat data curhatan siswa...
             </div>
-          </div>
-        )}
+          ) : filteredData.length === 0 ? (
+            <div style={{ backgroundColor: '#ffffff', padding: '30px', textAlign: 'center', borderRadius: '14px', color: '#9ca3af' }}>
+              Tidak ada data curhatan yang cocok.
+            </div>
+          ) : (
+            filteredData.map((item) => (
+              <div key={item.id} style={{ backgroundColor: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e5e7eb', boxShadow: '0 2px 4px rgba(0,0,0,0.03)' }}>
+                
+                {/* HEADER DARI CURHAT ITEM */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#111827' }}>
+                      👤 {item.nama_siswa || 'Anonim'}
+                    </span>
+                    {item.kelas && item.kelas !== '-' && (
+                      <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px', backgroundColor: '#f3f4f6', padding: '2px 8px', borderRadius: '6px' }}>
+                        {item.kelas}
+                      </span>
+                    )}
+                    <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '10px' }}>
+                      📧 {item.email_siswa}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      backgroundColor: item.status === 'DIBALAS' || item.status === 'SELESAI' ? '#d1fae5' : '#fef3c7',
+                      color: item.status === 'DIBALAS' || item.status === 'SELESAI' ? '#065f46' : '#92400e'
+                    }}>
+                      {item.status || 'TERKIRIM'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* PESAN & JUDUL CURHAT */}
+                <div style={{ backgroundColor: '#f9fafb', padding: '12px', borderRadius: '10px', marginBottom: '12px', border: '1px solid #f3f4f6' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#1e293b', marginBottom: '4px' }}>
+                    📌 {item.judul_pesan || 'Tanpa Judul'}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#334155', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
+                    {item.pesan}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '8px', textAlign: 'right' }}>
+                    Tujuan Konselor: <b>{item.tujuan_konselor || 'Guru BK'}</b> | Tanggal: {item.created_at ? new Date(item.created_at).toLocaleString('id-ID') : '-'}
+                  </div>
+                </div>
+
+                {/* DISPLAY BALASAN */}
+                {item.balasan ? (
+                  <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '12px', borderRadius: '10px', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#166534', marginBottom: '4px' }}>
+                      💬 Balasan Anda (Guru BK):
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#14532d', whiteSpace: 'pre-wrap' }}>
+                      {item.balasan}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic', marginBottom: '12px' }}>
+                    Belum ada respon untuk curhatan ini.
+                  </div>
+                )}
+
+                {/* TOMBOL AKSI */}
+                <button
+                  onClick={() => handleOpenBalasModal(item)}
+                  style={{
+                    backgroundColor: '#1b3b2b',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {item.balasan ? '✏️ Edit Balasan' : '💬 Balas Curhatan'}
+                </button>
+
+              </div>
+            ))
+          )}
+        </div>
 
       </main>
+
+      {/* MODAL RESPONS BK */}
+      {selectedCurhat && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#ffffff', width: '100%', maxWidth: '550px', borderRadius: '16px', padding: '24px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+            
+            <h3 style={{ margin: '0 0 12px 0', color: '#1b3b2b', fontSize: '18px' }}>
+              💬 Balas Curhatan Siswa
+            </h3>
+
+            <div style={{ backgroundColor: '#f8fafc', padding: '10px 14px', borderRadius: '8px', marginBottom: '14px', fontSize: '12px', border: '1px solid #e2e8f0' }}>
+              <div><b>Pengirim:</b> {selectedCurhat.nama_siswa} ({selectedCurhat.kelas || 'Siswa'})</div>
+              <div><b>Judul:</b> {selectedCurhat.judul_pesan}</div>
+            </div>
+
+            <form onSubmit={handleSaveBalasan} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '6px' }}>
+                  Status Layanan:
+                </label>
+                <select
+                  value={newStatus}
+                  onChange={(e) => setNewStatus(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '13px', backgroundColor: '#fff' }}
+                >
+                  <option value="DIBALAS">DIBALAS (Proses Konseling)</option>
+                  <option value="SELESAI">SELESAI (Selesai Didampingi)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '6px' }}>
+                  Isi Pesan Balasan / Tanggapan BK:
+                </label>
+                <textarea
+                  required
+                  rows={5}
+                  placeholder="Tuliskan masukan, tanggapan, atau ajakan konsultasi tatap muka..."
+                  value={balasanText}
+                  onChange={(e) => setBalasanText(e.target.value)}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '13px', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCurhat(null)}
+                  style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #d1d5db', backgroundColor: '#f3f4f6', color: '#374151', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', backgroundColor: '#1b3b2b', color: '#ffffff', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  {isSubmitting ? '⌛ Menyimpan...' : '💾 Simpan & Kirim Balasan'}
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

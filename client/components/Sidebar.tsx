@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
-  Shield,
   Menu,
   X,
   LayoutDashboard,
@@ -16,7 +15,6 @@ import {
   Clock,
   MessageCircle,
   BookOpen,
-  FileText,
   LogOut,
   GraduationCap
 } from 'lucide-react';
@@ -81,8 +79,18 @@ export default function Sidebar() {
         >
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Shield size={22} className="text-emerald-400" color="#86efac" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* LOGO APLIKASI MOBILE HEADER */}
+          <img
+            src="/logo-mindguard.jpeg"
+            alt="MindGuard Logo"
+            style={{
+              width: '30px',
+              height: '30px',
+              objectFit: 'contain',
+              mixBlendMode: 'screen', // 👈 Trik menghilangkan background hitam JPEG
+            }}
+          />
           <span style={{ fontWeight: 'bold', color: '#ffffff', fontSize: '16px' }}>MindGuard</span>
         </div>
       </div>
@@ -98,10 +106,20 @@ export default function Sidebar() {
       {/* 3. CONTAINER SIDEBAR */}
       <aside className={`sidebar-container ${isOpen ? 'open' : ''}`}>
         <div>
-          {/* LOGO BRAND */}
+          {/* LOGO BRAND SIDEBAR */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 6px 16px 6px' }}>
-            <div style={{ backgroundColor: '#2d523e', padding: '8px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Shield size={24} color="#86efac" />
+            <div style={{ backgroundColor: '#2d523e', width: '42px', height: '42px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}>
+              {/* LOGO APLIKASI DESKTOP / SIDEBAR MAIN */}
+              <img
+                src="/logo-mindguard.jpeg"
+                alt="MindGuard Logo"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  mixBlendMode: 'screen', // 👈 Trik menghilangkan background hitam JPEG
+                }}
+              />
             </div>
             <div>
               <h1 style={{ margin: 0, fontSize: '17px', fontWeight: 'bold', color: '#ffffff', letterSpacing: '-0.025em' }}>MindGuard</h1>
@@ -156,10 +174,7 @@ export default function Sidebar() {
                   <UserCheck size={18} />
                   <span>Konseling Individual</span>
                 </Link>
-                <Link href="/bk/perizinan" style={getLinkStyle('/bk/perizinan')}>
-                  <ClipboardList size={18} />
-                  <span>Izin & Sakit Siswa</span>
-                </Link>
+              
                 <Link href="/bk/home-visit" style={getLinkStyle('/bk/home-visit')}>
                   <Home size={18} />
                   <span>Home Visit</span>
@@ -193,10 +208,6 @@ export default function Sidebar() {
                 <Link href="/jurnal" style={getLinkStyle('/jurnal')}>
                   <BookOpen size={18} />
                   <span>Menulis Jurnal Harian</span>
-                </Link>
-                <Link href="/perizinan" style={getLinkStyle('/perizinan')}>
-                  <FileText size={18} />
-                  <span>Perizinan Siswa</span>
                 </Link>
               </>
             )}
@@ -278,6 +289,7 @@ export default function Sidebar() {
 
         .sidebar-container {
           width: 260px;
+          flex: 0 0 260px;
           background-color: #1b3b2b;
           border-right: 1px solid #2d523e;
           color: #ffffff;
@@ -287,10 +299,10 @@ export default function Sidebar() {
           justify-content: space-between;
           padding: 20px 14px;
           box-sizing: border-box;
-          position: fixed;
+          position: sticky;
           top: 0;
-          left: 0;
-          bottom: 0;
+          align-self: flex-start;
+          height: 100vh;
           z-index: 50;
           transition: transform 0.3s ease-in-out;
           overflow-y: auto;
@@ -310,8 +322,12 @@ export default function Sidebar() {
           }
 
           .sidebar-container {
+            position: fixed;
             transform: translateX(-100%);
             top: 0;
+            left: 0;
+            bottom: 0;
+            height: 100vh;
           }
 
           .sidebar-container.open {
