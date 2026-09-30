@@ -3,7 +3,7 @@
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
 import { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Send, AlertTriangle, Camera, User, X, CheckCircle2, ScanFace } from 'lucide-react';
+import { RefreshCw, Send, AlertTriangle, Camera, User, X, CheckCircle2, ScanFace, SwitchCamera } from 'lucide-react';
 
 type MasterPelanggaranItem = {
   id?: number | string;
@@ -152,6 +152,8 @@ export default function OsisPage() {
   const [cameraMessage, setCameraMessage] = useState('');
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [cameraMode, setCameraMode] = useState<CameraMode>('face');
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [faceVerified, setFaceVerified] = useState(false);
 
@@ -340,14 +342,22 @@ export default function OsisPage() {
       return;
     }
 
+    const requestedFacingMode = mode === 'evidence' ? 'environment' : 'user';
     setCameraMode(mode);
+    setFacingMode(requestedFacingMode);
     setCameraMessage('');
     setIsCameraOpen(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: requestedFacingMode } },
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
+        const actualFacingMode = stream.getVideoTracks()[0]?.getSettings().facingMode;
+        if (actualFacingMode === 'user' || actualFacingMode === 'environment') {
+          setFacingMode(actualFacingMode);
+        }
       } else {
         stream.getTracks().forEach((track) => track.stop());
         throw new Error('Elemen kamera belum siap. Silakan coba kembali.');
@@ -365,9 +375,48 @@ export default function OsisPage() {
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
     }
     setIsCameraOpen(false);
     setIsScanning(false);
+  };
+
+  const switchCamera = async () => {
+    const video = videoRef.current;
+    if (!video || isSwitchingCamera) return;
+
+    setIsSwitchingCamera(true);
+    const previousFacingMode = facingMode;
+    const nextFacingMode = previousFacingMode === 'user' ? 'environment' : 'user';
+    const previousStream = video.srcObject as MediaStream | null;
+    previousStream?.getTracks().forEach((track) => track.stop());
+    video.srcObject = null;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: nextFacingMode } },
+      });
+      video.srcObject = stream;
+      await video.play();
+      const actualFacingMode = stream.getVideoTracks()[0]?.getSettings().facingMode;
+      setFacingMode(actualFacingMode === 'user' || actualFacingMode === 'environment'
+        ? actualFacingMode
+        : nextFacingMode);
+      setCameraMessage('');
+    } catch (err) {
+      setCameraMessage(err instanceof Error ? `Tidak dapat mengganti kamera: ${err.message}` : 'Tidak dapat mengganti kamera.');
+      try {
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: previousFacingMode } },
+        });
+        video.srcObject = fallbackStream;
+        await video.play();
+      } catch (fallbackError) {
+        console.error('Kamera sebelumnya gagal dipulihkan:', fallbackError);
+      }
+    } finally {
+      setIsSwitchingCamera(false);
+    }
   };
 
   const handleScanAndVerify = async () => {
@@ -974,9 +1023,21 @@ export default function OsisPage() {
                     {cameraMode === 'face' ? <ScanFace size={18} color="#34d399" /> : <Camera size={18} color="#34d399" />}
                     {cameraMode === 'face' ? 'Verifikasi Wajah Siswa' : 'Foto Bukti Pelanggaran'}
                   </h4>
-                  <button onClick={stopCamera} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-                    <X size={20} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={switchCamera}
+                      disabled={isSwitchingCamera}
+                      title={`Ganti ke kamera ${facingMode === 'user' ? 'belakang' : 'depan'}`}
+                      aria-label={`Ganti ke kamera ${facingMode === 'user' ? 'belakang' : 'depan'}`}
+                      style={{ background: 'rgba(52, 211, 153, 0.12)', border: '1px solid rgba(52, 211, 153, 0.35)', color: '#a7f3d0', borderRadius: '6px', padding: '6px', display: 'flex', cursor: isSwitchingCamera ? 'wait' : 'pointer', opacity: isSwitchingCamera ? 0.6 : 1 }}
+                    >
+                      <SwitchCamera size={17} />
+                    </button>
+                    <button onClick={stopCamera} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
+                      <X size={20} />
+                    </button>
+                  </div>
                 </div>
 
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
