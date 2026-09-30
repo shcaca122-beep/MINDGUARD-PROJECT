@@ -27,8 +27,11 @@ type PelanggaranSiswaItem = {
   keterangan?: string;
   tindakan: string;
   pencatat: string;
+  foto_bukti_path?: string | null;
   created_at?: string;
 };
+
+type CameraMode = 'face' | 'evidence';
 
 type FaceApiRuntime = {
   nets: {
@@ -142,10 +145,13 @@ export default function OsisPage() {
 
   // Foto Siswa & State Verifikasi Wajah
   const [fotoSiswa, setFotoSiswa] = useState<string | null>(null);
+  const [fotoBukti, setFotoBukti] = useState<string | null>(null);
   const [dbFotoUrl, setDbFotoUrl] = useState<string | null>(null);
   const [referenceStatus, setReferenceStatus] = useState<'loading' | 'ready' | 'missing' | 'error'>('loading');
   const [verificationMessage, setVerificationMessage] = useState('');
+  const [cameraMessage, setCameraMessage] = useState('');
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraMode, setCameraMode] = useState<CameraMode>('face');
   const [isScanning, setIsScanning] = useState(false);
   const [faceVerified, setFaceVerified] = useState(false);
 
@@ -308,6 +314,7 @@ export default function OsisPage() {
       setNamaSiswa('');
     }
     setFotoSiswa(null);
+    setFotoBukti(null);
     setDbFotoUrl(null);
     setReferenceStatus('loading');
     setFaceVerified(false);
@@ -317,6 +324,7 @@ export default function OsisPage() {
   const handleSiswaChange = (newSiswa: string) => {
     setNamaSiswa(newSiswa);
     setFotoSiswa(null);
+    setFotoBukti(null);
     setDbFotoUrl(null);
     setReferenceStatus('loading');
     setFaceVerified(false);
@@ -324,14 +332,16 @@ export default function OsisPage() {
   };
 
   // Kamera & Verifikasi Wajah
-  const startCamera = async () => {
-    if (!dbFotoUrl || referenceStatus !== 'ready') {
+  const startCamera = async (mode: CameraMode = 'face') => {
+    if (mode === 'face' && (!dbFotoUrl || referenceStatus !== 'ready')) {
       setVerificationMessage(referenceStatus === 'missing'
         ? 'Foto referensi siswa belum tersedia di database.'
         : 'Foto referensi siswa belum siap.');
       return;
     }
 
+    setCameraMode(mode);
+    setCameraMessage('');
     setIsCameraOpen(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -348,6 +358,8 @@ export default function OsisPage() {
       setIsCameraOpen(false);
     }
   };
+
+  const startEvidenceCamera = () => startCamera('evidence');
 
   const stopCamera = () => {
     if (videoRef.current && videoRef.current.srcObject) {
@@ -412,6 +424,27 @@ export default function OsisPage() {
     }
   };
 
+  const handleCaptureEvidence = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0) {
+      setCameraMessage('Kamera belum siap. Silakan coba kembali.');
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      setCameraMessage('Gagal mengambil gambar dari kamera.');
+      return;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    setFotoBukti(canvas.toDataURL('image/jpeg', 0.9));
+    stopCamera();
+  };
+
   const fetchPelanggaranSiswa = async () => {
     setLoading(true);
     try {
@@ -455,8 +488,27 @@ export default function OsisPage() {
     setStatusMsg(null);
 
     const pencatatAktif = namaPetugas.trim() !== '' ? namaPetugas : 'Pengurus OSIS & MPK';
+    let uploadedEvidencePath: string | null = null;
 
     try {
+      let fotoBuktiPath: string | null = null;
+      if (fotoBukti) {
+        const evidenceBlob = await fetch(fotoBukti).then((response) => response.blob());
+        const evidenceFileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+        const evidenceStoragePath = `osis/${evidenceFileName}`;
+        const { data: uploadedEvidence, error: uploadError } = await supabase.storage
+          .from('bukti-pelanggaran')
+          .upload(evidenceStoragePath, evidenceBlob, {
+            cacheControl: '3600',
+            contentType: 'image/jpeg',
+            upsert: false,
+          });
+
+        if (uploadError) throw new Error(`Gagal mengunggah foto bukti: ${uploadError.message}`);
+        uploadedEvidencePath = uploadedEvidence.path;
+        fotoBuktiPath = uploadedEvidence.path;
+      }
+
       const payload = {
         nama_siswa: namaSiswa,
         kelas: kelas,
@@ -468,10 +520,16 @@ export default function OsisPage() {
         keterangan: keterangan || selectedPelanggaran,
         tindakan: tindakan,
         pencatat: pencatatAktif,
+        foto_bukti_path: fotoBuktiPath,
       };
 
       const { error } = await supabase.from('pelanggaran_siswa').insert([payload]);
-      if (error) throw error;
+      if (error) {
+        if (uploadedEvidencePath) {
+          await supabase.storage.from('bukti-pelanggaran').remove([uploadedEvidencePath]);
+        }
+        throw error;
+      }
 
       setStatusMsg({
         type: 'success',
@@ -479,6 +537,7 @@ export default function OsisPage() {
       });
 
       setKeterangan('');
+      setFotoBukti(null);
       fetchPelanggaranSiswa();
     } catch (err: any) {
       setStatusMsg({
@@ -599,7 +658,7 @@ export default function OsisPage() {
                     
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                       <div 
-                        onClick={startCamera}
+                        onClick={() => startCamera()}
                         title="Klik untuk Verifikasi Wajah"
                         style={{ 
                           width: '120px', 
@@ -629,7 +688,7 @@ export default function OsisPage() {
 
                       <button
                         type="button"
-                        onClick={startCamera}
+                        onClick={() => startCamera()}
                         disabled={referenceStatus !== 'ready'}
                         style={{
                           backgroundColor: 'rgba(52, 211, 153, 0.15)',
@@ -769,6 +828,36 @@ export default function OsisPage() {
                     />
                   </div>
 
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
+                      Foto Bukti Pelanggaran
+                    </label>
+                    {fotoBukti ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                        <img src={fotoBukti} alt="Preview foto bukti pelanggaran" style={{ width: '88px', height: '66px', objectFit: 'cover', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.4)' }} />
+                        <button
+                          type="button"
+                          title="Hapus foto bukti"
+                          onClick={() => setFotoBukti(null)}
+                          style={{ background: 'transparent', border: '1px solid rgba(248, 113, 113, 0.5)', color: '#fca5a5', borderRadius: '6px', padding: '6px', cursor: 'pointer', display: 'flex' }}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ) : (
+                      <p style={{ margin: '0 0 8px', color: '#94a3b8', fontSize: '11px' }}>Belum ada foto bukti.</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={startEvidenceCamera}
+                      disabled={isSubmitting || isCameraOpen}
+                      style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', border: '1px solid rgba(52, 211, 153, 0.4)', color: '#a7f3d0', padding: '8px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '700', cursor: isSubmitting || isCameraOpen ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Camera size={14} />
+                      {fotoBukti ? 'Ambil Ulang Foto' : 'Ambil Foto Bukti'}
+                    </button>
+                  </div>
+
                   {/* SANKSI */}
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
@@ -882,7 +971,8 @@ export default function OsisPage() {
               <div style={{ backgroundColor: '#021f18', border: '1px solid rgba(52, 211, 153, 0.3)', borderRadius: '16px', padding: '20px', maxWidth: '450px', width: '100%', position: 'relative', boxShadow: '0 10px 40px rgba(0,0,0,0.6)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                   <h4 style={{ margin: 0, color: '#ecfdf5', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ScanFace size={18} color="#34d399" /> Verifikasi Wajah Siswa
+                    {cameraMode === 'face' ? <ScanFace size={18} color="#34d399" /> : <Camera size={18} color="#34d399" />}
+                    {cameraMode === 'face' ? 'Verifikasi Wajah Siswa' : 'Foto Bukti Pelanggaran'}
                   </h4>
                   <button onClick={stopCamera} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
                     <X size={20} />
@@ -898,7 +988,9 @@ export default function OsisPage() {
                 </div>
 
                 <p style={{ fontSize: '12px', color: '#a7f3d0', textAlign: 'center', margin: '12px 0' }}>
-                  {isScanning ? 'Pindaian dan pencocokan wajah sedang berjalan...' : `Arahkan wajah ${namaSiswa || 'Siswa'} ke tengah kamera.`}
+                  {cameraMode === 'evidence'
+                    ? cameraMessage || 'Arahkan kamera ke bukti pelanggaran, lalu ambil foto.'
+                    : isScanning ? 'Pindaian dan pencocokan wajah sedang berjalan...' : `Arahkan wajah ${namaSiswa || 'Siswa'} ke tengah kamera.`}
                 </p>
 
                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -911,12 +1003,12 @@ export default function OsisPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={handleScanAndVerify}
+                    onClick={cameraMode === 'evidence' ? handleCaptureEvidence : handleScanAndVerify}
                     disabled={isScanning}
                     style={{ flex: 2, padding: '10px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: '#fff', fontWeight: '700', fontSize: '12px', cursor: isScanning ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                   >
-                    <CheckCircle2 size={16} />
-                    <span>{isScanning ? 'Proses Scan...' : 'Ambil Foto & Verifikasi'}</span>
+                    {cameraMode === 'evidence' ? <Camera size={16} /> : <CheckCircle2 size={16} />}
+                    <span>{isScanning ? 'Memproses...' : cameraMode === 'evidence' ? 'Ambil Foto Bukti' : 'Ambil Foto & Verifikasi'}</span>
                   </button>
                 </div>
               </div>

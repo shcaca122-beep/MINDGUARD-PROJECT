@@ -32,16 +32,28 @@ export default function PelanggaranSiswaPage() {
 
   const fetchPelanggaran = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('pelanggaran')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const [legacyResult, osisResult] = await Promise.all([
+      supabase.from('pelanggaran').select('*').order('created_at', { ascending: false }),
+      supabase.from('pelanggaran_siswa').select('*').order('created_at', { ascending: false }),
+    ]);
 
-    if (error) {
-      console.error('Error fetching data:', error.message);
-    } else if (data) {
-      setPelanggaranList(data);
+    if (legacyResult.error) {
+      console.error('Error fetching legacy violations:', legacyResult.error.message);
     }
+    if (osisResult.error) {
+      console.error('Error fetching OSIS violations:', osisResult.error.message);
+    }
+
+    const osisList = (osisResult.data || []).map((item) => ({
+      ...item,
+      id: `osis-${item.id}`,
+      foto_bukti_path: item.foto_bukti_path || null,
+    }));
+    const combinedList = [...(legacyResult.data || []), ...osisList].sort((first, second) =>
+      new Date(second.created_at || second.tanggal || 0).getTime() -
+      new Date(first.created_at || first.tanggal || 0).getTime()
+    );
+    setPelanggaranList(combinedList);
     setLoading(false);
   };
 
@@ -184,7 +196,9 @@ export default function PelanggaranSiswaPage() {
               pelanggaranList.map((item, idx) => (
                 <tr key={item.id || idx} style={{ borderBottom: '1px solid #193328', color: '#e2e8f0' }}>
                   <td style={{ padding: '12px 16px' }}>{item.tanggal || '-'}</td>
-                  <td style={{ padding: '12px 16px', fontWeight: '700', color: '#fff' }}>{item.nama_siswa || '-'}</td>
+                  <td style={{ padding: '12px 16px', fontWeight: '700', color: '#fff' }}>
+                    {item.nama_siswa ? `${item.nama_siswa}${item.kelas ? ` (${item.kelas})` : ''}` : '-'}
+                  </td>
                   <td style={{ padding: '12px 16px' }}>{item.jenis_pelanggaran || item.keterangan || '-'}</td>
                   <td style={{ padding: '12px 16px', color: '#fbbf24', fontWeight: '800' }}>+{item.poin || 5} Poin</td>
                   <td style={{ padding: '12px 16px' }}>

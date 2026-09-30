@@ -184,8 +184,26 @@ export default function AdminDashboardPage() {
       const { data: sbTerlambat } = await supabase.from('keterlambatan').select('*').order('created_at', { ascending: false });
       setDataTerlambat(sbTerlambat || []);
 
-      const { data: sbPelanggaran } = await supabase.from('laporan_pelanggaran').select('*').order('created_at', { ascending: false });
-      setDataPelanggaran(sbPelanggaran || []);
+      const [laporanResult, osisResult] = await Promise.all([
+        supabase.from('laporan_pelanggaran').select('*').order('created_at', { ascending: false }),
+        supabase.from('pelanggaran_siswa').select('*').order('created_at', { ascending: false }),
+      ]);
+
+      if (laporanResult.error) throw laporanResult.error;
+      if (osisResult.error) throw osisResult.error;
+
+      const laporanOsis = (osisResult.data || []).map((item) => ({
+        ...item,
+        id: `osis-${item.id}`,
+        pelapor: item.pencatat || 'Pengurus OSIS & MPK',
+        foto_url: null,
+      }));
+
+      setDataPelanggaran(
+        [...(laporanResult.data || []), ...laporanOsis].sort((a, b) =>
+          new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+        )
+      );
 
     } catch (err) {
       console.error('Error fetching data:', err);
