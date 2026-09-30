@@ -15,6 +15,7 @@ import {
   Clock,
   MessageCircle,
   BookOpen,
+  CalendarDays,
   LogOut,
   GraduationCap
 } from 'lucide-react';
@@ -26,13 +27,24 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    setIsOpen(false);
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) setIsOpen(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [pathname]);
 
   useEffect(() => {
-    const sessionData = localStorage.getItem('user_session');
-    if (sessionData) {
+    let cancelled = false;
+
+    Promise.resolve().then(() => {
+      if (cancelled) return;
       try {
+        const sessionData = localStorage.getItem('user_session');
+        if (!sessionData) return;
         const parsed = JSON.parse(sessionData);
         setUser({
           nama: parsed.nama || parsed.email || 'Pengguna',
@@ -41,7 +53,11 @@ export default function Sidebar() {
       } catch (err) {
         console.error('Error parsing session:', err);
       }
-    }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleLogout = () => {
@@ -183,15 +199,25 @@ export default function Sidebar() {
                   <PhoneCall size={18} />
                   <span>Panggilan Orang Tua</span>
                 </Link>
+                <Link href="/osis/rekap-mingguan" style={getLinkStyle('/osis/rekap-mingguan')}>
+                  <CalendarDays size={18} />
+                  <span>Rekap Mingguan OSIS</span>
+                </Link>
               </>
             )}
 
             {/* KHUSUS OSIS & MPK */}
             {isOSIS && (
-              <Link href="/osis" style={getLinkStyle('/osis')}>
-                <Clock size={18} />
-                <span>Input Keterlambatan</span>
-              </Link>
+              <>
+                <Link href="/osis" style={getLinkStyle('/osis')}>
+                  <Clock size={18} />
+                  <span>Input Keterlambatan</span>
+                </Link>
+                <Link href="/osis/rekap-mingguan" style={getLinkStyle('/osis/rekap-mingguan')}>
+                  <CalendarDays size={18} />
+                  <span>Rekap Mingguan</span>
+                </Link>
+              </>
             )}
 
             {/* KHUSUS SISWA */}

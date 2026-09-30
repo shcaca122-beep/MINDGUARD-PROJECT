@@ -22,7 +22,8 @@ export function middleware(request: NextRequest) {
     return new NextResponse('Akses Ditolak: Anda tidak memiliki wewenang untuk membuka halaman ini.', { status: 403 });
   }
 
-  if (path.startsWith('/osis') && !['osis', 'piket', 'admin'].includes(userRole || '')) {
+  const isBkWeeklyReport = path === '/osis/rekap-mingguan' && userRole === 'bk';
+  if (path.startsWith('/osis') && !['osis', 'piket', 'admin'].includes(userRole || '') && !isBkWeeklyReport) {
     return new NextResponse('Akses Ditolak: Anda tidak memiliki wewenang untuk membuka halaman ini.', { status: 403 });
   }
 

@@ -2,6 +2,7 @@
 
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
+import NextImage from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Send, AlertTriangle, Camera, User, X, CheckCircle2, ScanFace, SwitchCamera } from 'lucide-react';
 
@@ -110,7 +111,6 @@ const loadReferenceImage = (src: string) => new Promise<HTMLImageElement>((resol
   image.src = src;
 });
 
-// Daftar Master Pelanggaran Khusus Pemeriksaan Gerbang Sekolah
 const GERBANG_MASTER_PELANGGARAN: MasterPelanggaranItem[] = [
   { id: 1, nama_pelanggaran: 'Terlambat masuk lebih dari 10 menit', kategori: 'Keterlambatan', poin: 5 },
   { id: 2, nama_pelanggaran: 'Datang di lingkungan sekolah tidak senonoh / tidak sesuai', kategori: 'Keterlambatan', poin: 10 },
@@ -163,31 +163,49 @@ export default function OsisPage() {
   const [kelasOptions, setKelasOptions] = useState<string[]>([]);
   const [siswaByKelas, setSiswaByKelas] = useState<{ [kelas: string]: string[] }>({});
 
-  const [masterPelanggaranList] = useState<MasterPelanggaranItem[]>(GERBANG_MASTER_PELANGGARAN);
-  const [selectedPelanggaran, setSelectedPelanggaran] = useState<string>(GERBANG_MASTER_PELANGGARAN[0].nama_pelanggaran || '');
-  const [selectedKategori, setSelectedKategori] = useState<string>(GERBANG_MASTER_PELANGGARAN[0].kategori || 'Keterlambatan');
-  const [selectedPoin, setSelectedPoin] = useState<number>(Number(GERBANG_MASTER_PELANGGARAN[0].poin ?? 5));
+  // Mengurutkan master pelanggaran secara alfabetis (A-Z)
+  const sortedMasterPelanggaran = [...GERBANG_MASTER_PELANGGARAN].sort((a, b) => {
+    const namaA = a.nama_pelanggaran || a.nama || a.jenis_pelanggaran || '';
+    const namaB = b.nama_pelanggaran || b.nama || b.jenis_pelanggaran || '';
+    return namaA.localeCompare(namaB, 'id');
+  });
+
+  const [masterPelanggaranList] = useState<MasterPelanggaranItem[]>(sortedMasterPelanggaran);
+  const [selectedPelanggaran, setSelectedPelanggaran] = useState<string>(
+    sortedMasterPelanggaran[0]?.nama_pelanggaran || sortedMasterPelanggaran[0]?.nama || sortedMasterPelanggaran[0]?.jenis_pelanggaran || ''
+  );
+  const [selectedKategori, setSelectedKategori] = useState<string>(sortedMasterPelanggaran[0]?.kategori || 'Keterlambatan');
+  const [selectedPoin, setSelectedPoin] = useState<number>(Number(sortedMasterPelanggaran[0]?.poin ?? 5));
 
   const [listPelanggaran, setListPelanggaran] = useState<PelanggaranSiswaItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filterText, setFilterText] = useState('');
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Auto-fill Nama Petugas
   useEffect(() => {
-    const sessionData = localStorage.getItem('user_session');
-    if (sessionData) {
-      try {
-        const session = JSON.parse(sessionData);
-        if (session.nama) {
-          const cleanName = session.nama.replace(/\s*\(.*?\)\s*/g, '').trim();
-          setNamaPetugas(cleanName);
+    let cancelled = false;
+
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      const sessionData = localStorage.getItem('user_session');
+      if (sessionData) {
+        try {
+          const session = JSON.parse(sessionData);
+          if (session.nama) {
+            const cleanName = session.nama.replace(/\s*\(.*?\)\s*/g, '').trim();
+            setNamaPetugas(cleanName);
+          }
+        } catch (err) {
+          console.error('Gagal membaca user_session:', err);
         }
-      } catch (err) {
-        console.error('Gagal membaca user_session:', err);
       }
-    }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Fetch & Parse CSV DATAMURIDPROYEK.csv
@@ -495,7 +513,6 @@ export default function OsisPage() {
   };
 
   const fetchPelanggaranSiswa = async () => {
-    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('pelanggaran_siswa')
@@ -511,7 +528,9 @@ export default function OsisPage() {
   };
 
   useEffect(() => {
-    fetchPelanggaranSiswa();
+    Promise.resolve().then(() => {
+      void fetchPelanggaranSiswa();
+    });
   }, []);
 
   const handleSelectPelanggaranChange = (namaPelanggaran: string) => {
@@ -588,10 +607,10 @@ export default function OsisPage() {
       setKeterangan('');
       setFotoBukti(null);
       fetchPelanggaranSiswa();
-    } catch (err: any) {
+    } catch (err) {
       setStatusMsg({
         type: 'error',
-        message: err.message || 'Gagal menyimpan data pelanggaran.',
+        message: err instanceof Error ? err.message : 'Gagal menyimpan data pelanggaran.',
       });
     } finally {
       setIsSubmitting(false);
@@ -656,14 +675,15 @@ export default function OsisPage() {
             boxSizing: 'border-box'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              {/* SLOT LOGO APLIKASI */}
               <div style={{ width: '42px', height: '42px', borderRadius: '10px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#021f18', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
-                <img 
+                <NextImage
                   src="/logo-mindguard.jpeg" 
                   alt="MindGuard Logo" 
+                  width={42}
+                  height={42}
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  unoptimized
                   onError={(e) => {
-                    // Fallback jika file gambar belum disimpan
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
                 />
@@ -676,7 +696,7 @@ export default function OsisPage() {
               </div>
             </div>
 
-            <button onClick={() => { fetchPelanggaranSiswa(); }} style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '9px 16px', borderRadius: '8px', color: '#ffffff', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button onClick={() => { setLoading(true); void fetchPelanggaranSiswa(); }} style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '9px 16px', borderRadius: '8px', color: '#ffffff', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <RefreshCw size={14} color="#34d399" />
               <span>Refresh</span>
             </button>
@@ -687,7 +707,7 @@ export default function OsisPage() {
             
             {statusMsg && (
               <div style={{ padding: '12px 16px', borderRadius: '10px', marginBottom: '20px', fontWeight: '700', fontSize: '13px', backgroundColor: statusMsg.type === 'success' ? '#064e3b' : '#7f1d1d', color: statusMsg.type === 'success' ? '#dcfce7' : '#fee2e2', border: `1px solid ${statusMsg.type === 'success' ? '#10b981' : '#f87171'}`, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', width: '100%', boxSizing: 'border-box' }}>
-                {statusMsg.type === 'success' ? '✅ ' : '⚠️ '} {statusMsg.message}
+                {statusMsg.type === 'success' ? '✅ ' : '⚠️️ '} {statusMsg.message}
               </div>
             )}
 
@@ -725,7 +745,7 @@ export default function OsisPage() {
                         }}
                       >
                         {fotoSiswa || dbFotoUrl ? (
-                          <img src={fotoSiswa || dbFotoUrl || ''} alt={fotoSiswa ? 'Hasil kamera siswa' : `Foto referensi ${namaSiswa}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <NextImage src={fotoSiswa || dbFotoUrl || ''} alt={fotoSiswa ? 'Hasil kamera siswa' : `Foto referensi ${namaSiswa}`} width={120} height={120} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           <User size={85} color="#021f18" style={{ marginTop: '12px' }} />
                         )}
@@ -831,7 +851,7 @@ export default function OsisPage() {
                     </div>
                   </div>
 
-                  {/* DROPDOWN PELANGGARAN GERBANG */}
+                  {/* DROPDOWN PELANGGARAN GERBANG (TERURUT A-Z) */}
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
                       Pilih Jenis Pelanggaran Gerbang
@@ -883,7 +903,7 @@ export default function OsisPage() {
                     </label>
                     {fotoBukti ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                        <img src={fotoBukti} alt="Preview foto bukti pelanggaran" style={{ width: '88px', height: '66px', objectFit: 'cover', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.4)' }} />
+                        <NextImage src={fotoBukti} alt="Preview foto bukti pelanggaran" width={88} height={66} unoptimized style={{ width: '88px', height: '66px', objectFit: 'cover', borderRadius: '6px', border: '1px solid rgba(52, 211, 153, 0.4)' }} />
                         <button
                           type="button"
                           title="Hapus foto bukti"
