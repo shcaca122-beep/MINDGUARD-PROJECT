@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { Lock, Mail, Eye, EyeOff, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
@@ -19,33 +19,43 @@ export default function LoginPage() {
     setErrorMsg('');
 
     try {
+      if (!isSupabaseConfigured) {
+        throw new Error('Konfigurasi Supabase belum lengkap. Isi NEXT_PUBLIC_SUPABASE_ANON_KEY atau NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY dengan API key dari project Supabase yang benar, lalu restart server.');
+      }
+
       const cleanEmail = email.trim().toLowerCase();
 
-      // 🔍 1. Cek dulu ke tabel admin_roles (Gunakan .ilike agar tidak terpengaruh huruf besar/kecil)
-      let { data: user } = await supabase
+      const { data: adminUser, error: adminError } = await supabase
         .from('admin_roles')
         .select('*')
         .ilike('email', cleanEmail)
         .eq('password', password)
         .maybeSingle();
 
+      if (adminError) {
+        throw new Error(`Gagal mengakses tabel admin_roles: ${adminError.message}`);
+      }
+
+      let user = adminUser;
       let isAdminTable = false;
 
       if (user) {
         isAdminTable = true;
       } else {
-        // 🔍 2. Jika tidak ada di admin_roles, cari di tabel users (Untuk Siswa)
-        const { data: siswaUser } = await supabase
+        const { data: siswaUser, error: siswaError } = await supabase
           .from('users')
           .select('*')
           .ilike('email', cleanEmail)
           .eq('password', password)
           .maybeSingle();
 
+        if (siswaError) {
+          throw new Error(`Gagal mengakses tabel users: ${siswaError.message}`);
+        }
+
         user = siswaUser;
       }
 
-      // Jika di kedua tabel tidak ditemukan
       if (!user) {
         throw new Error('Email atau password salah! Silakan periksa kembali.');
       }
@@ -74,6 +84,16 @@ export default function LoginPage() {
 
       localStorage.setItem('user_session', JSON.stringify(sessionData));
       localStorage.setItem('user_role', userRole.toUpperCase());
+      const middlewareRole = isAdminAccount
+        ? 'admin'
+        : userRole.includes('bk')
+          ? 'bk'
+          : userRole.includes('piket')
+            ? 'piket'
+            : userRole.includes('osis') || userRole.includes('mpk')
+              ? 'osis'
+              : userRole;
+      document.cookie = `user_role=${encodeURIComponent(middlewareRole)}; path=/; max-age=86400; samesite=lax`;
       if (isAdminAccount) {
         localStorage.setItem('admin_nama', sessionData.nama);
         localStorage.setItem('admin_role', userRole.toUpperCase());

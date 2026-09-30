@@ -10,7 +10,7 @@ export function middleware(request: NextRequest) {
 
   // Redirect ke halaman login jika belum autentikasi
   if (!userRole && !path.startsWith('/login')) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   // 2. Verifikasi kesesuaian hak akses (role) pengguna per route

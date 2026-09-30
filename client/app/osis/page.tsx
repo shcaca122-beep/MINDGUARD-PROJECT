@@ -2,6 +2,7 @@
 
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Send, AlertTriangle, Camera, User, X, CheckCircle2, ScanFace } from 'lucide-react';
 
@@ -30,27 +31,27 @@ type PelanggaranSiswaItem = {
   created_at?: string;
 };
 
-// Daftar Master Pelanggaran Khusus Pemeriksaan Gerbang Sekolah
+// Master Pelanggaran Khusus Pemeriksaan Gerbang Sekolah (A-Z)
 const GERBANG_MASTER_PELANGGARAN: MasterPelanggaranItem[] = [
-  { id: 1, nama_pelanggaran: 'Terlambat masuk lebih dari 10 menit', kategori: 'Keterlambatan', poin: 5 },
-  { id: 2, nama_pelanggaran: 'Datang di lingkungan sekolah tidak senonoh / tidak sesuai', kategori: 'Keterlambatan', poin: 10 },
-  { id: 3, nama_pelanggaran: 'Tidak memasukkan pakaian / Baju dikeluarkan', kategori: 'Seragam', poin: 5 },
-  { id: 4, nama_pelanggaran: 'Seragam tidak sesuai dengan ketentuan', kategori: 'Seragam', poin: 10 },
-  { id: 5, nama_pelanggaran: 'Tidak bersepatu / kaos kaki / memakai kaos kaki selain putih', kategori: 'Seragam', poin: 10 },
-  { id: 6, nama_pelanggaran: 'Seragam tidak lengkap', kategori: 'Seragam', poin: 10 },
-  { id: 7, nama_pelanggaran: 'Memakai topi bebas / selain topi sekolah', kategori: 'Seragam', poin: 10 },
-  { id: 8, nama_pelanggaran: 'Tidak memakai ikat pinggang / sabuk hitam', kategori: 'Seragam', poin: 5 },
-  { id: 9, nama_pelanggaran: 'Memakai ikat pinggang berkepala besar', kategori: 'Seragam', poin: 10 },
-  { id: 10, nama_pelanggaran: 'Memakai sweater / jaket di lingkungan sekolah', kategori: 'Seragam', poin: 10 },
-  { id: 11, nama_pelanggaran: 'Berjilbab selain warna putih / abu-abu', kategori: 'Seragam', poin: 10 },
-  { id: 12, nama_pelanggaran: 'Memakai gelang / kalung bagi laki-laki', kategori: 'Seragam', poin: 10 },
-  { id: 13, nama_pelanggaran: 'Tidak memakai Badge Lokasi / Badge OSIS', kategori: 'Seragam', poin: 5 },
-  { id: 14, nama_pelanggaran: 'Tidak memakai sepatu hitam', kategori: 'Seragam', poin: 10 },
-  { id: 15, nama_pelanggaran: 'Tidak memakai kaos dalam', kategori: 'Seragam', poin: 5 },
-  { id: 16, nama_pelanggaran: 'Siswa berhias / bersolek berlebihan', kategori: 'Kepribadian', poin: 5 },
-  { id: 17, nama_pelanggaran: 'Siswa berambut gondrong', kategori: 'Kepribadian', poin: 20 },
-  { id: 18, nama_pelanggaran: 'Siswa berambut dicat / dimode / nyentrik', kategori: 'Kepribadian', poin: 10 },
-  { id: 19, nama_pelanggaran: 'Tidak ikut upacara / atribut tidak lengkap', kategori: 'Ketertiban', poin: 10 },
+  { nama_pelanggaran: 'Berjilbab selain warna putih / abu-abu', kategori: 'Seragam', poin: 10 },
+  { nama_pelanggaran: 'Datang di lingkungan sekolah tidak senonoh / tidak sesuai', kategori: 'Keterlambatan', poin: 10 },
+  { nama_pelanggaran: 'Memakai gelang / kalung bagi laki-laki', kategori: 'Seragam', poin: 10 },
+  { nama_pelanggaran: 'Memakai ikat pinggang berkepala besar', kategori: 'Seragam', poin: 10 },
+  { nama_pelanggaran: 'Memakai sweater / jaket di lingkungan sekolah', kategori: 'Seragam', poin: 10 },
+  { nama_pelanggaran: 'Memakai topi bebas / selain topi sekolah', kategori: 'Seragam', poin: 10 },
+  { nama_pelanggaran: 'Seragam tidak lengkap', kategori: 'Seragam', poin: 10 },
+  { nama_pelanggaran: 'Seragam tidak sesuai dengan ketentuan', kategori: 'Seragam', poin: 10 },
+  { nama_pelanggaran: 'Siswa berhias / bersolek berlebihan', kategori: 'Kepribadian', poin: 5 },
+  { nama_pelanggaran: 'Siswa berambut dicat / dimode / nyentrik', kategori: 'Kepribadian', poin: 10 },
+  { nama_pelanggaran: 'Siswa berambut gondrong', kategori: 'Kepribadian', poin: 20 },
+  { nama_pelanggaran: 'Terlambat masuk lebih dari 10 menit', kategori: 'Keterlambatan', poin: 5 },
+  { nama_pelanggaran: 'Tidak bersepatu / kaos kaki / memakai sandal', kategori: 'Seragam', poin: 10 },
+  { nama_pelanggaran: 'Tidak ikut upacara / atribut tidak lengkap', kategori: 'Ketertiban', poin: 10 },
+  { nama_pelanggaran: 'Tidak memasukkan pakaian / baju dikeluarkan', kategori: 'Seragam', poin: 5 },
+  { nama_pelanggaran: 'Tidak memakai Badge Lokasi / Badge OSIS', kategori: 'Seragam', poin: 5 },
+  { nama_pelanggaran: 'Tidak memakai ikat pinggang / sabuk hitam', kategori: 'Seragam', poin: 5 },
+  { nama_pelanggaran: 'Tidak memakai kaos dalam', kategori: 'Seragam', poin: 5 },
+  { nama_pelanggaran: 'Tidak memakai sepatu hitam', kategori: 'Seragam', poin: 10 },
 ];
 
 export default function OsisPage() {
@@ -63,8 +64,9 @@ export default function OsisPage() {
   const [keterangan, setKeterangan] = useState('');
   const [tindakan, setTindakan] = useState('Peringatan Lisan & Binaan OSIS');
 
-  // Foto Siswa & State Verifikasi Wajah
-  const [fotoSiswa, setFotoSiswa] = useState<string | null>(null);
+  // Foto Siswa (Kamera Web & Database Supabase master_foto_siswa)
+  const [fotoSiswa, setFotoSiswa] = useState<string | null>(null); // Foto imbasan kamera
+  const [dbFotoUrl, setDbFotoUrl] = useState<string | null>(null);   // Foto daripada Supabase
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [faceVerified, setFaceVerified] = useState(false);
@@ -81,12 +83,12 @@ export default function OsisPage() {
   const [selectedPoin, setSelectedPoin] = useState<number>(Number(GERBANG_MASTER_PELANGGARAN[0].poin ?? 5));
 
   const [listPelanggaran, setListPelanggaran] = useState<PelanggaranSiswaItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filterText, setFilterText] = useState('');
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Auto-fill Nama Petugas
+  // Auto-fill Nama Petugas daripada LocalStorage
   useEffect(() => {
     const sessionData = localStorage.getItem('user_session');
     if (sessionData) {
@@ -94,6 +96,8 @@ export default function OsisPage() {
         const session = JSON.parse(sessionData);
         if (session.nama) {
           const cleanName = session.nama.replace(/\s*\(.*?\)\s*/g, '').trim();
+          // Read the browser-only session after hydration and populate the form once.
+          // eslint-disable-next-line react-hooks/set-state-in-effect
           setNamaPetugas(cleanName);
         }
       } catch (err) {
@@ -162,6 +166,34 @@ export default function OsisPage() {
       });
   }, []);
 
+  // Fetch Foto Siswa dari Supabase master_foto_siswa secara otomatis apabila Nama Siswa berubah
+  useEffect(() => {
+    async function fetchFotoSiswa() {
+      if (!namaSiswa) {
+        setDbFotoUrl(null);
+        return;
+      }
+      try {
+        const { data, error } = await supabase
+          .from('master_foto_siswa')
+          .select('foto_url')
+          .ilike('nama_siswa', namaSiswa.trim())
+          .maybeSingle();
+
+        if (!error && data && data.foto_url) {
+          setDbFotoUrl(data.foto_url);
+        } else {
+          setDbFotoUrl(null);
+        }
+      } catch (err) {
+        console.error('Gagal mengambil foto dari pangkalan data:', err);
+        setDbFotoUrl(null);
+      }
+    }
+
+    fetchFotoSiswa();
+  }, [namaSiswa]);
+
   const handleKelasChange = (newKelas: string) => {
     setKelas(newKelas);
     const listSiswaKelas = siswaByKelas[newKelas] || [];
@@ -226,7 +258,6 @@ export default function OsisPage() {
   };
 
   const fetchPelanggaranSiswa = async () => {
-    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('pelanggaran_siswa')
@@ -242,6 +273,8 @@ export default function OsisPage() {
   };
 
   useEffect(() => {
+    // Start the remote request after mount; its async result populates the violation list.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchPelanggaranSiswa();
   }, []);
 
@@ -289,10 +322,10 @@ export default function OsisPage() {
 
       setKeterangan('');
       fetchPelanggaranSiswa();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setStatusMsg({
         type: 'error',
-        message: err.message || 'Gagal menyimpan data pelanggaran.',
+        message: err instanceof Error ? err.message : 'Gagal menyimpan data pelanggaran.',
       });
     } finally {
       setIsSubmitting(false);
@@ -357,14 +390,14 @@ export default function OsisPage() {
             boxSizing: 'border-box'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              {/* SLOT LOGO APLIKASI */}
               <div style={{ width: '42px', height: '42px', borderRadius: '10px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#021f18', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
-                <img 
+                <Image
                   src="/logo-mindguard.jpeg" 
                   alt="MindGuard Logo" 
+                  width={42}
+                  height={42}
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   onError={(e) => {
-                    // Fallback jika file gambar belum disimpan
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
                 />
@@ -419,14 +452,16 @@ export default function OsisPage() {
                           alignItems: 'center', 
                           justifyContent: 'center',
                           overflow: 'hidden',
-                          border: faceVerified ? '3px solid #34d399' : '3px solid rgba(52, 211, 153, 0.4)',
-                          boxShadow: faceVerified ? '0 0 15px rgba(52, 211, 153, 0.5)' : 'none',
+                          border: faceVerified ? '3px solid #34d399' : (dbFotoUrl ? '3px solid #10b981' : '3px solid rgba(52, 211, 153, 0.4)'),
+                          boxShadow: faceVerified || dbFotoUrl ? '0 0 15px rgba(52, 211, 153, 0.5)' : 'none',
                           position: 'relative',
                           cursor: 'pointer'
                         }}
                       >
                         {fotoSiswa ? (
-                          <img src={fotoSiswa} alt="Siswa" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <Image src={fotoSiswa} alt="Siswa Imbasan Kamera" width={120} height={120} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : dbFotoUrl ? (
+                          <Image src={dbFotoUrl} alt={namaSiswa} width={120} height={120} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           <User size={85} color="#021f18" style={{ marginTop: '12px' }} />
                         )}
@@ -577,10 +612,10 @@ export default function OsisPage() {
                       onChange={(e) => setTindakan(e.target.value)}
                       style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', outline: 'none', backgroundColor: '#021f18', color: '#fff' }}
                     >
-                      <option value="Peringatan Lisan & Binaan OSIS">Peringatan Lisan & Binaan OSIS</option>
-                      <option value="Penyitaan Atribut / Barang Pelanggaran">Penyitaan Atribut / Barang Pelanggaran</option>
                       <option value="Bersih-bersih Lingkungan Sekolah">Bersih-bersih Lingkungan Sekolah</option>
                       <option value="Diserahkan ke Guru Piket / BK">Diserahkan ke Guru Piket / BK</option>
+                      <option value="Penyitaan Atribut / Barang Pelanggaran">Penyitaan Atribut / Barang Pelanggaran</option>
+                      <option value="Peringatan Lisan & Binaan OSIS">Peringatan Lisan & Binaan OSIS</option>
                     </select>
                   </div>
 
