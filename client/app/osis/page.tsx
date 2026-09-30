@@ -2,7 +2,6 @@
 
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
-import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Send, AlertTriangle, Camera, User, X, CheckCircle2, ScanFace } from 'lucide-react';
 
@@ -31,27 +30,104 @@ type PelanggaranSiswaItem = {
   created_at?: string;
 };
 
-// Master Pelanggaran Khusus Pemeriksaan Gerbang Sekolah (A-Z)
+type FaceApiRuntime = {
+  nets: {
+    tinyFaceDetector: { loadFromUri: (url: string) => Promise<void> };
+    faceLandmark68Net: { loadFromUri: (url: string) => Promise<void> };
+    faceRecognitionNet: { loadFromUri: (url: string) => Promise<void> };
+  };
+  TinyFaceDetectorOptions: new (options?: { inputSize?: number; scoreThreshold?: number }) => object;
+  detectSingleFace: (image: HTMLCanvasElement | HTMLImageElement, options: object) => {
+    withFaceLandmarks: () => {
+      withFaceDescriptor: () => Promise<{ descriptor: Float32Array } | undefined>;
+    };
+  };
+  euclideanDistance: (first: Float32Array, second: Float32Array) => number;
+};
+
+declare global {
+  interface Window {
+    faceapi?: FaceApiRuntime;
+  }
+}
+
+let faceApiPromise: Promise<FaceApiRuntime> | null = null;
+let faceModelsPromise: Promise<void> | null = null;
+const faceDescriptorCache = new Map<string, Float32Array>();
+
+const loadFaceApi = async () => {
+  if (!faceApiPromise) {
+    faceApiPromise = new Promise<FaceApiRuntime>((resolve, reject) => {
+      if (window.faceapi) {
+        resolve(window.faceapi);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js';
+      script.async = true;
+      script.onload = () => window.faceapi ? resolve(window.faceapi) : reject(new Error('Library verifikasi wajah tidak tersedia.'));
+      script.onerror = () => reject(new Error('Library verifikasi wajah gagal dimuat. Periksa koneksi internet.'));
+      document.head.appendChild(script);
+    }).catch((error) => {
+      faceApiPromise = null;
+      throw error;
+    });
+  }
+
+  const faceapi = await faceApiPromise;
+  if (!faceModelsPromise) {
+    const modelUrl = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/model';
+    faceModelsPromise = Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(modelUrl),
+      faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
+      faceapi.nets.faceRecognitionNet.loadFromUri(modelUrl),
+    ]).then(() => undefined).catch((error) => {
+      faceModelsPromise = null;
+      throw error;
+    });
+  }
+  await faceModelsPromise;
+  return faceapi;
+};
+
+const getFaceDescriptor = async (faceapi: FaceApiRuntime, image: HTMLCanvasElement | HTMLImageElement) => {
+  const result = await faceapi
+    .detectSingleFace(image, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+  return result?.descriptor ?? null;
+};
+
+const loadReferenceImage = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => {
+  const image = new Image();
+  image.crossOrigin = 'anonymous';
+  image.onload = () => resolve(image);
+  image.onerror = () => reject(new Error('Foto referensi siswa tidak dapat dibuka.'));
+  image.src = src;
+});
+
+// Daftar Master Pelanggaran Khusus Pemeriksaan Gerbang Sekolah
 const GERBANG_MASTER_PELANGGARAN: MasterPelanggaranItem[] = [
-  { nama_pelanggaran: 'Berjilbab selain warna putih / abu-abu', kategori: 'Seragam', poin: 10 },
-  { nama_pelanggaran: 'Datang di lingkungan sekolah tidak senonoh / tidak sesuai', kategori: 'Keterlambatan', poin: 10 },
-  { nama_pelanggaran: 'Memakai gelang / kalung bagi laki-laki', kategori: 'Seragam', poin: 10 },
-  { nama_pelanggaran: 'Memakai ikat pinggang berkepala besar', kategori: 'Seragam', poin: 10 },
-  { nama_pelanggaran: 'Memakai sweater / jaket di lingkungan sekolah', kategori: 'Seragam', poin: 10 },
-  { nama_pelanggaran: 'Memakai topi bebas / selain topi sekolah', kategori: 'Seragam', poin: 10 },
-  { nama_pelanggaran: 'Seragam tidak lengkap', kategori: 'Seragam', poin: 10 },
-  { nama_pelanggaran: 'Seragam tidak sesuai dengan ketentuan', kategori: 'Seragam', poin: 10 },
-  { nama_pelanggaran: 'Siswa berhias / bersolek berlebihan', kategori: 'Kepribadian', poin: 5 },
-  { nama_pelanggaran: 'Siswa berambut dicat / dimode / nyentrik', kategori: 'Kepribadian', poin: 10 },
-  { nama_pelanggaran: 'Siswa berambut gondrong', kategori: 'Kepribadian', poin: 20 },
-  { nama_pelanggaran: 'Terlambat masuk lebih dari 10 menit', kategori: 'Keterlambatan', poin: 5 },
-  { nama_pelanggaran: 'Tidak bersepatu / kaos kaki / memakai sandal', kategori: 'Seragam', poin: 10 },
-  { nama_pelanggaran: 'Tidak ikut upacara / atribut tidak lengkap', kategori: 'Ketertiban', poin: 10 },
-  { nama_pelanggaran: 'Tidak memasukkan pakaian / baju dikeluarkan', kategori: 'Seragam', poin: 5 },
-  { nama_pelanggaran: 'Tidak memakai Badge Lokasi / Badge OSIS', kategori: 'Seragam', poin: 5 },
-  { nama_pelanggaran: 'Tidak memakai ikat pinggang / sabuk hitam', kategori: 'Seragam', poin: 5 },
-  { nama_pelanggaran: 'Tidak memakai kaos dalam', kategori: 'Seragam', poin: 5 },
-  { nama_pelanggaran: 'Tidak memakai sepatu hitam', kategori: 'Seragam', poin: 10 },
+  { id: 1, nama_pelanggaran: 'Terlambat masuk lebih dari 10 menit', kategori: 'Keterlambatan', poin: 5 },
+  { id: 2, nama_pelanggaran: 'Datang di lingkungan sekolah tidak senonoh / tidak sesuai', kategori: 'Keterlambatan', poin: 10 },
+  { id: 3, nama_pelanggaran: 'Tidak memasukkan pakaian / Baju dikeluarkan', kategori: 'Seragam', poin: 5 },
+  { id: 4, nama_pelanggaran: 'Seragam tidak sesuai dengan ketentuan', kategori: 'Seragam', poin: 10 },
+  { id: 5, nama_pelanggaran: 'Tidak bersepatu / kaos kaki / memakai kaos kaki selain putih', kategori: 'Seragam', poin: 10 },
+  { id: 6, nama_pelanggaran: 'Seragam tidak lengkap', kategori: 'Seragam', poin: 10 },
+  { id: 7, nama_pelanggaran: 'Memakai topi bebas / selain topi sekolah', kategori: 'Seragam', poin: 10 },
+  { id: 8, nama_pelanggaran: 'Tidak memakai ikat pinggang / sabuk hitam', kategori: 'Seragam', poin: 5 },
+  { id: 9, nama_pelanggaran: 'Memakai ikat pinggang berkepala besar', kategori: 'Seragam', poin: 10 },
+  { id: 10, nama_pelanggaran: 'Memakai sweater / jaket di lingkungan sekolah', kategori: 'Seragam', poin: 10 },
+  { id: 11, nama_pelanggaran: 'Berjilbab selain warna putih / abu-abu', kategori: 'Seragam', poin: 10 },
+  { id: 12, nama_pelanggaran: 'Memakai gelang / kalung bagi laki-laki', kategori: 'Seragam', poin: 10 },
+  { id: 13, nama_pelanggaran: 'Tidak memakai Badge Lokasi / Badge OSIS', kategori: 'Seragam', poin: 5 },
+  { id: 14, nama_pelanggaran: 'Tidak memakai sepatu hitam', kategori: 'Seragam', poin: 10 },
+  { id: 15, nama_pelanggaran: 'Tidak memakai kaos dalam', kategori: 'Seragam', poin: 5 },
+  { id: 16, nama_pelanggaran: 'Siswa berhias / bersolek berlebihan', kategori: 'Kepribadian', poin: 5 },
+  { id: 17, nama_pelanggaran: 'Siswa berambut gondrong', kategori: 'Kepribadian', poin: 20 },
+  { id: 18, nama_pelanggaran: 'Siswa berambut dicat / dimode / nyentrik', kategori: 'Kepribadian', poin: 10 },
+  { id: 19, nama_pelanggaran: 'Tidak ikut upacara / atribut tidak lengkap', kategori: 'Ketertiban', poin: 10 },
 ];
 
 export default function OsisPage() {
@@ -64,9 +140,11 @@ export default function OsisPage() {
   const [keterangan, setKeterangan] = useState('');
   const [tindakan, setTindakan] = useState('Peringatan Lisan & Binaan OSIS');
 
-  // Foto Siswa (Kamera Web & Database Supabase master_foto_siswa)
-  const [fotoSiswa, setFotoSiswa] = useState<string | null>(null); // Foto imbasan kamera
-  const [dbFotoUrl, setDbFotoUrl] = useState<string | null>(null);   // Foto daripada Supabase
+  // Foto Siswa & State Verifikasi Wajah
+  const [fotoSiswa, setFotoSiswa] = useState<string | null>(null);
+  const [dbFotoUrl, setDbFotoUrl] = useState<string | null>(null);
+  const [referenceStatus, setReferenceStatus] = useState<'loading' | 'ready' | 'missing' | 'error'>('loading');
+  const [verificationMessage, setVerificationMessage] = useState('');
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [faceVerified, setFaceVerified] = useState(false);
@@ -83,12 +161,12 @@ export default function OsisPage() {
   const [selectedPoin, setSelectedPoin] = useState<number>(Number(GERBANG_MASTER_PELANGGARAN[0].poin ?? 5));
 
   const [listPelanggaran, setListPelanggaran] = useState<PelanggaranSiswaItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filterText, setFilterText] = useState('');
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Auto-fill Nama Petugas daripada LocalStorage
+  // Auto-fill Nama Petugas
   useEffect(() => {
     const sessionData = localStorage.getItem('user_session');
     if (sessionData) {
@@ -96,8 +174,6 @@ export default function OsisPage() {
         const session = JSON.parse(sessionData);
         if (session.nama) {
           const cleanName = session.nama.replace(/\s*\(.*?\)\s*/g, '').trim();
-          // Read the browser-only session after hydration and populate the form once.
-          // eslint-disable-next-line react-hooks/set-state-in-effect
           setNamaPetugas(cleanName);
         }
       } catch (err) {
@@ -166,32 +242,61 @@ export default function OsisPage() {
       });
   }, []);
 
-  // Fetch Foto Siswa dari Supabase master_foto_siswa secara otomatis apabila Nama Siswa berubah
   useEffect(() => {
-    async function fetchFotoSiswa() {
+    let cancelled = false;
+
+    const fetchFotoSiswa = async () => {
       if (!namaSiswa) {
         setDbFotoUrl(null);
+        setReferenceStatus('missing');
         return;
       }
+
+      setDbFotoUrl(null);
+      setReferenceStatus('loading');
       try {
         const { data, error } = await supabase
           .from('master_foto_siswa')
           .select('foto_url')
           .ilike('nama_siswa', namaSiswa.trim())
+          .limit(1)
           .maybeSingle();
 
-        if (!error && data && data.foto_url) {
-          setDbFotoUrl(data.foto_url);
-        } else {
-          setDbFotoUrl(null);
+        if (error) throw error;
+        if (!data?.foto_url) {
+          if (!cancelled) setReferenceStatus('missing');
+          return;
+        }
+
+        const storedPhoto = String(data.foto_url).trim();
+        let photoUrl = storedPhoto;
+        if (!/^https?:\/\//i.test(storedPhoto)) {
+          const storagePath = storedPhoto.replace(/^\/?foto-siswaq\//i, '');
+          const { data: signedPhoto, error: signedUrlError } = await supabase.storage
+            .from('foto-siswaq')
+            .createSignedUrl(storagePath, 3600);
+
+          if (!signedUrlError && signedPhoto?.signedUrl) {
+            photoUrl = signedPhoto.signedUrl;
+          } else {
+            photoUrl = supabase.storage.from('foto-siswaq').getPublicUrl(storagePath).data.publicUrl;
+          }
+        }
+
+        if (!cancelled) {
+          setDbFotoUrl(photoUrl);
+          setReferenceStatus('ready');
         }
       } catch (err) {
-        console.error('Gagal mengambil foto dari pangkalan data:', err);
-        setDbFotoUrl(null);
+        console.error('Gagal mengambil foto referensi siswa:', err);
+        if (!cancelled) setReferenceStatus('error');
       }
-    }
+    };
 
     fetchFotoSiswa();
+    return () => {
+      cancelled = true;
+    };
   }, [namaSiswa]);
 
   const handleKelasChange = (newKelas: string) => {
@@ -203,22 +308,39 @@ export default function OsisPage() {
       setNamaSiswa('');
     }
     setFotoSiswa(null);
+    setDbFotoUrl(null);
+    setReferenceStatus('loading');
     setFaceVerified(false);
+    setVerificationMessage('');
   };
 
   const handleSiswaChange = (newSiswa: string) => {
     setNamaSiswa(newSiswa);
     setFotoSiswa(null);
+    setDbFotoUrl(null);
+    setReferenceStatus('loading');
     setFaceVerified(false);
+    setVerificationMessage('');
   };
 
   // Kamera & Verifikasi Wajah
   const startCamera = async () => {
+    if (!dbFotoUrl || referenceStatus !== 'ready') {
+      setVerificationMessage(referenceStatus === 'missing'
+        ? 'Foto referensi siswa belum tersedia di database.'
+        : 'Foto referensi siswa belum siap.');
+      return;
+    }
+
     setIsCameraOpen(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      } else {
+        stream.getTracks().forEach((track) => track.stop());
+        throw new Error('Elemen kamera belum siap. Silakan coba kembali.');
       }
     } catch (err) {
       console.error('Kamera tidak dapat diakses:', err);
@@ -236,28 +358,62 @@ export default function OsisPage() {
     setIsScanning(false);
   };
 
-  const handleScanAndVerify = () => {
+  const handleScanAndVerify = async () => {
     setIsScanning(true);
-    setTimeout(() => {
-      if (videoRef.current && canvasRef.current) {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        canvas.width = video.videoWidth || 300;
-        canvas.height = video.videoHeight || 300;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const capturedImage = canvas.toDataURL('image/png');
-          setFotoSiswa(capturedImage);
-          setFaceVerified(true);
-        }
+    setVerificationMessage('Memeriksa wajah dan mencocokkan foto referensi...');
+
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas || !dbFotoUrl || video.videoWidth === 0 || video.videoHeight === 0) {
+        throw new Error('Kamera atau foto referensi belum siap.');
       }
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Gagal membaca gambar dari kamera.');
+
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      setFotoSiswa(canvas.toDataURL('image/jpeg', 0.9));
+
+      const faceapi = await loadFaceApi();
+      const cameraDescriptor = await getFaceDescriptor(faceapi, canvas);
+      if (!cameraDescriptor) {
+        setFaceVerified(false);
+        setVerificationMessage('Wajah tidak terdeteksi. Posisikan satu wajah di tengah kamera dan coba lagi.');
+        return;
+      }
+
+      let referenceDescriptor = faceDescriptorCache.get(dbFotoUrl);
+      if (!referenceDescriptor) {
+        const referenceImage = await loadReferenceImage(dbFotoUrl);
+        referenceDescriptor = await getFaceDescriptor(faceapi, referenceImage) ?? undefined;
+        if (!referenceDescriptor) {
+          setFaceVerified(false);
+          setVerificationMessage('Wajah tidak terdeteksi pada foto referensi database.');
+          return;
+        }
+        faceDescriptorCache.set(dbFotoUrl, referenceDescriptor);
+      }
+
+      const distance = faceapi.euclideanDistance(cameraDescriptor, referenceDescriptor);
+      const matched = distance <= 0.5;
+      setFaceVerified(matched);
+      setVerificationMessage(matched
+        ? `Wajah cocok dengan data ${namaSiswa} (jarak ${distance.toFixed(2)}).`
+        : `Wajah tidak cocok dengan data ${namaSiswa} (jarak ${distance.toFixed(2)}).`);
+    } catch (err) {
+      setFaceVerified(false);
+      setVerificationMessage(err instanceof Error ? err.message : 'Verifikasi wajah gagal.');
+    } finally {
       setIsScanning(false);
       stopCamera();
-    }, 2000);
+    }
   };
 
   const fetchPelanggaranSiswa = async () => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('pelanggaran_siswa')
@@ -273,8 +429,6 @@ export default function OsisPage() {
   };
 
   useEffect(() => {
-    // Start the remote request after mount; its async result populates the violation list.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchPelanggaranSiswa();
   }, []);
 
@@ -293,6 +447,10 @@ export default function OsisPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!faceVerified) {
+      setStatusMsg({ type: 'error', message: 'Verifikasi wajah harus cocok dengan foto referensi siswa sebelum menyimpan.' });
+      return;
+    }
     setIsSubmitting(true);
     setStatusMsg(null);
 
@@ -322,10 +480,10 @@ export default function OsisPage() {
 
       setKeterangan('');
       fetchPelanggaranSiswa();
-    } catch (err: unknown) {
+    } catch (err: any) {
       setStatusMsg({
         type: 'error',
-        message: err instanceof Error ? err.message : 'Gagal menyimpan data pelanggaran.',
+        message: err.message || 'Gagal menyimpan data pelanggaran.',
       });
     } finally {
       setIsSubmitting(false);
@@ -390,14 +548,14 @@ export default function OsisPage() {
             boxSizing: 'border-box'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              {/* SLOT LOGO APLIKASI */}
               <div style={{ width: '42px', height: '42px', borderRadius: '10px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#021f18', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
-                <Image
+                <img 
                   src="/logo-mindguard.jpeg" 
                   alt="MindGuard Logo" 
-                  width={42}
-                  height={42}
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   onError={(e) => {
+                    // Fallback jika file gambar belum disimpan
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
                 />
@@ -452,16 +610,14 @@ export default function OsisPage() {
                           alignItems: 'center', 
                           justifyContent: 'center',
                           overflow: 'hidden',
-                          border: faceVerified ? '3px solid #34d399' : (dbFotoUrl ? '3px solid #10b981' : '3px solid rgba(52, 211, 153, 0.4)'),
-                          boxShadow: faceVerified || dbFotoUrl ? '0 0 15px rgba(52, 211, 153, 0.5)' : 'none',
+                          border: faceVerified ? '3px solid #34d399' : '3px solid rgba(52, 211, 153, 0.4)',
+                          boxShadow: faceVerified ? '0 0 15px rgba(52, 211, 153, 0.5)' : 'none',
                           position: 'relative',
                           cursor: 'pointer'
                         }}
                       >
-                        {fotoSiswa ? (
-                          <Image src={fotoSiswa} alt="Siswa Imbasan Kamera" width={120} height={120} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : dbFotoUrl ? (
-                          <Image src={dbFotoUrl} alt={namaSiswa} width={120} height={120} unoptimized style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {fotoSiswa || dbFotoUrl ? (
+                          <img src={fotoSiswa || dbFotoUrl || ''} alt={fotoSiswa ? 'Hasil kamera siswa' : `Foto referensi ${namaSiswa}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
                           <User size={85} color="#021f18" style={{ marginTop: '12px' }} />
                         )}
@@ -474,6 +630,7 @@ export default function OsisPage() {
                       <button
                         type="button"
                         onClick={startCamera}
+                        disabled={referenceStatus !== 'ready'}
                         style={{
                           backgroundColor: 'rgba(52, 211, 153, 0.15)',
                           border: '1px solid rgba(52, 211, 153, 0.4)',
@@ -482,7 +639,8 @@ export default function OsisPage() {
                           borderRadius: '6px',
                           fontSize: '11px',
                           fontWeight: '700',
-                          cursor: 'pointer',
+                          cursor: referenceStatus === 'ready' ? 'pointer' : 'not-allowed',
+                          opacity: referenceStatus === 'ready' ? 1 : 0.6,
                           display: 'flex',
                           alignItems: 'center',
                           gap: '4px'
@@ -491,6 +649,15 @@ export default function OsisPage() {
                         <ScanFace size={12} color="#34d399" />
                         <span>{faceVerified ? 'Verifikasi Ulang' : 'Verifikasi Wajah'}</span>
                       </button>
+                      <span style={{ maxWidth: '160px', textAlign: 'center', fontSize: '11px', lineHeight: 1.4, color: faceVerified ? '#6ee7b7' : verificationMessage.includes('tidak cocok') || verificationMessage.includes('tidak terdeteksi') ? '#fca5a5' : '#a7f3d0' }}>
+                        {verificationMessage || (referenceStatus === 'loading'
+                          ? 'Memuat foto referensi...'
+                          : referenceStatus === 'missing'
+                            ? 'Foto referensi belum terdaftar.'
+                            : referenceStatus === 'error'
+                              ? 'Gagal memuat foto referensi.'
+                              : 'Foto referensi siap diverifikasi.')}
+                      </span>
                     </div>
 
                     {/* FIELD KELAS & SISWA */}
@@ -612,16 +779,16 @@ export default function OsisPage() {
                       onChange={(e) => setTindakan(e.target.value)}
                       style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', outline: 'none', backgroundColor: '#021f18', color: '#fff' }}
                     >
+                      <option value="Peringatan Lisan & Binaan OSIS">Peringatan Lisan & Binaan OSIS</option>
+                      <option value="Penyitaan Atribut / Barang Pelanggaran">Penyitaan Atribut / Barang Pelanggaran</option>
                       <option value="Bersih-bersih Lingkungan Sekolah">Bersih-bersih Lingkungan Sekolah</option>
                       <option value="Diserahkan ke Guru Piket / BK">Diserahkan ke Guru Piket / BK</option>
-                      <option value="Penyitaan Atribut / Barang Pelanggaran">Penyitaan Atribut / Barang Pelanggaran</option>
-                      <option value="Peringatan Lisan & Binaan OSIS">Peringatan Lisan & Binaan OSIS</option>
                     </select>
                   </div>
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !faceVerified}
                     style={{
                       background: 'linear-gradient(135deg, #059669 0%, #047857 50%, #064e3b 100%)',
                       color: '#ffffff',
@@ -630,7 +797,8 @@ export default function OsisPage() {
                       borderRadius: '10px',
                       fontSize: '13.5px',
                       fontWeight: '700',
-                      cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                      cursor: isSubmitting || !faceVerified ? 'not-allowed' : 'pointer',
+                      opacity: faceVerified ? 1 : 0.65,
                       marginTop: '4px',
                       boxShadow: '0 4px 15px rgba(5, 150, 105, 0.4)',
                       display: 'flex',
@@ -640,7 +808,7 @@ export default function OsisPage() {
                     }}
                   >
                     <Send size={15} color="#a7f3d0" />
-                    <span>{isSubmitting ? 'Menyimpan...' : 'Simpan Data Pelanggaran'}</span>
+                    <span>{isSubmitting ? 'Menyimpan...' : faceVerified ? 'Simpan Data Pelanggaran' : 'Verifikasi Wajah Terlebih Dahulu'}</span>
                   </button>
                 </form>
               </div>
@@ -730,7 +898,7 @@ export default function OsisPage() {
                 </div>
 
                 <p style={{ fontSize: '12px', color: '#a7f3d0', textAlign: 'center', margin: '12px 0' }}>
-                  {isScanning ? 'Pindaian Wajah Sedang Berjalan...' : `Arahkan wajah ${namaSiswa || 'Siswa'} ke tengah kamera.`}
+                  {isScanning ? 'Pindaian dan pencocokan wajah sedang berjalan...' : `Arahkan wajah ${namaSiswa || 'Siswa'} ke tengah kamera.`}
                 </p>
 
                 <div style={{ display: 'flex', gap: '10px' }}>
