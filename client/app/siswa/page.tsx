@@ -1,38 +1,43 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
+type BKUser = {
+  nama?: string;
+  email?: string;
+};
+
+type CurhatRecord = {
+  id: string | number;
+  nama_siswa?: string;
+  email_siswa?: string;
+  kelas?: string;
+  judul_pesan?: string;
+  pesan?: string;
+  topik?: string;
+  balasan?: string;
+  status?: string;
+  tujuan_konselor?: string;
+  created_at?: string;
+};
+
 export default function BKDashboardPage() {
   const router = useRouter();
-  const [bkUser, setBkUser] = useState<any>(null);
-  const [curhatList, setCurhatList] = useState<any[]>([]);
+  const [bkUser, setBkUser] = useState<BKUser | null>(null);
+  const [curhatList, setCurhatList] = useState<CurhatRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>('SEMUA');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // State Modal / Form Balasan Curhat
-  const [selectedCurhat, setSelectedCurhat] = useState<any>(null);
+  const [selectedCurhat, setSelectedCurhat] = useState<CurhatRecord | null>(null);
   const [balasanText, setBalasanText] = useState<string>('');
   const [newStatus, setNewStatus] = useState<string>('DIBALAS');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    // Verifikasi Sesi Guru BK / Admin
-    const rawSession = sessionStorage.getItem('bk_session') || sessionStorage.getItem('admin_session');
-    if (!rawSession) {
-      router.push('/'); // Mengarahkan ke login jika belum ada sesi
-      return;
-    }
-    const parsed = JSON.parse(rawSession);
-    setBkUser(parsed);
-
-    fetchCurhatData();
-  }, []);
-
-  // HANYA AMBIL DATA CURHAT (LAYANAN = 'CURHAT')
-  const fetchCurhatData = async () => {
+  const fetchCurhatData = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -42,13 +47,33 @@ export default function BKDashboardPage() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setCurhatList(data || []);
-    } catch (err: any) {
-      console.error('Error fetching curhat:', err.message);
+      setCurhatList((data || []) as CurhatRecord[]);
+    } catch (error: unknown) {
+      console.error('Error fetching curhat:', error instanceof Error ? error.message : String(error));
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.resolve().then(() => {
+      if (!isMounted) return;
+      try {
+        const rawSession = sessionStorage.getItem('bk_session') || sessionStorage.getItem('admin_session');
+        if (!rawSession) {
+          router.push('/');
+          return;
+        }
+        setBkUser(JSON.parse(rawSession) as BKUser);
+        void fetchCurhatData();
+      } catch (error) {
+        console.error('Gagal memeriksa sesi Guru BK:', error);
+        router.push('/');
+      }
+    });
+    return () => { isMounted = false; };
+  }, [fetchCurhatData, router]);
 
   const handleLogout = () => {
     sessionStorage.removeItem('bk_session');
@@ -56,10 +81,10 @@ export default function BKDashboardPage() {
     router.push('/');
   };
 
-  const handleOpenBalasModal = (item: any) => {
+  const handleOpenBalasModal = (item: CurhatRecord) => {
     setSelectedCurhat(item);
     setBalasanText(item.balasan || '');
-    setNewStatus(item.status === 'TERKIRIM' ? 'DIBALAS' : item.status);
+    setNewStatus(item.status === 'TERKIRIM' ? 'DIBALAS' : item.status || 'DIBALAS');
   };
 
   const handleSaveBalasan = async (e: React.FormEvent) => {
@@ -83,8 +108,8 @@ export default function BKDashboardPage() {
       setSelectedCurhat(null);
       setBalasanText('');
       fetchCurhatData();
-    } catch (err: any) {
-      alert('❌ Gagal menyimpan balasan: ' + err.message);
+    } catch (error: unknown) {
+      alert('❌ Gagal menyimpan balasan: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsSubmitting(false);
     }

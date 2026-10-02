@@ -227,6 +227,10 @@ export default function Sidebar() {
                   <Home size={18} />
                   <span>Beranda</span>
                 </Link>
+                <Link href="/booking" style={getLinkStyle('/booking')}>
+                  <CalendarDays size={18} />
+                  <span>Permohonan Konseling BK</span>
+                </Link>
                 <Link href="/curhat" style={getLinkStyle('/curhat')}>
                   <MessageCircle size={18} />
                   <span>Curhat ke Guru BK</span>

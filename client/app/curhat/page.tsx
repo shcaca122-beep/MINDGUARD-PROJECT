@@ -2,14 +2,16 @@
 
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
+import { isHighPriorityMessage, markPriorityTitle } from '@/lib/counseling-priority';
 import { useState } from 'react';
-import { MessageSquareHeart, ShieldCheck, PenTool, Send, Lock, Lightbulb } from 'lucide-react';
+import { MessageSquareHeart, ShieldCheck, PenTool, Send, Lock, Lightbulb, AlertTriangle } from 'lucide-react';
 
 export default function CurhatPage() {
   const [kategori, setKategori] = useState('Pribadi / Emosional');
   const [judul, setJudul] = useState('');
   const [pesan, setPesan] = useState('');
   const [isAnonim, setIsAnonim] = useState(true);
+  const [needsFastSupport, setNeedsFastSupport] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -23,11 +25,13 @@ export default function CurhatPage() {
       const session = sessionData ? JSON.parse(sessionData) : {};
 
       const namaPengirim = isAnonim ? 'Anonim' : (session.nama || session.email || 'Siswa');
+      const isPriority = needsFastSupport || isHighPriorityMessage(judul, pesan);
+      const messageTitle = `[${kategori}] ${judul.trim()}`;
 
-      const payload: any = {
+      const payload: Record<string, string> = {
         nama_siswa: namaPengirim,
         layanan: 'CURHAT',
-        judul_pesan: `[${kategori}] ${judul}`,
+        judul_pesan: isPriority ? markPriorityTitle(messageTitle) : messageTitle,
         deskripsi: pesan,
         topik: pesan,
         status: 'TERKIRIM',
@@ -58,20 +62,25 @@ export default function CurhatPage() {
 
       setStatus({
         type: 'success',
-        message: 'Curhatanmu berhasil terkirim secara aman & rahasia ke Guru BK!',
+        message: isPriority
+          ? 'Pesanmu sudah dikirim dan ditandai prioritas untuk Guru BK. Jika kamu dalam bahaya sekarang, segera temui Guru BK atau orang dewasa tepercaya; jangan menunggu balasan aplikasi.'
+          : 'Curhatanmu berhasil terkirim secara aman & rahasia ke Guru BK!',
       });
       setJudul('');
       setPesan('');
-    } catch (err: any) {
+      setNeedsFastSupport(false);
+    } catch (err: unknown) {
       console.error('Error submit:', err);
       setStatus({
         type: 'error',
-        message: err.message || 'Gagal mengirim curhatan.',
+        message: err instanceof Error ? err.message : 'Gagal mengirim curhatan.',
       });
     } finally {
       setIsLoading(false);
     }
   };
+
+  const messageNeedsReview = isHighPriorityMessage(judul, pesan);
 
   return (
     <>
@@ -187,6 +196,18 @@ export default function CurhatPage() {
                     </select>
                   </div>
 
+                  {(messageNeedsReview || needsFastSupport) && (
+                    <div role="status" style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(248, 113, 113, 0.45)', background: 'rgba(127, 29, 29, 0.28)', color: '#fecaca', fontSize: '12px', lineHeight: 1.5 }}>
+                      <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
+                      <span>Pesan ini akan ditandai prioritas untuk ditinjau Guru BK. Ini bukan layanan darurat.</span>
+                    </div>
+                  )}
+                  {(messageNeedsReview || needsFastSupport) && isAnonim && (
+                    <p style={{ margin: '-8px 0 0', color: '#fecaca', fontSize: '11px', lineHeight: 1.5 }}>
+                      Karena kamu memilih anonim, Guru BK mungkin tidak dapat menghubungi atau menemukanmu kembali. Kamu bisa mematikan pilihan anonim jika ingin dihubungi.
+                    </p>
+                  )}
+
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
                       Judul / Perihal
@@ -213,6 +234,16 @@ export default function CurhatPage() {
                       onChange={(e) => setPesan(e.target.value)}
                       style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical', outline: 'none', backgroundColor: '#021f18', color: '#fff' }}
                     />
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '5px', padding: '12px', borderRadius: '10px', border: '1px solid rgba(248, 113, 113, 0.35)', background: 'rgba(127, 29, 29, 0.16)' }}>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '9px', color: '#fee2e2', fontSize: '12px', fontWeight: 700, cursor: 'pointer', lineHeight: 1.5 }}>
+                      <input type="checkbox" checked={needsFastSupport} onChange={(event) => setNeedsFastSupport(event.target.checked)} style={{ marginTop: '2px', accentColor: '#f87171' }} />
+                      <span>Saya membutuhkan bantuan Guru BK secepatnya</span>
+                    </label>
+                    <p style={{ margin: '0 0 0 25px', color: '#fecaca', fontSize: '11px', lineHeight: 1.5 }}>
+                      Jika ada bahaya saat ini, segera temui Guru BK atau orang dewasa tepercaya. Jangan menunggu balasan aplikasi.
+                    </p>
                   </div>
 
                   <div style={{ backgroundColor: '#021f18', padding: '12px', borderRadius: '10px', border: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
