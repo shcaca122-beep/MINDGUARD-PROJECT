@@ -1,16 +1,23 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Plus, Loader2, Image as ImageIcon, X, Upload, Eye } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+import { Loader2, Image as ImageIcon, X, Upload, Eye } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+type ViolationRecord = {
+  id?: string | number;
+  created_at?: string;
+  tanggal?: string;
+  nama_siswa?: string;
+  kelas?: string;
+  jenis_pelanggaran?: string;
+  keterangan?: string;
+  poin?: number;
+  foto_bukti_path?: string | null;
+};
 
 export default function PelanggaranSiswaPage() {
-  const [pelanggaranList, setPelanggaranList] = useState<any[]>([]);
+  const [pelanggaranList, setPelanggaranList] = useState<ViolationRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   // State Modal Tambah Pelanggaran
@@ -27,35 +34,34 @@ export default function PelanggaranSiswaPage() {
   const [loadingBuktiId, setLoadingBuktiId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchPelanggaran();
+    let isMounted = true;
+    const loadPelanggaran = async () => {
+      setLoading(true);
+      const [legacyResult, osisResult] = await Promise.all([
+        supabase.from('pelanggaran').select('*').order('created_at', { ascending: false }),
+        supabase.from('pelanggaran_siswa').select('*').order('created_at', { ascending: false }),
+      ]);
+
+      if (legacyResult.error) console.error('Error fetching legacy violations:', legacyResult.error.message);
+      if (osisResult.error) console.error('Error fetching OSIS violations:', osisResult.error.message);
+
+      const osisList: ViolationRecord[] = ((osisResult.data || []) as ViolationRecord[]).map((item) => ({
+        ...item,
+        id: `osis-${item.id}`,
+        foto_bukti_path: item.foto_bukti_path || null,
+      }));
+      const combinedList = [...((legacyResult.data || []) as ViolationRecord[]), ...osisList].sort((first, second) =>
+        new Date(second.created_at || second.tanggal || 0).getTime() -
+        new Date(first.created_at || first.tanggal || 0).getTime()
+      );
+      if (isMounted) {
+        setPelanggaranList(combinedList);
+        setLoading(false);
+      }
+    };
+    void loadPelanggaran();
+    return () => { isMounted = false; };
   }, []);
-
-  const fetchPelanggaran = async () => {
-    setLoading(true);
-    const [legacyResult, osisResult] = await Promise.all([
-      supabase.from('pelanggaran').select('*').order('created_at', { ascending: false }),
-      supabase.from('pelanggaran_siswa').select('*').order('created_at', { ascending: false }),
-    ]);
-
-    if (legacyResult.error) {
-      console.error('Error fetching legacy violations:', legacyResult.error.message);
-    }
-    if (osisResult.error) {
-      console.error('Error fetching OSIS violations:', osisResult.error.message);
-    }
-
-    const osisList = (osisResult.data || []).map((item) => ({
-      ...item,
-      id: `osis-${item.id}`,
-      foto_bukti_path: item.foto_bukti_path || null,
-    }));
-    const combinedList = [...(legacyResult.data || []), ...osisList].sort((first, second) =>
-      new Date(second.created_at || second.tanggal || 0).getTime() -
-      new Date(first.created_at || first.tanggal || 0).getTime()
-    );
-    setPelanggaranList(combinedList);
-    setLoading(false);
-  };
 
   // Submit Data Pelanggaran + File Foto Bukti
   const handleSubmitPelanggaran = async (e: React.FormEvent) => {
@@ -71,8 +77,8 @@ export default function PelanggaranSiswaPage() {
     try {
       // 1. Upload File Bukti ke Bucket Privat 'bukti-pelanggaran' (jika ada)
       if (selectedFile) {
-        const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+        const fileExt = selectedFile.name.split('.').pop() || 'bin';
+        const fileName = `${crypto.randomUUID()}.${fileExt}`;
         const filePath = `bukti/${fileName}`;
 
         const { data: uploadData, error: uploadError } = await supabase.storage
@@ -112,9 +118,8 @@ export default function PelanggaranSiswaPage() {
       // Reset form & reload
       resetForm();
       setIsModalOpen(false);
-      fetchPelanggaran();
-    } catch (err: any) {
-      alert(`Terjadi kesalahan: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Terjadi kesalahan: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSubmitting(false);
     }
@@ -143,8 +148,8 @@ export default function PelanggaranSiswaPage() {
       }
 
       setViewBuktiUrl(data.signedUrl);
-    } catch (err: any) {
-      alert(`Gagal memuat foto bukti: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Gagal memuat foto bukti: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoadingBuktiId(null);
     }
@@ -158,12 +163,6 @@ export default function PelanggaranSiswaPage() {
           <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#fff', margin: 0 }}>PELANGGARAN SISWA</h1>
           <p style={{ fontSize: '12px', color: '#688c7d', margin: '4px 0 0 0' }}>Catatan poin dan disiplin dari Supabase</p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          style={{ backgroundColor: '#fbbf24', color: '#07100d', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
-        >
-          <Plus size={16} /> Catat Pelanggaran
-        </button>
       </div>
 
       {/* DATA TABLE */}
@@ -200,11 +199,11 @@ export default function PelanggaranSiswaPage() {
                     {item.nama_siswa ? `${item.nama_siswa}${item.kelas ? ` (${item.kelas})` : ''}` : '-'}
                   </td>
                   <td style={{ padding: '12px 16px' }}>{item.jenis_pelanggaran || item.keterangan || '-'}</td>
-                  <td style={{ padding: '12px 16px', color: '#fbbf24', fontWeight: '800' }}>+{item.poin || 5} Poin</td>
+                  <td style={{ padding: '12px 16px', color: '#34d399', fontWeight: '800' }}>+{item.poin || 5} Poin</td>
                   <td style={{ padding: '12px 16px' }}>
                     {item.foto_bukti_path ? (
                       <button
-                        onClick={() => handleOpenBukti(item.foto_bukti_path, item.id || String(idx))}
+                        onClick={() => handleOpenBukti(item.foto_bukti_path || '', String(item.id ?? idx))}
                         disabled={loadingBuktiId === (item.id || String(idx))}
                         style={{
                           backgroundColor: 'rgba(52, 211, 153, 0.15)',

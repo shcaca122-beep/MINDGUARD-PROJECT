@@ -161,7 +161,7 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
               <div style={{ fontSize: '10px', fontWeight: '700', color: '#567568', textTransform: 'uppercase', letterSpacing: '0.5px' }}>DATA MASTER</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <div onClick={() => router.push('/admin1/guru')} onMouseEnter={() => setHoveredIndex('guru')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/guru', 'guru')}>
-                  <UserCheck size={14} /> <span>Data Guru</span>
+                  <UserCheck size={14} /> <span>Data Admin</span>
                 </div>
                 <div onClick={() => router.push('/admin1/siswa')} onMouseEnter={() => setHoveredIndex('siswa')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/siswa', 'siswa')}>
                   <GraduationCap size={14} /> <span>Data Siswa</span>

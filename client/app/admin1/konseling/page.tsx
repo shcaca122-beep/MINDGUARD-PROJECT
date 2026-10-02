@@ -1,28 +1,35 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, Loader2 } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+import { Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+type KonselingRecord = {
+  id?: string | number;
+  tanggal?: string;
+  nama_siswa?: string;
+  guru_bk?: string;
+  topik?: string;
+  status?: string;
+};
 
 export default function SesiKonselingPage() {
-  const [konselingList, setKonselingList] = useState<any[]>([]);
+  const [konselingList, setKonselingList] = useState<KonselingRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchKonseling();
+    let isMounted = true;
+    const loadKonseling = async () => {
+      setLoading(true);
+      const { data } = await supabase.from('konseling').select('*');
+      if (isMounted) {
+        if (data) setKonselingList(data as KonselingRecord[]);
+        setLoading(false);
+      }
+    };
+    void loadKonseling();
+    return () => { isMounted = false; };
   }, []);
-
-  const fetchKonseling = async () => {
-    setLoading(true);
-    const { data } = await supabase.from('konseling').select('*');
-    if (data) setKonselingList(data);
-    setLoading(false);
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -31,9 +38,6 @@ export default function SesiKonselingPage() {
           <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#fff', margin: 0 }}>SESI KONSELING</h1>
           <p style={{ fontSize: '12px', color: '#688c7d', margin: '4px 0 0 0' }}>Jadwal dan catatan sesi konseling dari Supabase</p>
         </div>
-        <button style={{ backgroundColor: '#34d399', color: '#07100d', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-          <Plus size={16} /> Buat Sesi Baru
-        </button>
       </div>
 
       <div style={{ backgroundColor: '#13261f', border: '1px solid #1d3d30', borderRadius: '12px', overflow: 'hidden' }}>

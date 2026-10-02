@@ -1097,7 +1097,7 @@ export default function OsisPage() {
           )}
 
           <footer style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#a7f3d0', padding: '16px', textAlign: 'center', fontSize: '11.5px', borderTop: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
-            © 2026 Panel Bimbingan Konseling MindGuard - SMK Budi Bakti Ciwidey
+            © 2026 Panel OSIS & MPK MindGuard - SMK Budi Bakti Ciwidey
           </footer>
         </div>
       </div>

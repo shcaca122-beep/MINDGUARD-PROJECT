@@ -112,155 +112,175 @@ export default function RekapMingguanPage() {
   const dayPoints = dayRecords.reduce((total, record) => total + Number(record.poin || 0), 0);
 
   const panelStyle = {
-    background: '#ffffff',
-    border: '1px solid #dce7df',
-    borderRadius: '8px',
+    background: 'rgba(2, 31, 24, 0.85)',
+    border: '1px solid rgba(52, 211, 153, 0.2)',
+    borderRadius: '12px',
+    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.25)',
   };
 
   const inputStyle = {
     width: '100%',
-    minHeight: '40px',
-    padding: '8px 10px',
-    border: '1px solid #c8d8cc',
-    borderRadius: '6px',
-    background: '#ffffff',
-    color: '#173b2b',
+    minHeight: '42px',
+    padding: '9px 11px',
+    border: '1px solid rgba(52, 211, 153, 0.3)',
+    borderRadius: '8px',
+    background: 'rgba(255, 255, 255, 0.06)',
+    color: '#ecfdf5',
     fontSize: '13px',
     boxSizing: 'border-box' as const,
+    colorScheme: 'dark' as const,
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f3f7f4', color: '#173b2b', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <Sidebar />
-      <main style={{ flex: 1, minWidth: 0 }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', padding: '20px 28px', background: '#ffffff', borderBottom: '1px solid #dce7df' }}>
-          <div>
-            <h1 style={{ display: 'flex', alignItems: 'center', gap: '9px', margin: 0, fontSize: '20px', color: '#173b2b' }}>
-              <CalendarDays size={21} /> Rekap Mingguan OSIS & MPK
-            </h1>
-            <p style={{ margin: '5px 0 0', color: '#5b7565', fontSize: '13px' }}>Catatan pelanggaran gerbang per hari untuk OSIS, MPK, dan Guru BK.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSelectedDate(getTodayKey())}
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', minHeight: '38px', padding: '8px 12px', border: '1px solid #bdd4c4', borderRadius: '6px', background: '#f7faf8', color: '#24583d', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
-          >
-            <RefreshCw size={14} /> Minggu ini
-          </button>
-        </header>
-
-        <div style={{ display: 'grid', gap: '18px', padding: '24px 28px', maxWidth: '1500px', margin: '0 auto' }}>
-          <section style={{ ...panelStyle, display: 'grid', gridTemplateColumns: 'minmax(210px, 1.2fr) minmax(210px, 1fr) minmax(150px, 0.7fr) minmax(150px, 0.7fr)', alignItems: 'end', gap: '16px', padding: '16px' }}>
-            <label style={{ display: 'grid', gap: '6px', color: '#345b43', fontSize: '12px', fontWeight: 700 }}>
-              Cari minggu berdasarkan tanggal
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(event) => setSelectedDate(event.target.value)}
-                style={inputStyle}
-              />
-            </label>
-            <div style={{ display: 'grid', gap: '6px' }}>
-              <span style={{ color: '#688170', fontSize: '12px', fontWeight: 700 }}>Periode minggu</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minHeight: '40px' }}>
-                <button type="button" aria-label="Minggu sebelumnya" onClick={() => shiftWeek(-1)} style={{ ...inputStyle, width: '40px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-                  <ChevronLeft size={17} />
-                </button>
-                <strong style={{ flex: 1, textAlign: 'center', fontSize: '13px' }}>
-                  {formatDate(weekStart, { day: 'numeric', month: 'short' })} – {formatDate(weekEnd, { day: 'numeric', month: 'long', year: 'numeric' })}
-                </strong>
-                <button type="button" aria-label="Minggu berikutnya" onClick={() => shiftWeek(1)} style={{ ...inputStyle, width: '40px', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
-                  <ChevronRight size={17} />
-                </button>
-              </div>
-            </div>
-            <div style={{ padding: '8px 12px', borderLeft: '1px solid #e0e9e2' }}>
-              <div style={{ color: '#688170', fontSize: '12px' }}>Total kasus minggu ini</div>
-              <strong style={{ display: 'block', marginTop: '4px', fontSize: '22px' }}>{loading ? '…' : weeklyRecords.length}</strong>
-            </div>
-            <div style={{ padding: '8px 12px', borderLeft: '1px solid #e0e9e2' }}>
-              <div style={{ color: '#688170', fontSize: '12px' }}>Total poin minggu ini</div>
-              <strong style={{ display: 'block', marginTop: '4px', fontSize: '22px' }}>{loading ? '…' : totalPoints}</strong>
-            </div>
-          </section>
-
-          <section aria-label="Ringkasan pelanggaran per hari" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(110px, 1fr))', gap: '8px', overflowX: 'auto', paddingBottom: '2px' }}>
-            {weekDates.map((dateKey) => {
-              const records = weeklyRecords.filter((record) => record.tanggal === dateKey);
-              const points = records.reduce((total, record) => total + Number(record.poin || 0), 0);
-              const active = selectedDate === dateKey;
-
-              return (
-                <button
-                  key={dateKey}
-                  type="button"
-                  onClick={() => setSelectedDate(dateKey)}
-                  aria-pressed={active}
-                  style={{ minWidth: '110px', minHeight: '98px', padding: '12px', textAlign: 'left', border: active ? '2px solid #28734b' : '1px solid #d4e2d7', borderRadius: '8px', background: active ? '#e5f2e8' : '#ffffff', color: '#173b2b', cursor: 'pointer' }}
-                >
-                  <span style={{ display: 'block', color: '#567361', fontSize: '11px', textTransform: 'capitalize' }}>{formatDate(dateKey, { weekday: 'long' })}</span>
-                  <strong style={{ display: 'block', marginTop: '4px', fontSize: '17px' }}>{formatDate(dateKey, { day: 'numeric', month: 'short' })}</strong>
-                  <span style={{ display: 'block', marginTop: '7px', color: '#42634d', fontSize: '11px' }}>{loading ? 'Memuat…' : `${records.length} kasus · ${points} poin`}</span>
-                </button>
-              );
-            })}
-          </section>
-
-          <section style={{ ...panelStyle, overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', padding: '16px', borderBottom: '1px solid #e1e9e3' }}>
-              <div>
-                <h2 style={{ margin: 0, fontSize: '16px', textTransform: 'capitalize' }}>{formatDate(selectedDate, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</h2>
-                <p style={{ margin: '4px 0 0', color: '#688170', fontSize: '12px' }}>{dayRecords.length} kasus · {dayPoints} poin tercatat</p>
-              </div>
-              <label style={{ position: 'relative', width: 'min(100%, 360px)' }}>
-                <Search size={16} color="#688170" style={{ position: 'absolute', left: '11px', top: '12px' }} />
-                <input
-                  type="search"
-                  value={searchText}
-                  onChange={(event) => setSearchText(event.target.value)}
-                  placeholder="Cari nama, kelas, pelanggaran, petugas..."
-                  aria-label="Cari catatan pada tanggal terpilih"
-                  style={{ ...inputStyle, paddingLeft: '36px' }}
-                />
-              </label>
-            </div>
-
-            {loadError ? (
-              <p role="alert" style={{ margin: 0, padding: '28px 16px', color: '#a63131', textAlign: 'center' }}>Gagal memuat rekap: {loadError}</p>
-            ) : loading ? (
-              <p style={{ margin: 0, padding: '28px 16px', color: '#688170', textAlign: 'center' }}>Memuat rekap mingguan...</p>
-            ) : selectedDayRecords.length === 0 ? (
-              <p style={{ margin: 0, padding: '32px 16px', color: '#688170', textAlign: 'center' }}>
-                {dayRecords.length ? 'Tidak ada catatan yang cocok dengan pencarian.' : 'Belum ada pelanggaran yang tercatat pada hari ini.'}
-              </p>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px', fontSize: '12px' }}>
-                  <thead>
-                    <tr style={{ background: '#f4f8f5', color: '#567361', textAlign: 'left' }}>
-                      {['Waktu', 'Siswa / Kelas', 'Jenis pelanggaran', 'Poin', 'Petugas', 'Keterangan'].map((heading) => (
-                        <th key={heading} scope="col" style={{ padding: '11px 14px', fontWeight: 700 }}>{heading}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedDayRecords.map((record) => (
-                      <tr key={record.id} style={{ borderTop: '1px solid #e7eee8', color: '#294936' }}>
-                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{record.jam_kejadian || '-'}</td>
-                        <td style={{ padding: '12px 14px' }}><strong>{record.nama_siswa || '-'}</strong><span style={{ display: 'block', marginTop: '3px', color: '#688170' }}>{record.kelas || '-'}</span></td>
-                        <td style={{ padding: '12px 14px' }}>{record.jenis_pelanggaran || '-'}</td>
-                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>{Number(record.poin || 0)} poin</td>
-                        <td style={{ padding: '12px 14px' }}>{record.pencatat || 'OSIS/Piket'}</td>
-                        <td style={{ padding: '12px 14px', minWidth: '170px' }}>{record.keterangan || record.tindakan || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+    <>
+      <style>{`
+        body:has(.weekly-report-page), html:has(.weekly-report-page) {
+          background: #021f18 !important;
+          overflow-x: hidden;
+        }
+        .weekly-report-page button { transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease; }
+        .weekly-report-page button:hover { border-color: #34d399 !important; }
+        .weekly-report-page .week-day:hover { transform: translateY(-2px); }
+        @media (max-width: 900px) {
+          .weekly-report-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+          .weekly-report-days { grid-template-columns: repeat(4, minmax(120px, 1fr)) !important; }
+        }
+        @media (max-width: 600px) {
+          .weekly-report-header { align-items: flex-start !important; flex-direction: column; padding: 18px 16px !important; }
+          .weekly-report-content { padding: 16px !important; }
+          .weekly-report-toolbar { grid-template-columns: minmax(0, 1fr) !important; padding: 14px !important; }
+          .weekly-report-days { grid-template-columns: repeat(7, minmax(118px, 1fr)) !important; overflow-x: auto; }
+          .weekly-report-stat { padding: 10px 2px !important; border-left: 0 !important; border-top: 1px solid rgba(52, 211, 153, 0.15); }
+          .weekly-report-day-heading { align-items: stretch !important; flex-direction: column; padding: 14px !important; }
+          .weekly-report-search { width: 100% !important; }
+        }
+      `}</style>
+      <div className="weekly-report-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', color: '#ecfdf5', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
+        <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
+          <Sidebar />
         </div>
-      </main>
-    </div>
+        <main style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <header className="weekly-report-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', padding: '16px 30px', background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', borderBottom: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)' }}>
+            <div>
+              <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0, fontSize: '20px', color: '#ffffff' }}>
+                <CalendarDays size={21} color="#34d399" /> Rekap Mingguan OSIS & MPK
+              </h1>
+              <p style={{ margin: '6px 0 0', color: '#a7f3d0', fontSize: '13px' }}>Catatan pelanggaran gerbang per hari untuk OSIS, MPK, dan Guru BK.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedDate(getTodayKey())}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', minHeight: '40px', padding: '9px 14px', border: '1px solid rgba(52, 211, 153, 0.3)', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.08)', color: '#ffffff', fontSize: '12px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              <RefreshCw size={14} color="#34d399" /> Minggu ini
+            </button>
+          </header>
+
+          <div className="weekly-report-content" style={{ display: 'grid', flex: 1, alignContent: 'start', gap: '20px', padding: '26px 30px', maxWidth: '1460px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+            <section className="weekly-report-toolbar" style={{ ...panelStyle, display: 'grid', gridTemplateColumns: 'minmax(190px, 1.2fr) minmax(230px, 1.3fr) repeat(2, minmax(145px, 0.75fr))', alignItems: 'end', gap: '18px', padding: '18px 20px' }}>
+              <label style={{ display: 'grid', gap: '7px', color: '#a7f3d0', fontSize: '12px', fontWeight: 700 }}>
+                Pilih tanggal
+                <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} style={inputStyle} />
+              </label>
+              <div style={{ display: 'grid', gap: '7px' }}>
+                <span style={{ color: '#a7f3d0', fontSize: '12px', fontWeight: 700 }}>Periode minggu</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minHeight: '42px' }}>
+                  <button type="button" aria-label="Minggu sebelumnya" onClick={() => shiftWeek(-1)} style={{ ...inputStyle, width: '42px', flexShrink: 0, display: 'grid', placeItems: 'center', padding: 0, cursor: 'pointer' }}>
+                    <ChevronLeft size={17} color="#34d399" />
+                  </button>
+                  <strong style={{ flex: 1, textAlign: 'center', fontSize: '13px', lineHeight: 1.5 }}>
+                    {formatDate(weekStart, { day: 'numeric', month: 'short' })} – {formatDate(weekEnd, { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </strong>
+                  <button type="button" aria-label="Minggu berikutnya" onClick={() => shiftWeek(1)} style={{ ...inputStyle, width: '42px', flexShrink: 0, display: 'grid', placeItems: 'center', padding: 0, cursor: 'pointer' }}>
+                    <ChevronRight size={17} color="#34d399" />
+                  </button>
+                </div>
+              </div>
+              <div className="weekly-report-stat" style={{ padding: '8px 14px', borderLeft: '1px solid rgba(52, 211, 153, 0.15)' }}>
+                <div style={{ color: '#a7f3d0', fontSize: '12px' }}>Total kasus minggu ini</div>
+                <strong style={{ display: 'block', marginTop: '5px', color: '#ffffff', fontSize: '23px' }}>{loading ? '…' : weeklyRecords.length}</strong>
+              </div>
+              <div className="weekly-report-stat" style={{ padding: '8px 14px', borderLeft: '1px solid rgba(52, 211, 153, 0.15)' }}>
+                <div style={{ color: '#a7f3d0', fontSize: '12px' }}>Total poin minggu ini</div>
+                <strong style={{ display: 'block', marginTop: '5px', color: '#ffffff', fontSize: '23px' }}>{loading ? '…' : totalPoints}</strong>
+              </div>
+            </section>
+
+            <section className="weekly-report-days" aria-label="Ringkasan pelanggaran per hari" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '10px', paddingBottom: '2px' }}>
+              {weekDates.map((dateKey) => {
+                const records = weeklyRecords.filter((record) => record.tanggal === dateKey);
+                const points = records.reduce((total, record) => total + Number(record.poin || 0), 0);
+                const active = selectedDate === dateKey;
+
+                return (
+                  <button
+                    className="week-day"
+                    key={dateKey}
+                    type="button"
+                    onClick={() => setSelectedDate(dateKey)}
+                    aria-pressed={active}
+                    style={{ minWidth: 0, minHeight: '104px', padding: '13px', textAlign: 'left', border: active ? '2px solid #34d399' : '1px solid rgba(52, 211, 153, 0.2)', borderRadius: '10px', background: active ? 'rgba(52, 211, 153, 0.16)' : 'rgba(2, 31, 24, 0.72)', color: '#ecfdf5', cursor: 'pointer', boxShadow: active ? '0 0 18px rgba(52, 211, 153, 0.12)' : 'none' }}
+                  >
+                    <span style={{ display: 'block', color: '#a7f3d0', fontSize: '11px', textTransform: 'capitalize' }}>{formatDate(dateKey, { weekday: 'long' })}</span>
+                    <strong style={{ display: 'block', marginTop: '5px', color: '#ffffff', fontSize: '18px' }}>{formatDate(dateKey, { day: 'numeric', month: 'short' })}</strong>
+                    <span style={{ display: 'block', marginTop: '8px', color: '#a7f3d0', fontSize: '11px' }}>{loading ? 'Memuat…' : `${records.length} kasus · ${points} poin`}</span>
+                  </button>
+                );
+              })}
+            </section>
+
+            <section style={{ ...panelStyle, overflow: 'hidden' }}>
+              <div className="weekly-report-day-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap', padding: '18px 20px', borderBottom: '1px solid rgba(52, 211, 153, 0.15)' }}>
+                <div>
+                  <h2 style={{ margin: 0, color: '#ffffff', fontSize: '16px', textTransform: 'capitalize' }}>{formatDate(selectedDate, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</h2>
+                  <p style={{ margin: '5px 0 0', color: '#a7f3d0', fontSize: '12px' }}>{dayRecords.length} kasus · {dayPoints} poin tercatat</p>
+                </div>
+                <label className="weekly-report-search" style={{ position: 'relative', width: 'min(100%, 380px)' }}>
+                  <Search size={16} color="#a7f3d0" style={{ position: 'absolute', left: '12px', top: '13px' }} />
+                  <input type="search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Cari nama, kelas, pelanggaran, petugas..." aria-label="Cari catatan pada tanggal terpilih" style={{ ...inputStyle, paddingLeft: '38px' }} />
+                </label>
+              </div>
+
+              {loadError ? (
+                <p role="alert" style={{ margin: 0, padding: '28px 16px', color: '#fca5a5', textAlign: 'center' }}>Gagal memuat rekap: {loadError}</p>
+              ) : loading ? (
+                <p style={{ margin: 0, padding: '28px 16px', color: '#a7f3d0', textAlign: 'center' }}>Memuat rekap mingguan...</p>
+              ) : selectedDayRecords.length === 0 ? (
+                <p style={{ margin: 0, padding: '34px 16px', color: '#a7f3d0', textAlign: 'center' }}>
+                  {dayRecords.length ? 'Tidak ada catatan yang cocok dengan pencarian.' : 'Belum ada pelanggaran yang tercatat pada hari ini.'}
+                </p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '760px', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(52, 211, 153, 0.08)', color: '#a7f3d0', textAlign: 'left' }}>
+                        {['Waktu', 'Siswa / Kelas', 'Jenis pelanggaran', 'Poin', 'Petugas', 'Keterangan'].map((heading) => (
+                          <th key={heading} scope="col" style={{ padding: '12px 15px', fontWeight: 700 }}>{heading}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedDayRecords.map((record) => (
+                        <tr key={record.id} style={{ borderTop: '1px solid rgba(52, 211, 153, 0.12)', color: '#d1fae5' }}>
+                          <td style={{ padding: '13px 15px', whiteSpace: 'nowrap' }}>{record.jam_kejadian || '-'}</td>
+                          <td style={{ padding: '13px 15px' }}><strong style={{ color: '#ffffff' }}>{record.nama_siswa || '-'}</strong><span style={{ display: 'block', marginTop: '3px', color: '#a7f3d0' }}>{record.kelas || '-'}</span></td>
+                          <td style={{ padding: '13px 15px' }}>{record.jenis_pelanggaran || '-'}</td>
+                          <td style={{ padding: '13px 15px', whiteSpace: 'nowrap', color: '#34d399', fontWeight: 700 }}>{Number(record.poin || 0)} poin</td>
+                          <td style={{ padding: '13px 15px' }}>{record.pencatat || 'OSIS/Piket'}</td>
+                          <td style={{ padding: '13px 15px', minWidth: '170px' }}>{record.keterangan || record.tindakan || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+          <footer style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#a7f3d0', padding: '16px', textAlign: 'center', fontSize: '11.5px', borderTop: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
+            © 2026 Panel OSIS & MPK MindGuard - SMK Budi Bakti Ciwidey
+          </footer>
+        </main>
+      </div>
+    </>
   );
 }

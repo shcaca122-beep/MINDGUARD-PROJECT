@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { Lock, Mail, Eye, EyeOff, CheckCircle2, ArrowRight } from 'lucide-react';
 
@@ -208,9 +209,12 @@ export default function LoginPage() {
                   boxSizing: 'border-box',
                 }}
               >
-                <img
+                <Image
                   src="/logo-mindguard.jpeg"
                   alt="MindGuard Logo"
+                  width={38}
+                  height={38}
+                  unoptimized
                   style={{
                     width: '100%',
                     height: '100%',
@@ -401,9 +405,12 @@ export default function LoginPage() {
               </span>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-                <img
+                <Image
                   src="/logo-mindguard.jpeg"
                   alt="MindGuard Big Logo"
+                  width={56}
+                  height={56}
+                  unoptimized
                   style={{
                     width: '56px',
                     height: '56px',
