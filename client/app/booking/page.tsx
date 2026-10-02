@@ -2,15 +2,16 @@
 
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
+import { isHighPriorityMessage, markPriorityTitle } from '@/lib/counseling-priority';
 import { useState } from 'react';
-import { Calendar, ShieldCheck, Sparkles, Send, Building2, HelpCircle } from 'lucide-react';
+import { Calendar, ShieldCheck, Sparkles, Send, Building2, HelpCircle, AlertTriangle } from 'lucide-react';
 
 export default function BookingPage() {
   const [tanggal, setTanggal] = useState('');
   const [sesi, setSesi] = useState('08:00 - 09:00 WIB (Sesi 1)');
-  const [konselor, setKonselor] = useState('Guru BK');
   const [topik, setTopik] = useState('');
   const [deskripsi, setDeskripsi] = useState('');
+  const [needsFastSupport, setNeedsFastSupport] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -24,15 +25,18 @@ export default function BookingPage() {
     try {
       const sessionData = localStorage.getItem('user_session');
       const session = sessionData ? JSON.parse(sessionData) : {};
+      const isPriority = needsFastSupport || isHighPriorityMessage(topik, deskripsi);
+      const requestTitle = isPriority ? markPriorityTitle(topik.trim()) : topik.trim();
 
       const { error } = await supabase.from('layanan_siswa').insert([
         {
           nama_siswa: session.nama || session.email || 'Siswa',
+          email_siswa: session.email || null,
           kelas: session.kelas || '-',
           layanan: 'KONSELING',
           tanggal: `${tanggal} (${sesi})`,
-          tujuan_konselor: konselor,
-          judul_pesan: topik,
+          tujuan_konselor: 'Guru BK',
+          judul_pesan: requestTitle,
           topik: deskripsi || topik,
           status: 'MENUNGGU ACC',
         },
@@ -42,16 +46,19 @@ export default function BookingPage() {
 
       setStatus({
         type: 'success',
-        message: 'Jadwal konseling berhasil diajukan! Guru BK akan memproses permohonan Anda.',
+        message: isPriority
+          ? 'Permohonan prioritas sudah dikirim langsung ke Guru BK. Jika kamu dalam bahaya sekarang, segera temui Guru BK atau orang dewasa tepercaya; jangan menunggu balasan aplikasi.'
+          : 'Jadwal konseling berhasil diajukan langsung ke Guru BK. Guru BK akan memproses permohonan Anda.',
       });
       setTanggal('');
       setTopik('');
       setDeskripsi('');
-    } catch (err: any) {
+      setNeedsFastSupport(false);
+    } catch (err: unknown) {
       console.error(err);
       setStatus({
         type: 'error',
-        message: err.message || 'Gagal mengirim pengajuan. Silakan coba lagi.',
+        message: err instanceof Error ? err.message : 'Gagal mengirim pengajuan. Silakan coba lagi.',
       });
     } finally {
       setIsLoading(false);
@@ -162,18 +169,8 @@ export default function BookingPage() {
                 </h3>
 
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
-                      Layanan / Konselor Tujuan
-                    </label>
-                    <select
-                      value={konselor}
-                      onChange={(e) => setKonselor(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', backgroundColor: '#021f18', color: '#fff', outline: 'none' }}
-                    >
-                      <option value="Guru BK">Guru BK (Bimbingan Konseling Sekolah)</option>
-                      <option value="Peer Counselor OSIS">Peer Counselor (Konselor Sebaya OSIS/MPK)</option>
-                    </select>
+                  <div style={{ padding: '11px 13px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', background: 'rgba(52, 211, 153, 0.08)', color: '#a7f3d0', fontSize: '12px', fontWeight: 700 }}>
+                    Permohonan ini dikirim langsung ke Guru BK
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -219,6 +216,16 @@ export default function BookingPage() {
                       onChange={(e) => setTopik(e.target.value)}
                       style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', boxSizing: 'border-box', outline: 'none', backgroundColor: '#021f18', color: '#fff' }}
                     />
+                  </div>
+
+                  <div style={{ display: 'grid', gap: '5px', padding: '12px', borderRadius: '10px', border: '1px solid rgba(248, 113, 113, 0.35)', background: 'rgba(127, 29, 29, 0.16)' }}>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '9px', color: '#fee2e2', fontSize: '12px', fontWeight: '700', cursor: 'pointer', lineHeight: 1.5 }}>
+                      <input type="checkbox" checked={needsFastSupport} onChange={(event) => setNeedsFastSupport(event.target.checked)} style={{ marginTop: '2px', accentColor: '#f87171' }} />
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><AlertTriangle size={14} />Saya membutuhkan bantuan Guru BK secepatnya</span>
+                    </label>
+                    <p style={{ margin: '0 0 0 25px', color: '#fecaca', fontSize: '11px', lineHeight: 1.5 }}>
+                      Jika ada bahaya saat ini, segera temui Guru BK atau orang dewasa tepercaya. Jangan menunggu balasan aplikasi.
+                    </p>
                   </div>
 
                   <div>

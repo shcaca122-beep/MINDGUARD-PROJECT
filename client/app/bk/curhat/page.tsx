@@ -2,7 +2,8 @@
 
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
-import { useState, useEffect } from 'react';
+import { isHighPriorityMessage } from '@/lib/counseling-priority';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   MessageSquareText, 
   RefreshCw, 
@@ -10,14 +11,27 @@ import {
   Clock, 
   Tag, 
   Inbox, 
-  Sparkles
+  Sparkles,
+  AlertTriangle
 } from 'lucide-react';
 
+type CurhatRecord = {
+  id?: string | number;
+  nama_siswa?: string;
+  kelas?: string;
+  judul_pesan?: string;
+  pesan?: string;
+  deskripsi?: string;
+  topik?: string;
+  status?: string;
+  created_at?: string;
+};
+
 export default function CurhatBKPage() {
-  const [curhatList, setCurhatList] = useState<any[]>([]);
+  const [curhatList, setCurhatList] = useState<CurhatRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchCurhat = async () => {
+  const fetchCurhat = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data } = await supabase
@@ -32,11 +46,17 @@ export default function CurhatBKPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchCurhat();
-  }, []);
+    const initialLoad = window.setTimeout(() => void fetchCurhat(), 0);
+    return () => window.clearTimeout(initialLoad);
+  }, [fetchCurhat]);
+
+  const urgentCurhatCount = curhatList.filter((item) =>
+    isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi)
+    && !['DIBALAS', 'SELESAI'].includes((item.status || '').toUpperCase())
+  ).length;
 
   return (
     <>
@@ -165,6 +185,13 @@ export default function CurhatBKPage() {
               </span>
             </div>
 
+            {urgentCurhatCount > 0 && (
+              <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '13px 16px', marginBottom: '18px', borderRadius: '10px', border: '1px solid rgba(248, 113, 113, 0.5)', background: 'rgba(127, 29, 29, 0.22)', color: '#fee2e2' }}>
+                <AlertTriangle size={18} color="#f87171" />
+                <strong style={{ fontSize: '12px' }}>{urgentCurhatCount} curhat prioritas belum ditindaklanjuti.</strong>
+              </div>
+            )}
+
             {/* DAFTAR CARD PESAN CURHAT */}
             {curhatList.length === 0 ? (
               <div style={{
@@ -189,15 +216,15 @@ export default function CurhatBKPage() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', boxSizing: 'border-box' }}>
                 {curhatList.map((item) => (
-                  <div 
+                  <div
                     key={item.id} 
                     style={{ 
                       backgroundColor: 'rgba(2, 31, 24, 0.85)', 
                       backdropFilter: 'blur(12px)',
                       padding: '20px', 
                       borderRadius: '16px', 
-                      border: '1px solid rgba(52, 211, 153, 0.2)',
-                      borderLeft: '5px solid #34d399',
+                      border: isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi) ? '1px solid rgba(248, 113, 113, 0.55)' : '1px solid rgba(52, 211, 153, 0.2)',
+                      borderLeft: isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi) ? '5px solid #f87171' : '5px solid #34d399',
                       boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
                       width: '100%',
                       boxSizing: 'border-box'
@@ -221,7 +248,7 @@ export default function CurhatBKPage() {
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#94a3b8' }}>
                         <Clock size={13} />
-                        <span>{new Date(item.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                        <span>{item.created_at ? new Date(item.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}</span>
                       </div>
                     </div>
 
@@ -230,6 +257,11 @@ export default function CurhatBKPage() {
                       <Tag size={13} color="#34d399" />
                       <span>Topik: {item.judul_pesan || item.topik}</span>
                     </div>
+                    {isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi) && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: 'fit-content', marginBottom: '10px', padding: '5px 9px', borderRadius: '6px', border: '1px solid rgba(248, 113, 113, 0.5)', background: 'rgba(127, 29, 29, 0.3)', color: '#fecaca', fontSize: '11px', fontWeight: 800 }}>
+                        <AlertTriangle size={13} /> TINDAK LANJUT SEGERA
+                      </div>
+                    )}
 
                     {/* Isi Pesan */}
                     <div style={{ backgroundColor: '#021f18', padding: '12px 14px', borderRadius: '10px', border: '1px solid rgba(52, 211, 153, 0.15)' }}>

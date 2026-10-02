@@ -2,7 +2,8 @@
 
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
-import { useState, useEffect } from 'react';
+import { isHighPriorityMessage } from '@/lib/counseling-priority';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   CalendarCheck, 
   RefreshCw, 
@@ -15,11 +16,22 @@ import {
   Sparkles
 } from 'lucide-react';
 
+type CounselingRecord = {
+  id: number;
+  tanggal?: string;
+  nama_siswa?: string;
+  kelas?: string;
+  judul_pesan?: string;
+  topik?: string;
+  deskripsi?: string;
+  status?: string;
+};
+
 export default function KonselingBKPage() {
-  const [konselingList, setKonselingList] = useState<any[]>([]);
+  const [konselingList, setKonselingList] = useState<CounselingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchKonseling = async () => {
+  const fetchKonseling = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data } = await supabase
@@ -28,17 +40,18 @@ export default function KonselingBKPage() {
         .eq('layanan', 'KONSELING')
         .order('created_at', { ascending: false });
       
-      if (data) setKonselingList(data);
+      if (data) setKonselingList(data as CounselingRecord[]);
     } catch (err) {
       console.error('Gagal mengambil data konseling:', err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchKonseling();
-  }, []);
+    const initialLoad = window.setTimeout(() => void fetchKonseling(), 0);
+    return () => window.clearTimeout(initialLoad);
+  }, [fetchKonseling]);
 
   const updateStatus = async (id: number, status: string) => {
     try {
@@ -245,6 +258,7 @@ export default function KonselingBKPage() {
                           <td style={{ padding: '16px 20px', color: '#e2e8f0' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <Tag size={13} color="#34d399" />
+                              {isHighPriorityMessage(item.judul_pesan, item.topik, item.deskripsi) && <span style={{ padding: '3px 7px', borderRadius: '5px', border: '1px solid rgba(248, 113, 113, 0.45)', background: 'rgba(127, 29, 29, 0.3)', color: '#fecaca', fontSize: '10px', fontWeight: 800 }}>SEGERA</span>}
                               <span>{item.judul_pesan || item.topik || 'Konseling Umum'}</span>
                             </div>
                           </td>
