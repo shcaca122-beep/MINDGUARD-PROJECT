@@ -24,77 +24,41 @@ export default function LoginPage() {
         throw new Error('Konfigurasi Supabase belum lengkap. Isi NEXT_PUBLIC_SUPABASE_ANON_KEY atau NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY dengan API key dari project Supabase yang benar, lalu restart server.');
       }
 
-      const cleanEmail = email.trim().toLowerCase();
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
 
-      const { data: adminUser, error: adminError } = await supabase
-        .from('admin_roles')
-        .select('*')
-        .ilike('email', cleanEmail)
-        .eq('password', password)
-        .maybeSingle();
-
-      if (adminError) {
-        throw new Error(`Gagal mengakses tabel admin_roles: ${adminError.message}`);
+      if (authError || !authData.user) {
+        throw new Error(authError?.message || 'Email atau password salah. Silakan periksa kembali.');
       }
 
-      let user = adminUser;
-      let isAdminTable = false;
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('role, display_name, student_record_id, kelas')
+        .eq('user_id', authData.user.id)
+        .single();
 
-      if (user) {
-        isAdminTable = true;
-      } else {
-        const { data: siswaUser, error: siswaError } = await supabase
-          .from('users')
-          .select('*')
-          .ilike('email', cleanEmail)
-          .eq('password', password)
-          .maybeSingle();
-
-        if (siswaError) {
-          throw new Error(`Gagal mengakses tabel users: ${siswaError.message}`);
-        }
-
-        user = siswaUser;
+      if (profileError || !profile) {
+        await supabase.auth.signOut();
+        throw new Error(`Profil akun tidak ditemukan atau tidak dapat diakses: ${profileError?.message || 'hubungi administrator.'}`);
       }
 
-      if (!user) {
-        throw new Error('Email atau password salah! Silakan periksa kembali.');
-      }
-
-      // 💾 3. PERBAIKAN BUG ROLE:
-      // Jika user ditemukan di admin_roles tapi kolom role-nya null/kosong,
-      // default-kan ke 'admin' (BUKAN 'siswa').
-      const rawRole = user.role || user.jabatan || user.role_name || '';
-      const normalizedRole = String(rawRole).trim().toLowerCase();
-      const isAdminRole = normalizedRole.includes('admin')
-        || normalizedRole === 'tu'
-        || normalizedRole.includes('tata usaha');
-      const isOperationalRole = ['bk', 'piket', 'osis', 'mpk']
-        .some((role) => normalizedRole.includes(role));
-      const isAdminAccount = isAdminRole || (isAdminTable && !isOperationalRole);
-      const userRole = normalizedRole || (isAdminAccount ? 'admin' : 'siswa');
+      const userRole = String(profile.role || '').trim().toLowerCase();
+      const isAdminAccount = ['admin', 'administrator', 'tu', 'tata usaha'].includes(userRole);
 
       const sessionData = {
-        id: user.id,
-        email: user.email,
-        nama: user.nama || user.email,
+        id: authData.user.id,
+        studentRecordId: profile.student_record_id,
+        email: authData.user.email,
+        nama: profile.display_name || authData.user.email,
         role: userRole,
         isAdmin: isAdminAccount,
-        kelas: user.kelas || '-',
+        kelas: profile.kelas || '-',
       };
 
       localStorage.setItem('user_session', JSON.stringify(sessionData));
       localStorage.setItem('user_role', userRole.toUpperCase());
-      const middlewareRole = isAdminAccount
-        ? 'admin'
-        : userRole.includes('bk')
-          ? 'bk'
-          : userRole.includes('piket')
-            ? 'piket'
-            : userRole.includes('osis') || userRole.includes('mpk')
-              ? 'osis'
-              : userRole;
-      document.cookie = `user_role=${encodeURIComponent(middlewareRole)}; path=/; max-age=86400; samesite=lax`;
       if (isAdminAccount) {
         localStorage.setItem('admin_nama', sessionData.nama);
         localStorage.setItem('admin_role', userRole.toUpperCase());

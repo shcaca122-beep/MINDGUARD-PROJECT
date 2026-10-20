@@ -22,24 +22,6 @@ type StudentRecord = {
   status?: string;
 };
 
-function parseStudentCsv(csvText: string): StudentRecord[] {
-  const rows = csvText.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
-  const headers = rows.shift()?.split(';').map((header) => header.trim().toLowerCase()) || [];
-
-  return rows.map((row) => {
-    const values = row.split(';').map((value) => value.trim().replace(/^"|"$/g, ''));
-    const record = Object.fromEntries(headers.map((header, index) => [header, values[index] || '']));
-    return {
-      nisn: record.nisn,
-      email: record.email,
-      role: record.role,
-      nama: record.nama,
-      kelas: record.kelas,
-      status: 'Aktif',
-    };
-  }).filter((student) => student.nisn || student.nama);
-}
-
 export default function DataSiswaPage() {
   const [siswaList, setSiswaList] = useState<StudentRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,39 +40,24 @@ export default function DataSiswaPage() {
 
     const fetchSiswa = async () => {
       try {
-        const csvResponse = await fetch('/DATAMURIDPROYEK.csv');
-        if (!csvResponse.ok) throw new Error('File data siswa tidak dapat dimuat.');
-        const csvStudents = parseStudentCsv(await csvResponse.text());
-        let databaseStudents: StudentRecord[] = [];
-
-        if (isSupabaseConfigured) {
-          const { data, error } = await supabase.from('users').select('*');
-          if (!error && data) {
-            databaseStudents = (data as StudentRecord[]).filter((student) => {
-              const role = (student.role || '').trim().toLowerCase();
-              return !role || role.includes('siswa');
-            });
-          } else if (error) {
-            console.error('Gagal memuat siswa dari Supabase:', error.message);
-          }
-        }
-
-        const studentsByNisn = new Map<string, StudentRecord>();
-        for (const student of csvStudents) {
-          studentsByNisn.set((student.nisn || '').toLowerCase(), student);
-        }
-        for (const student of databaseStudents) {
-          const key = (student.nisn || String(student.id || student.email || student.nama || '')).toLowerCase();
-          studentsByNisn.set(key, { ...studentsByNisn.get(key), ...student });
-        }
+        if (!isSupabaseConfigured) throw new Error('Konfigurasi Supabase belum tersedia.');
+        const { data, error } = await supabase.from('users').select('id,nisn,nama,kelas,email,role');
+        if (error) throw error;
+        const databaseStudents = ((data || []) as StudentRecord[]).filter((student) => {
+          const role = (student.role || '').trim().toLowerCase();
+          return !role || role.includes('siswa');
+        });
 
         if (isMounted) {
-          setSiswaList(Array.from(studentsByNisn.values()));
-          setDataSource(databaseStudents.length > 0 ? 'Supabase dan data sekolah' : 'Data sekolah');
+          setSiswaList(databaseStudents);
+          setDataSource('Supabase');
         }
       } catch (error) {
         console.error('Gagal memuat direktori siswa:', error);
-        if (isMounted) setDataSource('Data tidak tersedia');
+        if (isMounted) {
+          setSiswaList([]);
+          setDataSource(error instanceof Error ? `Gagal memuat: ${error.message}` : 'Data tidak tersedia');
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -157,17 +124,40 @@ export default function DataSiswaPage() {
       role: 'Siswa',
     };
 
-    const { data, error } = await supabase.from('users').insert(newStudent).select('*').single();
-    setIsSaving(false);
-    if (error) {
-      setFormError(`Gagal menambahkan siswa: ${error.message}`);
-      return;
-    }
+    try {
+      const response = await fetch('/api/admin/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          account: {
+            kind: 'student',
+            nisn: newStudent.nisn,
+            nama: newStudent.nama,
+            kelas: newStudent.kelas,
+            email: newStudent.email,
+            password: newStudent.password,
+          },
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.failed?.[0]?.message || result.error || 'Gagal membuat akun.');
 
-    setSiswaList((current) => [...current.filter((student) => student.nisn !== newStudent.nisn), data as StudentRecord]);
-    setDataSource('Supabase dan data sekolah');
-    setStudentForm({ nisn: '', nama: '', kelas: '', email: '', password: '' });
-    setIsModalOpen(false);
+      const { data, error } = await supabase
+        .from('users')
+        .select('id,nisn,nama,kelas,email,role')
+        .eq('email', newStudent.email)
+        .single();
+      if (error) throw error;
+
+      setSiswaList((current) => [...current.filter((student) => student.nisn !== newStudent.nisn), data as StudentRecord]);
+      setDataSource('Supabase dan data sekolah');
+      setStudentForm({ nisn: '', nama: '', kelas: '', email: '', password: '' });
+      setIsModalOpen(false);
+    } catch (error) {
+      setFormError(`Gagal menambahkan siswa: ${error instanceof Error ? error.message : 'Terjadi kesalahan.'}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleImportStudents = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -225,6 +215,8 @@ export default function DataSiswaPage() {
 
       const imported: StudentRecord[] = [];
       let duplicateRows = 0;
+      let failedAccounts = 0;
+      const failureMessages: string[] = [];
       for (let index = 0; index < records.length; index += 100) {
         const batch = records.slice(index, index + 100);
         const { data: existing, error: lookupError } = await supabase
@@ -238,9 +230,37 @@ export default function DataSiswaPage() {
         duplicateRows += batch.length - newRecords.length;
         if (newRecords.length === 0) continue;
 
-        const { data: inserted, error: insertError } = await supabase.from('users').insert(newRecords).select('*');
-        if (insertError) throw insertError;
-        imported.push(...((inserted || newRecords) as StudentRecord[]));
+        const response = await fetch('/api/admin/accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accounts: newRecords.map((record) => ({
+              kind: 'student',
+              nisn: record.nisn,
+              nama: record.nama,
+              kelas: record.kelas,
+              email: record.email,
+              password: record.password,
+            })),
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok && response.status !== 207) throw new Error(result.error || 'Impor akun gagal.');
+        const failures = (result.failed || []) as Array<{ email: string; message: string }>;
+        failedAccounts += failures.length;
+        failureMessages.push(...failures.map((failure) => failure.message));
+        const failedEmails = new Set(failures.map((failure) => failure.email.toLowerCase()));
+        const successfulRecords = newRecords.filter(
+          (record) => record.email && !failedEmails.has(record.email.toLowerCase())
+        );
+        if (successfulRecords.length) {
+          const { data: inserted, error: fetchError } = await supabase
+            .from('users')
+            .select('id,nisn,nama,kelas,email,role')
+            .in('nisn', successfulRecords.map((record) => record.nisn || ''));
+          if (fetchError) throw fetchError;
+          imported.push(...((inserted || []) as StudentRecord[]));
+        }
       }
 
       if (imported.length) {
@@ -249,9 +269,12 @@ export default function DataSiswaPage() {
           imported.forEach((student) => byNisn.set((student.nisn || '').toLowerCase(), student));
           return Array.from(byNisn.values());
         });
-        setDataSource('Supabase dan data sekolah');
+        setDataSource('Supabase');
       }
-      setImportMessage(`${imported.length} siswa ditambahkan; ${duplicateRows} duplikat dan ${invalidRows} baris tidak valid dilewati.`);
+      const failureDetail = failureMessages[0] ? ` Contoh kegagalan: ${failureMessages[0]}` : '';
+      setImportMessage(
+        `${imported.length} siswa ditambahkan; ${duplicateRows} duplikat, ${failedAccounts} gagal dibuat, dan ${invalidRows} baris tidak valid dilewati.${failureDetail}`
+      );
     } catch (error) {
       setImportMessage(error instanceof Error ? `Impor gagal: ${error.message}` : 'Impor gagal. Periksa kembali file Excel.');
     } finally {
@@ -281,7 +304,7 @@ export default function DataSiswaPage() {
         </div>
       </div>
 
-      {importMessage && <p role="status" style={{ margin: '-8px 0 0', color: importMessage.startsWith('Impor gagal') || importMessage.startsWith('Ekspor gagal') ? '#f87171' : '#34d399', fontSize: '12px' }}>{importMessage}</p>}
+      {importMessage && <p role="status" style={{ margin: '-8px 0 0', color: /gagal/i.test(importMessage) ? '#f87171' : '#34d399', fontSize: '12px' }}>{importMessage}</p>}
 
       <div style={{ display: 'flex', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#13261f', border: '1px solid #1d3d30', padding: '8px 12px', borderRadius: '8px', flex: 1 }}>

@@ -1,9 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
-// Menggunakan env ATAU langsung menggunakan URL & Key proyek Supabase kamu
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  "https://pqjkihmvjikawttraetr.supabase.co";
+  'https://pqjkihmvjikawttraetr.supabase.co';
 
 const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
@@ -12,7 +11,7 @@ const supabaseAnonKey =
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
-export const supabase = createClient(
+export const supabase = createBrowserClient(
   supabaseUrl,
-  supabaseAnonKey || "missing-supabase-api-key"
+  supabaseAnonKey || 'missing-supabase-api-key'
 );

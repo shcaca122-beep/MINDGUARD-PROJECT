@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import { 
   UserCheck, 
   Calendar, 
@@ -57,7 +58,8 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
     }
   }, [router]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem('user_session');
     localStorage.removeItem('user_role');
     localStorage.removeItem('admin_role');

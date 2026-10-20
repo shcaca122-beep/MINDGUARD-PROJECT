@@ -25,13 +25,15 @@ export default function BookingPage() {
     try {
       const sessionData = localStorage.getItem('user_session');
       const session = sessionData ? JSON.parse(sessionData) : {};
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user?.email) throw new Error('Sesi login tidak valid. Silakan masuk kembali.');
       const isPriority = needsFastSupport || isHighPriorityMessage(topik, deskripsi);
       const requestTitle = isPriority ? markPriorityTitle(topik.trim()) : topik.trim();
 
       const { error } = await supabase.from('layanan_siswa').insert([
         {
           nama_siswa: session.nama || session.email || 'Siswa',
-          email_siswa: session.email || null,
+          email_siswa: user.email,
           kelas: session.kelas || '-',
           layanan: 'KONSELING',
           tanggal: `${tanggal} (${sesi})`,

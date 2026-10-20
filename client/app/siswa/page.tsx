@@ -60,12 +60,18 @@ export default function BKDashboardPage() {
     Promise.resolve().then(() => {
       if (!isMounted) return;
       try {
-        const rawSession = sessionStorage.getItem('bk_session') || sessionStorage.getItem('admin_session');
+        const rawSession = localStorage.getItem('user_session');
         if (!rawSession) {
           router.push('/');
           return;
         }
-        setBkUser(JSON.parse(rawSession) as BKUser);
+        const session = JSON.parse(rawSession) as BKUser & { role?: string };
+        const role = (session.role || '').toLowerCase();
+        if (!role.includes('bk') && !role.includes('admin') && role !== 'tu') {
+          router.push('/');
+          return;
+        }
+        setBkUser(session);
         void fetchCurhatData();
       } catch (error) {
         console.error('Gagal memeriksa sesi Guru BK:', error);
@@ -75,9 +81,9 @@ export default function BKDashboardPage() {
     return () => { isMounted = false; };
   }, [fetchCurhatData, router]);
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('bk_session');
-    sessionStorage.removeItem('admin_session');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem('user_session');
     router.push('/');
   };
 

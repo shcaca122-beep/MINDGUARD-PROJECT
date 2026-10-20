@@ -23,6 +23,8 @@ export default function CurhatPage() {
     try {
       const sessionData = localStorage.getItem('user_session');
       const session = sessionData ? JSON.parse(sessionData) : {};
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user?.email) throw new Error('Sesi login tidak valid. Silakan masuk kembali.');
 
       const namaPengirim = isAnonim ? 'Anonim' : (session.nama || session.email || 'Siswa');
       const isPriority = needsFastSupport || isHighPriorityMessage(judul, pesan);
@@ -30,6 +32,7 @@ export default function CurhatPage() {
 
       const payload: Record<string, string> = {
         nama_siswa: namaPengirim,
+        email_siswa: user.email,
         layanan: 'CURHAT',
         judul_pesan: isPriority ? markPriorityTitle(messageTitle) : messageTitle,
         deskripsi: pesan,

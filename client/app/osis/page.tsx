@@ -208,64 +208,56 @@ export default function OsisPage() {
     };
   }, []);
 
-  // Fetch & Parse CSV DATAMURIDPROYEK.csv
+  // Load the protected student directory from Supabase.
   useEffect(() => {
-    fetch('/DATAMURIDPROYEK.csv')
-      .then((res) => {
-        if (!res.ok) throw new Error('File CSV tidak ditemukan');
-        return res.text();
-      })
-      .then((csvText) => {
-        const lines = csvText.split(/\r?\n/);
+    let cancelled = false;
+    const loadStudentDirectory = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('nama,kelas,role')
+          .ilike('role', '%siswa%');
+        if (error) throw error;
+
         const mapSiswa: { [kelas: string]: string[] } = {};
-        const kelasSet = new Set<string>();
-
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (!line) continue;
-          
-          const parts = line.split(';');
-          if (parts.length >= 6) {
-            const nama = parts[4]?.trim();
-            const kls = parts[5]?.trim();
-
-            if (kls && nama && kls !== 'XII') {
-              kelasSet.add(kls);
-              if (!mapSiswa[kls]) mapSiswa[kls] = [];
-              if (!mapSiswa[kls].includes(nama)) {
-                mapSiswa[kls].push(nama);
-              }
-            }
-          }
+        for (const student of data || []) {
+          const nama = String(student.nama || '').trim();
+          const studentClass = String(student.kelas || '').trim();
+          if (!nama || !studentClass) continue;
+          mapSiswa[studentClass] ||= [];
+          if (!mapSiswa[studentClass].includes(nama)) mapSiswa[studentClass].push(nama);
         }
 
-        const sortedKelas = Array.from(kelasSet).sort((a, b) => {
-          const order: { [key: string]: number } = { X: 1, XI: 2, XII: 3 };
-          const prefixA = a.split('.')[0];
-          const prefixB = b.split('.')[0];
-          const levelA = order[prefixA] || 99;
-          const levelB = order[prefixB] || 99;
-          if (levelA !== levelB) return levelA - levelB;
-          return a.localeCompare(b, 'id', { numeric: true });
+        const sortedKelas = Object.keys(mapSiswa).sort((first, second) => {
+          const levelOrder: Record<string, number> = { X: 1, XI: 2, XII: 3 };
+          const firstLevel = levelOrder[first.split('.')[0]] || 99;
+          const secondLevel = levelOrder[second.split('.')[0]] || 99;
+          return firstLevel - secondLevel || first.localeCompare(second, 'id', { numeric: true });
         });
+        Object.values(mapSiswa).forEach((students) => students.sort((first, second) => first.localeCompare(second, 'id')));
 
-        Object.keys(mapSiswa).forEach((kls) => {
-          mapSiswa[kls].sort((a, b) => a.localeCompare(b, 'id'));
-        });
-
+        if (cancelled) return;
         setKelasOptions(sortedKelas);
         setSiswaByKelas(mapSiswa);
-
-        if (sortedKelas.length > 0) {
+        if (sortedKelas.length) {
           setKelas(sortedKelas[0]);
-          if (mapSiswa[sortedKelas[0]] && mapSiswa[sortedKelas[0]].length > 0) {
-            setNamaSiswa(mapSiswa[sortedKelas[0]][0]);
-          }
+          setNamaSiswa(mapSiswa[sortedKelas[0]][0] || '');
+        } else {
+          setStatusMsg({ type: 'error', message: 'Data siswa belum tersedia di database. Admin perlu mengimpor data siswa terlebih dahulu.' });
         }
-      })
-      .catch((err) => {
-        console.error('Gagal memuat DATAMURIDPROYEK.csv:', err);
-      });
+      } catch (error) {
+        console.error('Gagal memuat direktori siswa:', error);
+        if (!cancelled) {
+          setStatusMsg({
+            type: 'error',
+            message: `Gagal memuat data siswa: ${error instanceof Error ? error.message : 'terjadi kesalahan.'}`,
+          });
+        }
+      }
+    };
+
+    void loadStudentDirectory();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -295,19 +287,26 @@ export default function OsisPage() {
         }
 
         const storedPhoto = String(data.foto_url).trim();
-        let photoUrl = storedPhoto;
-        if (!/^https?:\/\//i.test(storedPhoto)) {
-          const storagePath = storedPhoto.replace(/^\/?foto-siswaq\//i, '');
-          const { data: signedPhoto, error: signedUrlError } = await supabase.storage
-            .from('foto-siswaq')
-            .createSignedUrl(storagePath, 3600);
-
-          if (!signedUrlError && signedPhoto?.signedUrl) {
-            photoUrl = signedPhoto.signedUrl;
-          } else {
-            photoUrl = supabase.storage.from('foto-siswaq').getPublicUrl(storagePath).data.publicUrl;
+        let storagePath = storedPhoto.replace(/^\/?foto-siswaq\//i, '');
+        if (/^https?:\/\//i.test(storedPhoto)) {
+          const photoUrl = new URL(storedPhoto);
+          const supabaseOrigin = new URL(
+            process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://pqjkihmvjikawttraetr.supabase.co'
+          ).origin;
+          const pathMatch = photoUrl.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/foto-siswaq\/(.+)$/);
+          if (photoUrl.origin !== supabaseOrigin || !pathMatch) {
+            throw new Error('Foto referensi harus disimpan di bucket privat foto-siswaq.');
           }
+          storagePath = decodeURIComponent(pathMatch[1]);
         }
+
+        const { data: signedPhoto, error: signedUrlError } = await supabase.storage
+          .from('foto-siswaq')
+          .createSignedUrl(storagePath, 3600);
+        if (signedUrlError || !signedPhoto?.signedUrl) {
+          throw new Error(`Gagal membuat URL foto privat: ${signedUrlError?.message || 'URL tidak tersedia.'}`);
+        }
+        const photoUrl = signedPhoto.signedUrl;
 
         if (!cancelled) {
           setDbFotoUrl(photoUrl);
@@ -559,6 +558,24 @@ export default function OsisPage() {
     let uploadedEvidencePath: string | null = null;
 
     try {
+      const { data: matchedStudents, error: studentLookupError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('nama', namaSiswa)
+        .eq('kelas', kelas)
+        .limit(2);
+
+      if (studentLookupError) throw studentLookupError;
+      const studentMatches = matchedStudents ?? [];
+      if (studentMatches.length !== 1) {
+        throw new Error(
+          studentMatches.length === 0
+            ? 'Akun siswa tidak ditemukan. Admin perlu melengkapi data siswa sebelum pelanggaran dicatat.'
+            : 'Nama siswa tidak unik. Admin perlu memperbaiki data identitas siswa sebelum pelanggaran dicatat.'
+        );
+      }
+
+      const studentRecordId = studentMatches[0].id;
       let fotoBuktiPath: string | null = null;
       if (fotoBukti) {
         const evidenceBlob = await fetch(fotoBukti).then((response) => response.blob());
@@ -578,6 +595,7 @@ export default function OsisPage() {
       }
 
       const payload = {
+        siswa_id: studentRecordId,
         nama_siswa: namaSiswa,
         kelas: kelas,
         tanggal: today,

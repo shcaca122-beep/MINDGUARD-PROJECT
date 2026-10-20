@@ -95,7 +95,7 @@ export default function AdminDashboardPage() {
     setIsLoading(true);
 
     try {
-      const { data: dbRoles } = await supabase.from('admin_roles').select('*');
+      const { data: dbRoles } = await supabase.from('admin_roles').select('id,email,role,nama');
       if (dbRoles && dbRoles.length > 0) {
         const updated = { ...DEFAULT_PROFILES };
         dbRoles.forEach((r: any) => {

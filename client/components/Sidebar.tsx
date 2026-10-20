@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import {
   Menu,
   X,
@@ -60,7 +61,8 @@ export default function Sidebar() {
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem('user_session');
     router.push('/');
   };
