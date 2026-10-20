@@ -21,15 +21,27 @@ export default function LoginPage() {
     try {
       const cleanEmail = email.trim().toLowerCase();
 
-      // 🔍 1. Cek dulu ke tabel admin_roles (Untuk BK, Piket, OSIS, Admin)
+      // 🔍 1. Cek tabel "Admin"
       let { data: user } = await supabase
-        .from('admin_roles')
+        .from('Admin')
         .select('*')
         .eq('email', cleanEmail)
         .eq('password', password)
         .maybeSingle();
 
-      // 🔍 2. Jika tidak ada di admin_roles, cari di tabel users (Untuk Siswa)
+      // 🔍 2. Jika tidak ada di Admin, cek ke tabel "admin_roles"
+      if (!user) {
+        const { data: adminRoleUser } = await supabase
+          .from('admin_roles')
+          .select('*')
+          .eq('email', cleanEmail)
+          .eq('password', password)
+          .maybeSingle();
+
+        user = adminRoleUser;
+      }
+
+      // 🔍 3. Jika tidak ada di admin_roles, cek ke tabel "users" (Siswa)
       if (!user) {
         const { data: siswaUser } = await supabase
           .from('users')
@@ -41,12 +53,14 @@ export default function LoginPage() {
         user = siswaUser;
       }
 
-      // Jika di kedua tabel tidak ditemukan
+      // ⚠️ Jika di semua tabel tidak ditemukan, tampilkan pesan error UI biasa (tanpa throw Error)
       if (!user) {
-        throw new Error('Email atau password salah! Silakan periksa kembali.');
+        setErrorMsg('Email atau password salah! Silakan periksa kembali.');
+        setIsLoading(false);
+        return;
       }
 
-      // 💾 3. Simpan Data Sesi Pengguna ke LocalStorage
+      // 💾 4. Simpan Data Sesi Pengguna ke LocalStorage
       const userRole = (user.role || 'siswa').toLowerCase();
       const sessionData = {
         id: user.id,
@@ -58,21 +72,21 @@ export default function LoginPage() {
 
       localStorage.setItem('user_session', JSON.stringify(sessionData));
 
-      // 🔀 4. Redirect Otomatis Berdasarkan Role
-      if (userRole.includes('bk')) {
+      // 🔀 5. Redirect Otomatis Berdasarkan Role
+      if (userRole.includes('admin')) {
+        router.push('/admin');
+      } else if (userRole.includes('bk')) {
         router.push('/bk');
       } else if (userRole.includes('piket')) {
         router.push('/piket');
       } else if (userRole.includes('osis') || userRole.includes('mpk')) {
         router.push('/osis');
-      } else if (userRole.includes('admin')) {
-        router.push('/admin');
       } else {
         router.push('/dashboard');
       }
-    } catch (err: any) {
-      console.error('Login error:', err);
-      setErrorMsg(err.message || 'Gagal login. Silakan periksa koneksi internet Anda.');
+    } catch (error: unknown) {
+      console.error('Gagal login:', error);
+      setErrorMsg('Gagal terhubung ke server. Silakan periksa koneksi internet Anda.');
     } finally {
       setIsLoading(false);
     }
@@ -345,7 +359,7 @@ export default function LoginPage() {
               <h1 style={{ margin: '0 0 12px 0', fontSize: '36px', fontWeight: '900', letterSpacing: '-0.5px' }}>
                 MindGuard
               </h1>
-              
+
               <p style={{ margin: '0 0 24px 0', fontSize: '13px', lineHeight: '1.6', color: '#e2e8f0', maxWidth: '360px' }}>
                 Platform terintegrasi untuk pemantauan kedisiplinan siswa, pencatatan pelanggaran gerbang, layanan bimbingan konseling, dan perizinan sekolah secara real-time.
               </p>

@@ -47,11 +47,11 @@ export default function BookingPage() {
       setTanggal('');
       setTopik('');
       setDeskripsi('');
-    } catch (err: any) {
-      console.error(err);
+    } catch (error: unknown) {
+      console.error(error);
       setStatus({
         type: 'error',
-        message: err.message || 'Gagal mengirim pengajuan. Silakan coba lagi.',
+        message: error instanceof Error ? error.message : 'Gagal mengirim pengajuan. Silakan coba lagi.',
       });
     } finally {
       setIsLoading(false);

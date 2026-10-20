@@ -2,8 +2,14 @@
 
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
-import { useState, useEffect } from 'react';
+import type { DatabaseRow } from '@/lib/database-row';
+import { useMemo, useState, useSyncExternalStore, useEffect } from 'react';
 import { ShieldCheck, RefreshCw, Send, AlertTriangle } from 'lucide-react';
+import {
+  getServerStorageSnapshot,
+  getUserSessionSnapshot,
+  subscribeToLocalStorage,
+} from '@/lib/browser-storage';
 
 type MasterPelanggaranItem = {
   id?: number | string;
@@ -44,37 +50,41 @@ export default function OsisPage() {
   const [namaSiswa, setNamaSiswa] = useState('');
   const [kelas, setKelas] = useState('');
   const [jamKejadian, setJamKejadian] = useState('07:15');
-  const [namaPetugas, setNamaPetugas] = useState('');
+  const rawSession = useSyncExternalStore(
+    subscribeToLocalStorage,
+    getUserSessionSnapshot,
+    getServerStorageSnapshot
+  );
+  const sessionReporter = useMemo(() => {
+    if (!rawSession) return '';
+    try {
+      const parsed: unknown = JSON.parse(rawSession);
+      if (typeof parsed !== 'object' || parsed === null) return '';
+      const name = (parsed as { nama?: unknown }).nama;
+      return typeof name === 'string' ? name.replace(/\s*\(.*?\)\s*/g, '').trim() : '';
+    } catch (error) {
+      console.error('Gagal membaca nama petugas dari sesi:', error);
+      return '';
+    }
+  }, [rawSession]);
+  const [namaPetugasOverride, setNamaPetugasOverride] = useState<string | null>(null);
+  const namaPetugas = namaPetugasOverride ?? sessionReporter;
   const [keterangan, setKeterangan] = useState('');
   const [tindakan, setTindakan] = useState('Peringatan Lisan & Binaan OSIS');
 
   const [kelasOptions, setKelasOptions] = useState<string[]>([]);
   const [siswaByKelas, setSiswaByKelas] = useState<{ [kelas: string]: string[] }>({});
 
-  const [masterPelanggaranList, setMasterPelanggaranList] = useState<MasterPelanggaranItem[]>(GERBANG_MASTER_PELANGGARAN);
+  const masterPelanggaranList = GERBANG_MASTER_PELANGGARAN;
   const [selectedPelanggaran, setSelectedPelanggaran] = useState<string>(GERBANG_MASTER_PELANGGARAN[0].nama_pelanggaran || '');
   const [selectedKategori, setSelectedKategori] = useState<string>(GERBANG_MASTER_PELANGGARAN[0].kategori || 'Keterlambatan');
   const [selectedPoin, setSelectedPoin] = useState<number>(Number(GERBANG_MASTER_PELANGGARAN[0].poin ?? 5));
 
-  const [listPelanggaran, setListPelanggaran] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [listPelanggaran, setListPelanggaran] = useState<DatabaseRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filterText, setFilterText] = useState('');
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-
-  // Auto-fill Nama Petugas dan bersihkan format kelas dalam kurung pada nama sesi
-  useEffect(() => {
-    const sessionData = localStorage.getItem('user_session');
-    if (sessionData) {
-      try {
-        const session = JSON.parse(sessionData);
-        if (session.nama) {
-          const cleanName = session.nama.replace(/\s*\(.*?\)\s*/g, '').trim();
-          setNamaPetugas(cleanName);
-        }
-      } catch (err) {}
-    }
-  }, []);
 
   // Fetch dan Parse CSV DATAMURIDPROYEK.csv secara lengkap dan terurut
   useEffect(() => {
@@ -147,7 +157,6 @@ export default function OsisPage() {
   };
 
   const fetchPelanggaranSiswa = async () => {
-    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('pelanggaran_siswa')
@@ -155,14 +164,17 @@ export default function OsisPage() {
         .order('created_at', { ascending: false });
 
       if (!error && data) setListPelanggaran(data);
-    } catch (err) {
+    } catch (error) {
+      console.error('Gagal mengambil data pelanggaran:', error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchPelanggaranSiswa();
+    queueMicrotask(() => {
+      void fetchPelanggaranSiswa();
+    });
   }, []);
 
   const handleSelectPelanggaranChange = (namaPelanggaran: string) => {
@@ -209,10 +221,10 @@ export default function OsisPage() {
 
       setKeterangan('');
       fetchPelanggaranSiswa();
-    } catch (err: any) {
+    } catch (error: unknown) {
       setStatusMsg({
         type: 'error',
-        message: err.message || 'Gagal menyimpan data pelanggaran.',
+        message: error instanceof Error ? error.message : 'Gagal menyimpan data pelanggaran.',
       });
     } finally {
       setIsSubmitting(false);
@@ -221,10 +233,10 @@ export default function OsisPage() {
 
   const filteredData = listPelanggaran.filter(
     (item) =>
-      item.nama_siswa?.toLowerCase().includes(filterText.toLowerCase()) ||
-      item.kelas?.toLowerCase().includes(filterText.toLowerCase()) ||
-      item.jenis_pelanggaran?.toLowerCase().includes(filterText.toLowerCase()) ||
-      item.pencatat?.toLowerCase().includes(filterText.toLowerCase())
+      String(item.nama_siswa ?? '').toLowerCase().includes(filterText.toLowerCase()) ||
+      String(item.kelas ?? '').toLowerCase().includes(filterText.toLowerCase()) ||
+      String(item.jenis_pelanggaran ?? '').toLowerCase().includes(filterText.toLowerCase()) ||
+      String(item.pencatat ?? '').toLowerCase().includes(filterText.toLowerCase())
   );
 
   return (
@@ -353,7 +365,7 @@ export default function OsisPage() {
                         type="text"
                         required
                         value={namaPetugas}
-                        onChange={(e) => setNamaPetugas(e.target.value)}
+                        onChange={(e) => setNamaPetugasOverride(e.target.value)}
                         style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', outline: 'none', boxSizing: 'border-box', backgroundColor: '#021f18', color: '#fff' }}
                       />
                     </div>

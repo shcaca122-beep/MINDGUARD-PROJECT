@@ -2,6 +2,7 @@
 
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
+import type { DatabaseRow } from '@/lib/database-row';
 import { useState, useEffect } from 'react';
 import { 
   CalendarCheck, 
@@ -16,11 +17,10 @@ import {
 } from 'lucide-react';
 
 export default function KonselingBKPage() {
-  const [konselingList, setKonselingList] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [konselingList, setKonselingList] = useState<DatabaseRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchKonseling = async () => {
-    setIsLoading(true);
     try {
       const { data } = await supabase
         .from('layanan_siswa')
@@ -37,13 +37,15 @@ export default function KonselingBKPage() {
   };
 
   useEffect(() => {
-    fetchKonseling();
+    queueMicrotask(() => {
+      void fetchKonseling();
+    });
   }, []);
 
-  const updateStatus = async (id: number, status: string) => {
+  const updateStatus = async (id: string | number, status: string) => {
     try {
       await supabase.from('layanan_siswa').update({ status }).eq('id', id);
-      fetchKonseling();
+      void fetchKonseling();
     } catch (err) {
       console.error('Gagal memperbarui status konseling:', err);
     }
@@ -277,7 +279,7 @@ export default function KonselingBKPage() {
                           <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                             <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
                               <button 
-                                onClick={() => updateStatus(item.id, 'DISETUJUI')} 
+                                onClick={() => item.id != null && updateStatus(item.id, 'DISETUJUI')}
                                 style={{ 
                                   background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', 
                                   color: '#ffffff', 
@@ -299,7 +301,7 @@ export default function KonselingBKPage() {
                               </button>
 
                               <button 
-                                onClick={() => updateStatus(item.id, 'SELESAI')} 
+                                onClick={() => item.id != null && updateStatus(item.id, 'SELESAI')}
                                 style={{ 
                                   background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', 
                                   color: '#ffffff', 

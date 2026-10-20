@@ -3,15 +3,15 @@
 import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
+import type { DatabaseRow } from '@/lib/database-row';
 
 export default function BKPelanggaranPage() {
-  const [data, setData] = useState<any[]>([]);
-  const [masterData, setMasterData] = useState<any[]>([]);
+  const [data, setData] = useState<DatabaseRow[]>([]);
+  const [masterData, setMasterData] = useState<DatabaseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
   const fetchData = async () => {
-    setLoading(true);
     try {
       const { data: result, error } = await supabase
         .from('pelanggaran_siswa')
@@ -41,7 +41,9 @@ export default function BKPelanggaranPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    queueMicrotask(() => {
+      void fetchData();
+    });
 
     const handlePelanggaranUpdate = () => {
       fetchData();
@@ -57,6 +59,11 @@ export default function BKPelanggaranPage() {
       }
     };
   }, []);
+
+  const refreshData = () => {
+    setLoading(true);
+    void fetchData();
+  };
 
   const filteredData = data.filter((item) => {
     const text = `${item.nama_siswa || ''} ${item.kelas || ''} ${item.jenis_pelanggaran || item.jenis || ''} ${item.pencatat || ''}`.toLowerCase();
@@ -74,7 +81,7 @@ export default function BKPelanggaranPage() {
               <h2 style={{ margin: 0, fontSize: '18px', color: '#1b3b2b' }}>🚨 Data Pelanggaran BK</h2>
               <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b' }}>Daftar poin pelanggaran yang tersimpan di tabel master_pelanggaran</p>
             </div>
-            <button onClick={fetchData} style={{ backgroundColor: '#1b3b2b', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+            <button onClick={refreshData} style={{ backgroundColor: '#1b3b2b', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
               🔄 Refresh
             </button>
           </div>
@@ -111,7 +118,7 @@ export default function BKPelanggaranPage() {
                       </span>
                     </div>
                     <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
-                      {item.tanggal || new Date(item.created_at).toLocaleDateString('id-ID')} • {item.pencatat || 'OSIS'}
+                      {item.tanggal || (item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-')} • {item.pencatat || 'OSIS'}
                     </div>
                   </div>
                 ))}

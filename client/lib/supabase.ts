@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Menggunakan env ATAU langsung menggunakan URL & Key proyek Supabase kamu
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
   "https://pqjkihmvjikawttraetr.supabase.co";

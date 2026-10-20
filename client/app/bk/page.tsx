@@ -1,62 +1,65 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
-import { ShieldCheck, RefreshCw, MessageSquare, Calendar, AlertTriangle, ArrowRight, UserCheck } from 'lucide-react';
+import { ShieldCheck, RefreshCw, AlertTriangle, ArrowRight, UserCheck } from 'lucide-react';
+import type { DatabaseRow } from '@/lib/database-row';
+import {
+  getAdminSessionSnapshot,
+  getBKNameSnapshot,
+  getServerStorageSnapshot,
+  getUserSessionSnapshot,
+  subscribeToLocalStorage,
+} from '@/lib/browser-storage';
 
 export default function BKPage() {
   const router = useRouter();
-  const [dataCurhat, setDataCurhat] = useState<any[]>([]);
-  const [dataKonseling, setDataKonseling] = useState<any[]>([]);
-  const [dataPelanggaran, setDataPelanggaran] = useState<any[]>([]);
+  const [dataCurhat, setDataCurhat] = useState<DatabaseRow[]>([]);
+  const [dataKonseling, setDataKonseling] = useState<DatabaseRow[]>([]);
+  const [dataPelanggaran, setDataPelanggaran] = useState<DatabaseRow[]>([]);
   const [tabAktif, setTabAktif] = useState<'curhat' | 'konseling'>('curhat');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const userSessionData = useSyncExternalStore(
+    subscribeToLocalStorage,
+    getUserSessionSnapshot,
+    getServerStorageSnapshot
+  );
+  const adminSessionData = useSyncExternalStore(
+    subscribeToLocalStorage,
+    getAdminSessionSnapshot,
+    getServerStorageSnapshot
+  );
+  const sessionData = userSessionData || adminSessionData;
+  const session = useMemo(() => {
+    if (!sessionData) return null;
+    try {
+      const parsed: unknown = JSON.parse(sessionData);
+      if (typeof parsed !== 'object' || parsed === null) return null;
+      const data = parsed as { nama?: unknown; role?: unknown };
+      return {
+        nama: typeof data.nama === 'string' ? data.nama : undefined,
+        role: typeof data.role === 'string' ? data.role.toLowerCase() : '',
+      };
+    } catch (error) {
+      console.error('Error memverifikasi sesi:', error);
+      return null;
+    }
+  }, [sessionData]);
+  const isAuthorized = Boolean(session?.role.includes('bk') || session?.role.includes('admin'));
+  const savedName = useSyncExternalStore(
+    subscribeToLocalStorage,
+    getBKNameSnapshot,
+    getServerStorageSnapshot
+  );
+  const [nameOverride, setNameOverride] = useState<string | null>(null);
+  const namaGuruBK = nameOverride ?? savedName ?? session?.nama ?? 'Umum';
+  const inputNama = nameOverride ?? savedName ?? session?.nama ?? 'Umum';
 
   // State untuk Input Nama Guru BK Manual & Notifikasi Modern (Default "Umum")
-  const [namaGuruBK, setNamaGuruBK] = useState('Umum');
-  const [inputNama, setInputNama] = useState('Umum');
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-
-  // 1. Cek Hak Akses & Load Nama Tersimpan
-  useEffect(() => {
-    const sessionData = localStorage.getItem('user_session') || localStorage.getItem('admin_session');
-    
-    if (!sessionData) {
-      router.push('/');
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(sessionData);
-      const userRole = (parsed.role || '').toLowerCase();
-
-      if (!userRole.includes('bk') && !userRole.includes('admin')) {
-        setStatusMsg({ type: 'error', message: '🚫 Akses Ditolak! Halaman ini khusus untuk Guru Bimbingan Konseling (BK).' });
-        router.push('/dashboard');
-        return;
-      }
-
-      setIsAuthorized(true);
-
-      const savedName = localStorage.getItem('bk_custom_name');
-      if (savedName) {
-        setNamaGuruBK(savedName);
-        setInputNama(savedName);
-      } else if (parsed.nama) {
-        setNamaGuruBK(parsed.nama);
-        setInputNama(parsed.nama);
-      }
-
-      fetchDataBK();
-    } catch (err) {
-      console.error('Error memverifikasi sesi:', err);
-      router.push('/');
-    }
-  }, [router]);
 
   const handleSimpanNamaManual = () => {
     if (!inputNama.trim()) {
@@ -64,7 +67,7 @@ export default function BKPage() {
       return;
     }
 
-    setNamaGuruBK(inputNama);
+    setNameOverride(inputNama);
     localStorage.setItem('bk_custom_name', inputNama);
 
     ['user_session', 'admin_session'].forEach((key) => {
@@ -74,7 +77,9 @@ export default function BKPage() {
           const parsed = JSON.parse(sess);
           parsed.nama = inputNama;
           localStorage.setItem(key, JSON.stringify(parsed));
-        } catch (e) {}
+        } catch (error) {
+          console.error(`Gagal memperbarui nama pada sesi ${key}:`, error);
+        }
       } else {
         localStorage.setItem(key, JSON.stringify({ nama: inputNama, role: 'BK' }));
       }
@@ -87,8 +92,7 @@ export default function BKPage() {
     }, 1200);
   };
 
-  const fetchDataBK = async () => {
-    setIsLoading(true);
+  const fetchDataBK = useCallback(async () => {
     try {
       const { data: curhat } = await supabase
         .from('layanan_siswa')
@@ -119,7 +123,25 @@ export default function BKPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!sessionData) {
+      if (!localStorage.getItem('user_session') && !localStorage.getItem('admin_session')) router.push('/');
+      return;
+    }
+    if (!session) {
+      router.push('/');
+      return;
+    }
+    if (!isAuthorized) {
+      router.push('/dashboard');
+      return;
+    }
+    queueMicrotask(() => {
+      void fetchDataBK();
+    });
+  }, [fetchDataBK, isAuthorized, router, session, sessionData]);
 
   if (!isAuthorized) {
     return (
@@ -176,7 +198,10 @@ export default function BKPage() {
               </div>
             </div>
             <button
-              onClick={fetchDataBK}
+              onClick={() => {
+                setIsLoading(true);
+                void fetchDataBK();
+              }}
               style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '9px 16px', borderRadius: '8px', color: '#ffffff', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
               <RefreshCw size={14} color="#34d399" />
@@ -211,7 +236,7 @@ export default function BKPage() {
                 <input
                   type="text"
                   value={inputNama}
-                  onChange={(e) => setInputNama(e.target.value)}
+                  onChange={(e) => setNameOverride(e.target.value)}
                   placeholder="Contoh: Umum"
                   style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid rgba(52, 211, 153, 0.4)', backgroundColor: '#021f18', color: '#ffffff', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
                 />
@@ -270,7 +295,7 @@ export default function BKPage() {
                         <span style={{ backgroundColor: '#451a03', color: '#f87171', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', border: '1px solid rgba(248, 113, 113, 0.3)' }}>+{item.poin ?? 0} Poin</span>
                       </div>
                       <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
-                        📅 {item.tanggal || new Date(item.created_at).toLocaleDateString('id-ID')} • Petugas: {item.pencatat || 'OSIS'}
+                        📅 {item.tanggal || (item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-')} • Petugas: {item.pencatat || 'OSIS'}
                       </div>
                     </div>
                   ))}
@@ -335,7 +360,7 @@ export default function BKPage() {
                           <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <td style={{ padding: '14px', fontWeight: '700' }}>🔒 {item.nama_siswa || 'Anonim'}</td>
                             <td style={{ padding: '14px' }}>{item.judul_pesan || item.topik}</td>
-                            <td style={{ padding: '14px', color: '#94a3b8' }}>{new Date(item.created_at).toLocaleDateString('id-ID')}</td>
+                            <td style={{ padding: '14px', color: '#94a3b8' }}>{item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-'}</td>
                             <td style={{ padding: '14px' }}>
                               <span style={{ backgroundColor: 'rgba(217, 119, 6, 0.2)', color: '#fcd34d', padding: '4px 10px', borderRadius: '6px', fontWeight: '700', fontSize: '11px', border: '1px solid rgba(252, 211, 77, 0.3)' }}>{item.status || 'TERKIRIM'}</span>
                             </td>

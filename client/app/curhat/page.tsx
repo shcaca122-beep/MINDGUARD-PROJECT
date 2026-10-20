@@ -24,7 +24,7 @@ export default function CurhatPage() {
 
       const namaPengirim = isAnonim ? 'Anonim' : (session.nama || session.email || 'Siswa');
 
-      const payload: any = {
+      const payload: Record<string, string> = {
         nama_siswa: namaPengirim,
         layanan: 'CURHAT',
         judul_pesan: `[${kategori}] ${judul}`,
@@ -62,11 +62,11 @@ export default function CurhatPage() {
       });
       setJudul('');
       setPesan('');
-    } catch (err: any) {
-      console.error('Error submit:', err);
+    } catch (error: unknown) {
+      console.error('Error submit:', error);
       setStatus({
         type: 'error',
-        message: err.message || 'Gagal mengirim curhatan.',
+        message: error instanceof Error ? error.message : 'Gagal mengirim curhatan.',
       });
     } finally {
       setIsLoading(false);

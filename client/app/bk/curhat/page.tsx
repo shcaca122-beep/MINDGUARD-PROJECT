@@ -2,6 +2,7 @@
 
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
+import type { DatabaseRow } from '@/lib/database-row';
 import { useState, useEffect } from 'react';
 import { 
   MessageSquareText, 
@@ -14,11 +15,10 @@ import {
 } from 'lucide-react';
 
 export default function CurhatBKPage() {
-  const [curhatList, setCurhatList] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [curhatList, setCurhatList] = useState<DatabaseRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchCurhat = async () => {
-    setIsLoading(true);
     try {
       const { data } = await supabase
         .from('layanan_siswa')
@@ -35,7 +35,9 @@ export default function CurhatBKPage() {
   };
 
   useEffect(() => {
-    fetchCurhat();
+    queueMicrotask(() => {
+      void fetchCurhat();
+    });
   }, []);
 
   return (
@@ -221,7 +223,7 @@ export default function CurhatBKPage() {
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#94a3b8' }}>
                         <Clock size={13} />
-                        <span>{new Date(item.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                        <span>{item.created_at ? new Date(item.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' }) : '-'}</span>
                       </div>
                     </div>
 

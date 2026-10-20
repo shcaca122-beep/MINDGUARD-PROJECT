@@ -6,10 +6,21 @@ datasource db {
   provider = "postgresql"
 }
 
+model Admin {
+  id        Int      @id @default(autoincrement())
+  nama      String
+  email     String   @unique
+  password  String
+  role      String   @default("ADMIN")
+  createdAt DateTime @default(now())
+}
+
 model Siswa {
   id          Int      @id @default(autoincrement())
   nama        String
   email       String   @unique
+  nis         String   @unique
+  kelas       String
   mood_status String?
   curhatan    String?
   createdAt   DateTime @default(now())
@@ -18,6 +29,7 @@ model Siswa {
 model GuruBK {
   id        Int     @id @default(autoincrement())
   nama      String
+  email     String  @unique
   spesialis String
   isOnline  Boolean @default(false)
 }
@@ -29,11 +41,11 @@ model JadwalKonsul {
   status String @default("Tersedia")
 }
 
-model Perizinan {
-  id           String   @id @default(uuid())
-  jenis        String   // SAKIT / IZIN
-  tanggalMulai DateTime
-  alasan       String
-  status       String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  createdAt    DateTime @default(now())
+model MasterPelanggaran {
+  id        Int      @id @default(autoincrement())
+  kategori  String   // Ringan, Sedang, Berat
+  jenis     String
+  poin      Int
+  keterangan String?
+  createdAt DateTime @default(now())
 }

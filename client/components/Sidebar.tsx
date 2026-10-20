@@ -2,7 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
+import ThemeToggle from './ThemeToggle';
+import {
+  getServerStorageSnapshot,
+  getUserSessionSnapshot,
+  subscribeToLocalStorage,
+} from '@/lib/browser-storage';
 import {
   Shield,
   Menu,
@@ -24,27 +30,28 @@ import {
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<{ nama: string; role: string } | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    setIsOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    const sessionData = localStorage.getItem('user_session');
-    if (sessionData) {
-      try {
-        const parsed = JSON.parse(sessionData);
-        setUser({
-          nama: parsed.nama || parsed.email || 'Pengguna',
-          role: (parsed.role || 'SISWA').toUpperCase(),
-        });
-      } catch (err) {
-        console.error('Error parsing session:', err);
-      }
+  const rawSession = useSyncExternalStore(
+    subscribeToLocalStorage,
+    getUserSessionSnapshot,
+    getServerStorageSnapshot
+  );
+  const user = useMemo(() => {
+    if (!rawSession) return null;
+    try {
+      const parsed: unknown = JSON.parse(rawSession);
+      if (typeof parsed !== 'object' || parsed === null) return null;
+      const session = parsed as { nama?: string; email?: string; role?: string };
+      return {
+        nama: session.nama || session.email || 'Pengguna',
+        role: (session.role || 'SISWA').toUpperCase(),
+      };
+    } catch (error) {
+      console.error('Error parsing session:', error);
+      return null;
     }
-  }, []);
+  }, [rawSession]);
+  const [openState, setOpenState] = useState({ pathname: '', isOpen: false });
+  const isOpen = openState.pathname === pathname && openState.isOpen;
 
   const handleLogout = () => {
     localStorage.removeItem('user_session');
@@ -75,7 +82,7 @@ export default function Sidebar() {
       {/* 1. HEADER & TOMBOL HAMBURGER MOBILE */}
       <div className="mobile-header">
         <button
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={() => setOpenState({ pathname, isOpen: !isOpen })}
           className="hamburger-btn"
           aria-label="Toggle Navigation"
         >
@@ -91,7 +98,7 @@ export default function Sidebar() {
       {isOpen && (
         <div
           className="sidebar-overlay"
-          onClick={() => setIsOpen(false)}
+          onClick={() => setOpenState({ pathname, isOpen: false })}
         />
       )}
 
@@ -206,6 +213,9 @@ export default function Sidebar() {
 
         {/* FOOTER & LOGOUT */}
         <div style={{ marginTop: '20px' }}>
+          <div style={{ marginBottom: '12px' }}>
+            <ThemeToggle />
+          </div>
           {/* GARIS PEMBATAS SEBELUM LOGOUT */}
           <div className="sidebar-divider" style={{ marginBottom: '14px' }} />
 

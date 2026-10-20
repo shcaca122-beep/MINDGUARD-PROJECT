@@ -1,7 +1,7 @@
 'use client';
 
 import Sidebar from '@/components/Sidebar';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -14,36 +14,44 @@ import {
   FileText, 
   HeartHandshake
 } from 'lucide-react';
+import {
+  getServerStorageSnapshot,
+  getUserSessionSnapshot,
+  subscribeToLocalStorage,
+} from '@/lib/browser-storage';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [userNama, setUserNama] = useState('Siswa');
+  const rawSession = useSyncExternalStore(
+    subscribeToLocalStorage,
+    getUserSessionSnapshot,
+    getServerStorageSnapshot
+  );
+  const session = useMemo(() => {
+    if (!rawSession) return null;
+    try {
+      const parsed: unknown = JSON.parse(rawSession);
+      return typeof parsed === 'object' && parsed !== null
+        ? parsed as { role?: string; nama?: string }
+        : null;
+    } catch (error) {
+      console.error('Error parsing session:', error);
+      return null;
+    }
+  }, [rawSession]);
+  const userNama = session?.nama || 'Siswa';
 
   // AUTOMATIC REDIRECT BERDASARKAN ROLE
   useEffect(() => {
-    const sessionData = localStorage.getItem('user_session');
-    if (sessionData) {
-      try {
-        const session = JSON.parse(sessionData);
-        const role = (session.role || '').toUpperCase();
-        
-        if (session.nama) {
-          setUserNama(session.nama);
-        }
-
-        // 🔀 Pengalihan Otomatis Sesuai Role Account
-        if (role.includes('OSIS') || role.includes('MPK')) {
-          router.push('/osis');
-        } else if (role.includes('PIKET')) {
-          router.push('/piket');
-        } else if (role.includes('BK')) {
-          router.push('/bk');
-        }
-      } catch (err) {
-        console.error('Error parsing session:', err);
-      }
+    const role = (session?.role || '').toUpperCase();
+    if (role.includes('OSIS') || role.includes('MPK')) {
+      router.push('/osis');
+    } else if (role.includes('PIKET')) {
+      router.push('/piket');
+    } else if (role.includes('BK')) {
+      router.push('/bk');
     }
-  }, [router]);
+  }, [router, session]);
 
   return (
     <>

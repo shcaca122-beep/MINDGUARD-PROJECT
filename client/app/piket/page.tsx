@@ -2,11 +2,25 @@
 
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
+import type { DatabaseRow } from '@/lib/database-row';
 import { useState, useEffect } from 'react';
-import { ShieldCheck, RefreshCw, ClipboardList, CheckCircle2, XCircle, Search, Inbox, Paperclip } from 'lucide-react';
+import Image from 'next/image';
+import { RefreshCw, ClipboardList, CheckCircle2, XCircle, Search, Inbox, Paperclip } from 'lucide-react';
+
+type PermissionRecord = DatabaseRow & {
+  id?: string | number;
+  nama_siswa?: string;
+  kelas?: string;
+  jenis_izin?: string;
+  status?: string;
+  tanggal?: string;
+  jam_mulai?: string;
+  alasan?: string;
+  lampiran_url?: string;
+};
 
 export default function PiketPage() {
-  const [listIzin, setListIzin] = useState<any[]>([]);
+  const [listIzin, setListIzin] = useState<PermissionRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterText, setFilterText] = useState('');
   
@@ -15,7 +29,6 @@ export default function PiketPage() {
 
   // Ambil Data Perizinan dari Supabase
   const fetchPerizinan = async () => {
-    setLoading(true);
     try {
       const { data, error } = await supabase
         .from('perizinan_siswa')
@@ -32,11 +45,13 @@ export default function PiketPage() {
   };
 
   useEffect(() => {
-    fetchPerizinan();
+    queueMicrotask(() => {
+      void fetchPerizinan();
+    });
   }, []);
 
   // Update Status Perizinan (ACC / TOLAK)
-  const handleUpdateStatus = async (id: string, statusBaru: string) => {
+  const handleUpdateStatus = async (id: string | number, statusBaru: string) => {
     try {
       const { error } = await supabase
         .from('perizinan_siswa')
@@ -44,17 +59,17 @@ export default function PiketPage() {
         .eq('id', id);
 
       if (error) throw error;
-      fetchPerizinan();
-    } catch (err: any) {
-      alert('Gagal mengupdate status: ' + err.message);
+      void fetchPerizinan();
+    } catch (error: unknown) {
+      alert('Gagal mengupdate status: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 
   const filteredData = listIzin.filter(
     (item) =>
-      item.nama_siswa?.toLowerCase().includes(filterText.toLowerCase()) ||
-      item.kelas?.toLowerCase().includes(filterText.toLowerCase()) ||
-      item.jenis_izin?.toLowerCase().includes(filterText.toLowerCase())
+      String(item.nama_siswa ?? '').toLowerCase().includes(filterText.toLowerCase()) ||
+      String(item.kelas ?? '').toLowerCase().includes(filterText.toLowerCase()) ||
+      String(item.jenis_izin ?? '').toLowerCase().includes(filterText.toLowerCase())
   );
 
   return (
@@ -187,15 +202,18 @@ export default function PiketPage() {
                           </div>
                           {item.lampiran_url ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <img
+                              <Image
                                 src={item.lampiran_url}
                                 alt="Surat Lampiran"
-                                onClick={() => setSelectedImage(item.lampiran_url)}
+                                width={60}
+                                height={60}
+                                unoptimized
+                                onClick={() => item.lampiran_url && setSelectedImage(item.lampiran_url)}
                                 style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', cursor: 'pointer' }}
                               />
                               <button
                                 type="button"
-                                onClick={() => setSelectedImage(item.lampiran_url)}
+                                onClick={() => item.lampiran_url && setSelectedImage(item.lampiran_url)}
                                 style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', cursor: 'pointer', fontWeight: '700', boxShadow: '0 2px 6px rgba(2, 132, 199, 0.3)' }}
                               >
                                 🔍 Perbesar Foto
@@ -218,14 +236,14 @@ export default function PiketPage() {
 
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
-                            onClick={() => handleUpdateStatus(item.id, 'DISETUJUI PIKET')}
+                            onClick={() => item.id != null && handleUpdateStatus(item.id, 'DISETUJUI PIKET')}
                             style={{ flex: 1, background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: '#fff', border: 'none', padding: '9px', borderRadius: '8px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(5, 150, 105, 0.3)' }}
                           >
                             <CheckCircle2 size={14} />
                             <span>ACC Piket</span>
                           </button>
                           <button
-                            onClick={() => handleUpdateStatus(item.id, 'DITOLAK PIKET')}
+                            onClick={() => item.id != null && handleUpdateStatus(item.id, 'DITOLAK PIKET')}
                             style={{ flex: 1, background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)', color: '#fff', border: 'none', padding: '9px', borderRadius: '8px', fontSize: '12px', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)' }}
                           >
                             <XCircle size={14} />
@@ -258,10 +276,13 @@ export default function PiketPage() {
               >
                 ✕
               </button>
-              <img
+              <Image
                 src={selectedImage}
                 alt="Lampiran Surat Full"
-                style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.6)', border: '1px solid rgba(52, 211, 153, 0.3)' }}
+                width={1200}
+                height={900}
+                unoptimized
+                style={{ width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '85vh', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.6)', border: '1px solid rgba(52, 211, 153, 0.3)' }}
               />
             </div>
           </div>

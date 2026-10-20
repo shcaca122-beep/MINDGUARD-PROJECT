@@ -4,30 +4,21 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
+import type { DatabaseRow } from '@/lib/database-row';
 import { Home, Plus, Calendar, MapPin, RefreshCw, ClipboardList } from 'lucide-react';
 
 export default function HomeVisitPage() {
   const router = useRouter();
-  const [dataHomeVisit, setDataHomeVisit] = useState<any[]>([]);
+  const [dataHomeVisit, setDataHomeVisit] = useState<DatabaseRow[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [namaSiswa, setNamaSiswa] = useState('');
   const [kelas, setKelas] = useState('');
   const [alamat, setAlamat] = useState('');
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
   const [catatan, setCatatan] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    const session = localStorage.getItem('user_session') || localStorage.getItem('admin_session');
-    if (!session) {
-      router.push('/');
-      return;
-    }
-    fetchHomeVisit();
-  }, [router]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchHomeVisit = async () => {
-    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('home_visit')
@@ -40,6 +31,22 @@ export default function HomeVisitPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
+    const session = localStorage.getItem('user_session') || localStorage.getItem('admin_session');
+    if (!session) {
+      router.push('/');
+      return;
+    }
+    queueMicrotask(() => {
+      void fetchHomeVisit();
+    });
+  }, [router]);
+
+  const refreshHomeVisit = () => {
+    setIsLoading(true);
+    void fetchHomeVisit();
   };
 
   const handleSimpanJadwal = async (e: React.FormEvent) => {
@@ -62,8 +69,8 @@ export default function HomeVisitPage() {
       setAlamat('');
       setCatatan('');
       fetchHomeVisit();
-    } catch (err: any) {
-      alert('Gagal menyimpan ke database: ' + err.message);
+    } catch (error: unknown) {
+      alert('Gagal menyimpan ke database: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 
@@ -88,7 +95,7 @@ export default function HomeVisitPage() {
                 <span style={{ fontSize: '12px', color: '#a7f3d0' }}>SMK Budi Bakti Ciwidey[cite: 7] • Sinkronisasi Database Real-time</span>
               </div>
             </div>
-            <button onClick={fetchHomeVisit} style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '9px 16px', borderRadius: '10px', color: '#fff', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <button onClick={refreshHomeVisit} style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '9px 16px', borderRadius: '10px', color: '#fff', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <RefreshCw size={14} color="#34d399" /> {isLoading ? 'Memuat...' : 'Perbarui Data'}
             </button>
           </div>

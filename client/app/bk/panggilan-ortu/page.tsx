@@ -4,26 +4,18 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
+import type { DatabaseRow } from '@/lib/database-row';
 import { PhoneCall, Plus, Printer, ClipboardList } from 'lucide-react';
 
 export default function PanggilanOrtuPage() {
   const router = useRouter();
-  const [dataPanggilan, setDataPanggilan] = useState<any[]>([]);
+  const [dataPanggilan, setDataPanggilan] = useState<DatabaseRow[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [namaSiswa, setNamaSiswa] = useState('');
   const [kelas, setKelas] = useState('');
   const [keperluan, setKeperluan] = useState('Konsultasi Pelanggaran & Pembinaan Siswa');
   const [tanggalPanggilan, setTanggalPanggilan] = useState(new Date().toISOString().split('T')[0]);
   const [pukul, setPukul] = useState('09:00');
-
-  useEffect(() => {
-    const session = localStorage.getItem('user_session') || localStorage.getItem('admin_session');
-    if (!session) {
-      router.push('/');
-      return;
-    }
-    fetchPanggilan();
-  }, [router]);
 
   const fetchPanggilan = async () => {
     try {
@@ -56,13 +48,13 @@ export default function PanggilanOrtuPage() {
       setNamaSiswa('');
       setKelas('');
       fetchPanggilan();
-    } catch (err: any) {
-      alert('Gagal menyimpan: ' + err.message);
+    } catch (error: unknown) {
+      alert('Gagal menyimpan: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 
   // Cetak PDF Surat Panggilan Resmi Berkop & Logo SMK Budi Bakti Ciwidey
-  const handleCetakPDF = (item: any) => {
+  const handleCetakPDF = (item: DatabaseRow) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -138,6 +130,17 @@ export default function PanggilanOrtuPage() {
     `);
     printWindow.document.close();
   };
+
+  useEffect(() => {
+    const session = localStorage.getItem('user_session') || localStorage.getItem('admin_session');
+    if (!session) {
+      router.push('/');
+      return;
+    }
+    queueMicrotask(() => {
+      void fetchPanggilan();
+    });
+  }, [router]);
 
   return (
     <>
