@@ -35,6 +35,7 @@ yarn-error.log*
 
 # private student data
 /private-data/
+/public/DATAMURIDPROYEK.csv
 
 # vercel
 .vercel

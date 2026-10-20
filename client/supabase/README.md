@@ -7,8 +7,9 @@ completed before users can sign in with the new flow.
 1. Back up the Supabase database.
 2. Run `migrations/20261020000000_role_based_privacy.sql` once in the Supabase
    SQL Editor. It adds trusted role profiles, links violations to student
-   records, and applies RLS to account, violation, counseling, and evidence
-   data.
+   records, and applies RLS to account, violation, counseling, permission, and
+   evidence data. Permission rows are linked by `siswa_id`; older rows without
+   that identity remain available to authorized staff only.
 3. In `client/.env.local`, set `SUPABASE_SERVICE_ROLE_KEY` to the project's
    service-role key. Keep it server-only; never use a `NEXT_PUBLIC_` prefix or
    commit the value.

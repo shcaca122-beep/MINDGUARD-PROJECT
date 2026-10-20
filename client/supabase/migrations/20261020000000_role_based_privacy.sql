@@ -229,3 +229,66 @@ CREATE POLICY "Administrators can delete stored evidence"
     bucket_id IN ('bukti-pelanggaran', 'foto-siswaq')
     AND public.current_app_role() = 'admin'
   );
+
+DO $$
+DECLARE
+  v_table_name text;
+BEGIN
+  FOREACH v_table_name IN ARRAY ARRAY['perizinan_siswa', 'izin_siswa']
+  LOOP
+    IF to_regclass(format('public.%I', v_table_name)) IS NULL THEN
+      CONTINUE;
+    END IF;
+
+    EXECUTE format(
+      'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS siswa_id uuid REFERENCES public.users(id) ON DELETE SET NULL',
+      v_table_name
+    );
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', v_table_name);
+    EXECUTE format('REVOKE ALL ON public.%I FROM PUBLIC, anon', v_table_name);
+    EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON public.%I TO authenticated', v_table_name);
+
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_table_name || '_grant_authenticated', v_table_name);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_table_name || '_read_privacy', v_table_name);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_table_name || '_insert_privacy', v_table_name);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_table_name || '_update_privacy', v_table_name);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_table_name || '_delete_privacy', v_table_name);
+
+    EXECUTE format(
+      'CREATE POLICY %I ON public.%I AS PERMISSIVE FOR ALL TO authenticated
+        USING (true) WITH CHECK (true)',
+      v_table_name || '_grant_authenticated',
+      v_table_name
+    );
+    EXECUTE format(
+      'CREATE POLICY %I ON public.%I AS RESTRICTIVE FOR SELECT TO authenticated USING (
+        siswa_id = public.current_student_record_id()
+        OR public.current_app_role() IN (''admin'', ''bk'', ''piket'')
+      )',
+      v_table_name || '_read_privacy',
+      v_table_name
+    );
+    EXECUTE format(
+      'CREATE POLICY %I ON public.%I AS RESTRICTIVE FOR INSERT TO authenticated WITH CHECK (
+        (siswa_id = public.current_student_record_id() AND public.current_app_role() = ''siswa'')
+        OR public.current_app_role() IN (''admin'', ''bk'', ''piket'')
+      )',
+      v_table_name || '_insert_privacy',
+      v_table_name
+    );
+    EXECUTE format(
+      'CREATE POLICY %I ON public.%I AS RESTRICTIVE FOR UPDATE TO authenticated
+        USING (public.current_app_role() IN (''admin'', ''bk'', ''piket''))
+        WITH CHECK (public.current_app_role() IN (''admin'', ''bk'', ''piket''))',
+      v_table_name || '_update_privacy',
+      v_table_name
+    );
+    EXECUTE format(
+      'CREATE POLICY %I ON public.%I AS RESTRICTIVE FOR DELETE TO authenticated
+        USING (public.current_app_role() = ''admin'')',
+      v_table_name || '_delete_privacy',
+      v_table_name
+    );
+  END LOOP;
+END;
+$$;

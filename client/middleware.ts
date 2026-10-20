@@ -62,7 +62,7 @@ export async function middleware(request: NextRequest) {
 
   if (path === '/siswa' && !['bk', 'admin', 'administrator', 'tu'].includes(role)) return forbidden();
   if (
-    ['/dashboard', '/booking', '/curhat', '/jurnal'].some((route) => path === route || path.startsWith(`${route}/`)) &&
+    ['/dashboard', '/booking', '/curhat', '/jurnal', '/perizinan'].some((route) => path === route || path.startsWith(`${route}/`)) &&
     !['siswa', 'student'].includes(role)
   ) {
     return forbidden();
@@ -83,5 +83,6 @@ export const config = {
     '/booking/:path*',
     '/curhat/:path*',
     '/jurnal/:path*',
+    '/perizinan/:path*',
   ],
 };
