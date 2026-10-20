@@ -1,160 +1,67 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* ================= BASE RESET ================= */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: Arial, Helvetica, sans-serif;
+@theme {
+  --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
-body {
-  background: #c7e6c5;
-  min-height: 100vh;
+/* Keep reset styles in Tailwind's base layer so utilities can override them. */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+
+  body {
+    background: #c7e6c5;
+    min-height: 100vh;
+  }
+
+  a {
+    text-decoration: none;
+    color: black;
+  }
+
+  button {
+    cursor: pointer;
+    border: none;
+  }
 }
 
-html[data-theme='dark'] body {
-  background: #071c16 !important;
-  color: #e5e7eb;
-  color-scheme: dark;
+.admin-panel,
+.admin-panel * {
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
-html[data-theme='dark'] body [style*='background-color: rgb(255, 255, 255)'],
-html[data-theme='dark'] body [style*='background-color: #fff'],
-html[data-theme='dark'] body [style*='background-color: #ffffff'],
-html[data-theme='dark'] body [style*='background-color: rgb(248, 250, 252)'],
-html[data-theme='dark'] body [style*='background-color: #f8fafc'],
-html[data-theme='dark'] body [style*='background-color: rgb(249, 250, 251)'],
-html[data-theme='dark'] body [style*='background-color: #f9fafb'],
-html[data-theme='dark'] body [style*='background-color: #f3f4f6'],
-html[data-theme='dark'] body [style*='background-color: #f0fdf4'],
-html[data-theme='dark'] body [style*='background-color: #ecfdf5'],
-html[data-theme='dark'] body [style*='background-color:#fff'],
-html[data-theme='dark'] body [style*='background-color:#ffffff'],
-html[data-theme='dark'] body [style*='background-color:#f8fafc'],
-html[data-theme='dark'] body [style*='background-color:#f9fafb'],
-html[data-theme='dark'] body [style*='background-color:#f3f4f6'],
-html[data-theme='dark'] body [style*='background-color:#f0fdf4'],
-html[data-theme='dark'] body [style*='background-color:#ecfdf5'] {
-  background-color: #10291f !important;
-  color: #e5e7eb !important;
+.student-journal-page,
+.student-journal-page * {
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
 }
 
-html[data-theme='dark'] body [style*='color: #1f2937'],
-html[data-theme='dark'] body [style*='color: #1b3b2b'],
-html[data-theme='dark'] body [style*='color: #374151'],
-html[data-theme='dark'] body [style*='color: #4b5563'],
-html[data-theme='dark'] body [style*='color: #64748b'],
-html[data-theme='dark'] body [style*='color: #6b7280'],
-html[data-theme='dark'] body [style*='color: rgb(31, 41, 55)'],
-html[data-theme='dark'] body [style*='color: rgb(27, 59, 43)'],
-html[data-theme='dark'] body [style*='color: rgb(55, 65, 81)'],
-html[data-theme='dark'] body [style*='color: rgb(75, 85, 99)'],
-html[data-theme='dark'] body [style*='color: rgb(100, 116, 139)'],
-html[data-theme='dark'] body [style*='color: rgb(107, 114, 128)'],
-html[data-theme='dark'] body [style*='color:#1f2937'],
-html[data-theme='dark'] body [style*='color:#1b3b2b'],
-html[data-theme='dark'] body [style*='color:#374151'],
-html[data-theme='dark'] body [style*='color:#4b5563'],
-html[data-theme='dark'] body [style*='color:#64748b'],
-html[data-theme='dark'] body [style*='color:#6b7280'] {
-  color: #e5e7eb !important;
-}
+@media (max-width: 768px) {
+  body:has(.sidebar-container) {
+    padding-top: 60px !important;
+  }
 
-html[data-theme='dark'] body [style*='border: 1px solid #e2e8f0'],
-html[data-theme='dark'] body [style*='border: 1px solid #e5e7eb'],
-html[data-theme='dark'] body [style*='border: 1px solid #cbd5e1'],
-html[data-theme='dark'] body [style*='border-color: #e2e8f0'],
-html[data-theme='dark'] body [style*='border-color: #e5e7eb'],
-html[data-theme='dark'] body [style*='border:1px solid #e2e8f0'],
-html[data-theme='dark'] body [style*='border:1px solid #e5e7eb'],
-html[data-theme='dark'] body [style*='border:1px solid #cbd5e1'] {
-  border-color: #315b45 !important;
-}
+  .admin-panel {
+    width: 100% !important;
+    flex-direction: column;
+    padding: 8px !important;
+    gap: 8px !important;
+  }
 
-html[data-theme='dark'] body input:not([type='checkbox']):not([type='file']),
-html[data-theme='dark'] body textarea,
-html[data-theme='dark'] body select {
-  background-color: #0b2119 !important;
-  border-color: #456454 !important;
-  color: #f3f4f6 !important;
-}
+  .admin-panel-sidebar {
+    width: 100% !important;
+    min-height: auto !important;
+    max-height: 42vh;
+    overflow-y: auto;
+  }
 
-html[data-theme='dark'] body input::placeholder,
-html[data-theme='dark'] body textarea::placeholder {
-  color: #9ca3af;
-}
-
-html[data-theme='dark'] body select option {
-  background-color: #0b2119;
-  color: #f3f4f6;
-}
-
-html[data-theme='light'] body {
-  background: #cbe3cd !important;
-  color: #1f2937;
-  color-scheme: light;
-}
-
-html[data-theme='light'] body [style*='background-color: #021f18'],
-html[data-theme='light'] body [style*='background-color: #032c22'],
-html[data-theme='light'] body [style*='background-color: #054233'],
-html[data-theme='light'] body [style*='background-color: #064e3b'],
-html[data-theme='light'] body [style*='background-color: #1b3b2b'],
-html[data-theme='light'] body [style*='background-color: #142d20'],
-html[data-theme='light'] body [style*='background-color: #030d09'],
-html[data-theme='light'] body [style*='background-color: #051811'],
-html[data-theme='light'] body [style*='background-color:#021f18'],
-html[data-theme='light'] body [style*='background-color:#032c22'],
-html[data-theme='light'] body [style*='background-color:#054233'],
-html[data-theme='light'] body [style*='background-color:#064e3b'],
-html[data-theme='light'] body [style*='background-color:#1b3b2b'],
-html[data-theme='light'] body [style*='background-color:#142d20'],
-html[data-theme='light'] body [style*='background-color:#030d09'],
-html[data-theme='light'] body [style*='background-color:#051811'],
-html[data-theme='light'] body [style*='background: #021f18'],
-html[data-theme='light'] body [style*='background:#021f18'],
-html[data-theme='light'] body [style*='background: #1b3b2b'],
-html[data-theme='light'] body [style*='background:#1b3b2b'],
-html[data-theme='light'] body [style*='background: #142d20'],
-html[data-theme='light'] body [style*='background:#142d20'],
-html[data-theme='light'] body [style*='background: linear-gradient(135deg, #021f18'],
-html[data-theme='light'] body [style*='background:linear-gradient(135deg, #021f18'] {
-  background: #f8fafc !important;
-  color: #1f2937 !important;
-  border-color: #d1d5db !important;
-}
-
-html[data-theme='light'] body [style*='background-color: #021f18'] :not(button, button *),
-html[data-theme='light'] body [style*='background-color:#021f18'] :not(button, button *),
-html[data-theme='light'] body [style*='background: linear-gradient(135deg, #021f18'] :not(button, button *),
-html[data-theme='light'] body [style*='background:linear-gradient(135deg, #021f18'] :not(button, button *) {
-  color: #1f2937 !important;
-}
-
-html[data-theme='light'] .admin-dashboard {
-  background-color: #f8fafc !important;
-  color: #1f2937 !important;
-}
-
-html[data-theme='light'] .admin-dashboard [class*='bg-[#'] {
-  background-color: #ffffff !important;
-}
-
-html[data-theme='light'] .admin-dashboard :not(button, button *) {
-  color: #1f2937 !important;
-}
-
-a {
-  text-decoration: none;
-  color: black;
-}
-
-button {
-  cursor: pointer;
-  border: none;
+  .admin-panel-main {
+    width: 100%;
+    padding: 16px !important;
+  }
 }
 
 /* ================= LAYOUT CONTAINER ================= */

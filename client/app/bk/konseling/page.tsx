@@ -2,8 +2,8 @@
 
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
-import type { DatabaseRow } from '@/lib/database-row';
-import { useState, useEffect } from 'react';
+import { isHighPriorityMessage } from '@/lib/counseling-priority';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   CalendarCheck, 
   RefreshCw, 
@@ -16,11 +16,23 @@ import {
   Sparkles
 } from 'lucide-react';
 
-export default function KonselingBKPage() {
-  const [konselingList, setKonselingList] = useState<DatabaseRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+type CounselingRecord = {
+  id: number;
+  tanggal?: string;
+  nama_siswa?: string;
+  kelas?: string;
+  judul_pesan?: string;
+  topik?: string;
+  deskripsi?: string;
+  status?: string;
+};
 
-  const fetchKonseling = async () => {
+export default function KonselingBKPage() {
+  const [konselingList, setKonselingList] = useState<CounselingRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchKonseling = useCallback(async () => {
+    setIsLoading(true);
     try {
       const { data } = await supabase
         .from('layanan_siswa')
@@ -28,24 +40,23 @@ export default function KonselingBKPage() {
         .eq('layanan', 'KONSELING')
         .order('created_at', { ascending: false });
       
-      if (data) setKonselingList(data);
+      if (data) setKonselingList(data as CounselingRecord[]);
     } catch (err) {
       console.error('Gagal mengambil data konseling:', err);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    queueMicrotask(() => {
-      void fetchKonseling();
-    });
   }, []);
 
-  const updateStatus = async (id: string | number, status: string) => {
+  useEffect(() => {
+    const initialLoad = window.setTimeout(() => void fetchKonseling(), 0);
+    return () => window.clearTimeout(initialLoad);
+  }, [fetchKonseling]);
+
+  const updateStatus = async (id: number, status: string) => {
     try {
       await supabase.from('layanan_siswa').update({ status }).eq('id', id);
-      void fetchKonseling();
+      fetchKonseling();
     } catch (err) {
       console.error('Gagal memperbarui status konseling:', err);
     }
@@ -157,10 +168,10 @@ export default function KonselingBKPage() {
                 </div>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: '700', color: '#ecfdf5' }}>
-                    Total {konselingList.length} Sesi Permohonan Konseling[cite: 6]
+                    Total {konselingList.length} Sesi Permohonan Konseling
                   </div>
                   <div style={{ fontSize: '11.5px', color: '#a7f3d0' }}>
-                    Setujui atau ubah status sesi jika perjumpaan konseling telah selesai[cite: 6]
+                    Setujui atau ubah status sesi jika perjumpaan konseling telah selesai
                   </div>
                 </div>
               </div>
@@ -174,7 +185,7 @@ export default function KonselingBKPage() {
                 fontWeight: '700',
                 border: '1px solid rgba(52, 211, 153, 0.3)'
               }}>
-                Manajemen Sesi BK[cite: 6]
+                Manajemen Sesi BK
               </span>
             </div>
 
@@ -215,7 +226,7 @@ export default function KonselingBKPage() {
                           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
                             <Inbox size={28} />
                           </div>
-                          <span>Belum ada permohonan konseling individual dari siswa.[cite: 6]</span>
+                          <span>Belum ada permohonan konseling individual dari siswa.</span>
                         </td>
                       </tr>
                     ) : (
@@ -247,6 +258,7 @@ export default function KonselingBKPage() {
                           <td style={{ padding: '16px 20px', color: '#e2e8f0' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <Tag size={13} color="#34d399" />
+                              {isHighPriorityMessage(item.judul_pesan, item.topik, item.deskripsi) && <span style={{ padding: '3px 7px', borderRadius: '5px', border: '1px solid rgba(248, 113, 113, 0.45)', background: 'rgba(127, 29, 29, 0.3)', color: '#fecaca', fontSize: '10px', fontWeight: 800 }}>SEGERA</span>}
                               <span>{item.judul_pesan || item.topik || 'Konseling Umum'}</span>
                             </div>
                           </td>
@@ -279,7 +291,7 @@ export default function KonselingBKPage() {
                           <td style={{ padding: '16px 20px', textAlign: 'center' }}>
                             <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
                               <button 
-                                onClick={() => item.id != null && updateStatus(item.id, 'DISETUJUI')}
+                                onClick={() => updateStatus(item.id, 'DISETUJUI')} 
                                 style={{ 
                                   background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', 
                                   color: '#ffffff', 
@@ -301,7 +313,7 @@ export default function KonselingBKPage() {
                               </button>
 
                               <button 
-                                onClick={() => item.id != null && updateStatus(item.id, 'SELESAI')}
+                                onClick={() => updateStatus(item.id, 'SELESAI')} 
                                 style={{ 
                                   background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', 
                                   color: '#ffffff', 
@@ -336,7 +348,7 @@ export default function KonselingBKPage() {
           </div>
 
           <footer style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#a7f3d0', padding: '16px', textAlign: 'center', fontSize: '11.5px', borderTop: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
-            &copy; 2026 Panel Bimbingan Konseling MindGuard - SMK Budi Bakti Ciwidey[cite: 6]
+            &copy; 2026 Panel Bimbingan Konseling MindGuard - SMK Budi Bakti Ciwidey
           </footer>
 
         </div>

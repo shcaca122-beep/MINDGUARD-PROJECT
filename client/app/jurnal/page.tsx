@@ -67,71 +67,71 @@ export default function JurnalPage() {
         }
       ` }} />
       {/* DIPERBAIKI: Menggunakan width 100% agar simetris dan seimbang di tengah */}
-      <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
+      <div className="student-journal-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #071a14 0%, #0a2b20 48%, #0d3829 100%)', fontFamily: '"Segoe UI", "Helvetica Neue", Arial, sans-serif', boxSizing: 'border-box' }}>
         
         {/* SIDEBAR */}
         <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
           <Sidebar />
         </div>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
+        <div className="journal-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', boxSizing: 'border-box' }}>
           
           {/* TOP BAR GRADASI */}
           <div style={{ 
-            background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', 
+            background: 'linear-gradient(135deg, #0a2119 0%, #103c2c 100%)', 
             color: '#ffffff', 
-            padding: '18px 30px', 
-            borderBottom: '1px solid rgba(52, 211, 153, 0.2)', 
+            padding: '20px 32px', 
+            borderBottom: '1px solid rgba(110, 231, 183, 0.18)', 
             display: 'flex', 
             alignItems: 'center', 
             gap: '10px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
             width: '100%',
             boxSizing: 'border-box'
           }}>
             <div style={{
-              background: 'rgba(52, 211, 153, 0.15)',
-              padding: '8px',
-              borderRadius: '10px',
-              border: '1px solid rgba(52, 211, 153, 0.3)',
+              background: 'rgba(110, 231, 183, 0.1)',
+              padding: '10px',
+              borderRadius: '12px',
+              border: '1px solid rgba(110, 231, 183, 0.22)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <BookOpen size={22} color="#34d399" />
+              <BookOpen size={22} color="#6ee7b7" />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '18px', color: '#ffffff', fontWeight: '700', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
-                Jurnal Pribadi Refleksi Diri[cite: 10]
+              <h2 style={{ margin: 0, fontSize: '19px', color: '#ffffff', fontWeight: '700', letterSpacing: '-0.02em' }}>
+                Jurnal Pribadi Refleksi Diri
               </h2>
-              <span style={{ fontSize: '11.5px', color: '#a7f3d0', fontWeight: '500' }}>Catatan harian privat untuk menjaga kesehatan mental[cite: 10]</span>
+              <span style={{ display: 'block', marginTop: '3px', fontSize: '12px', color: '#b7d8c9', fontWeight: '400' }}>Catatan harian privat untuk menjaga kesehatan mental</span>
             </div>
           </div>
 
-          <div style={{ flex: 1, padding: '30px', maxWidth: '1000px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+          <div style={{ flex: 1, padding: '36px 32px', maxWidth: '1080px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
             
             <div style={{ textAlign: 'center', marginBottom: '25px', width: '100%', boxSizing: 'border-box' }}>
-              <h1 style={{ fontSize: '24px', fontWeight: '800', margin: '0 0 6px 0', color: '#ffffff' }}>
+              <h1 style={{ fontSize: '26px', fontWeight: '750', letterSpacing: '-0.035em', margin: '0 0 8px 0', color: '#f0fdf4' }}>
                 Catatan Refleksi Diri
               </h1>
-              <p style={{ margin: 0, fontSize: '13px', color: '#a7f3d0', fontWeight: '500' }}>
-                Tuliskan perasaanmu hari ini. Hanya kamu yang bisa melihatnya.[cite: 10]
+              <p style={{ margin: 0, fontSize: '14px', color: '#b7d8c9', fontWeight: '400', lineHeight: '1.6' }}>
+                Tuliskan perasaanmu hari ini. Hanya kamu yang bisa melihatnya.
               </p>
             </div>
 
             {/* KARTU PROMPT */}
-            <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', borderRadius: '16px', padding: '24px', marginBottom: '25px', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
-              <h2 style={{ fontSize: '16px', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px', color: '#ecfdf5', fontWeight: '700' }}>
+            <div style={{ background: 'linear-gradient(145deg, rgba(13, 49, 36, 0.96), rgba(7, 32, 24, 0.96))', backdropFilter: 'blur(12px)', borderRadius: '18px', padding: '26px', marginBottom: '22px', border: '1px solid rgba(110, 231, 183, 0.18)', boxShadow: '0 12px 30px rgba(0,0,0,0.18)', width: '100%', boxSizing: 'border-box' }}>
+              <h2 style={{ fontSize: '16px', margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: '9px', color: '#ecfdf5', fontWeight: '650', letterSpacing: '-0.01em' }}>
                 <Sparkles size={18} color="#34d399" />
-                Prompt Inspirasi Hari Ini[cite: 10]
+                Prompt Inspirasi Hari Ini
               </h2>
-              <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#e2e8f0', fontStyle: 'italic', fontWeight: '600', lineHeight: '1.4' }}>
-                “{listPrompt[promptIndex]}”[cite: 10]
+              <p style={{ margin: '0 0 18px 0', fontSize: '16px', color: '#f1f5f9', fontStyle: 'normal', fontWeight: '500', lineHeight: '1.65', letterSpacing: '-0.01em' }}>
+                “{listPrompt[promptIndex]}”
               </p>
               <button 
                 type="button"
                 onClick={handleGantiPrompt}
-                style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '8px 16px', borderRadius: '20px', cursor: 'pointer', fontSize: '12px', fontWeight: '700', color: '#ffffff', display: 'inline-flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s ease' }}
+                style={{ backgroundColor: 'rgba(110, 231, 183,  0.08)', border: '1px solid rgba(110, 231, 183, 0.28)', padding: '9px 15px', borderRadius: '10px', cursor: 'pointer', fontSize: '12px', fontWeight: '600', color: '#d1fae5', display: 'inline-flex', alignItems: 'center', gap: '7px', transition: 'all 0.2s ease' }}
               >
                 <RotateCw size={13} color="#34d399" />
                 <span>Ganti Prompt</span>
@@ -139,13 +139,13 @@ export default function JurnalPage() {
             </div>
 
             {/* KARTU MOOD MINGGU INI */}
-            <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', borderRadius: '16px', padding: '24px', marginBottom: '25px', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ background: 'linear-gradient(145deg, rgba(13, 49, 36, 0.96), rgba(7, 32, 24, 0.96))', backdropFilter: 'blur(12px)', borderRadius: '18px', padding: '26px', marginBottom: '22px', border: '1px solid rgba(110, 231, 183, 0.18)', boxShadow: '0 12px 30px rgba(0,0,0,0.18)', width: '100%', boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                <h2 style={{ fontSize: '16px', margin: 0, color: '#ecfdf5', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h2 style={{ fontSize: '16px', margin: 0, color: '#ecfdf5', fontWeight: '650', display: 'flex', alignItems: 'center', gap: '9px', letterSpacing: '-0.01em' }}>
                   <Calendar size={18} color="#34d399" />
-                  Mood Minggu Ini[cite: 10]
+                  Mood Minggu Ini
                 </h2>
-                <span style={{ fontSize: '11.5px', color: '#a7f3d0', fontStyle: 'italic' }}>*Klik hari untuk ganti emoji[cite: 10]</span>
+                <span style={{ fontSize: '11.5px', color: '#a7f3d0', fontStyle: 'italic' }}>*Klik hari untuk ganti emoji</span>
               </div>
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
@@ -189,41 +189,48 @@ export default function JurnalPage() {
             </div>
 
             {/* KARTU TULIS JURNAL BARU */}
-            <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', borderRadius: '16px', padding: '24px', marginBottom: '30px', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ background: 'linear-gradient(145deg, rgba(13, 49, 36, 0.98), rgba(7, 32, 24, 0.98))', backdropFilter: 'blur(12px)', borderRadius: '18px', padding: '28px', marginBottom: '30px', border: '1px solid rgba(110, 231, 183, 0.22)', boxShadow: '0 16px 36px rgba(0,0,0,0.22)', width: '100%', boxSizing: 'border-box' }}>
               <form onSubmit={handleSimpan} style={{ width: '100%', boxSizing: 'border-box' }}>
-                <h2 style={{ fontSize: '16px', margin: '0 0 16px 0', color: '#ecfdf5', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <PenTool size={18} color="#34d399" />
-                  Tulis Jurnal Baru[cite: 10]
-                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px', paddingBottom: '18px', borderBottom: '1px solid rgba(110, 231, 183, 0.14)' }}>
+                  <div style={{ width: '42px', height: '42px', flexShrink: 0, borderRadius: '12px', background: 'rgba(110, 231, 183, 0.1)', border: '1px solid rgba(110, 231, 183, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <PenTool size={19} color="#6ee7b7" />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: '18px', lineHeight: '1.35', margin: 0, color: '#f0fdf4', fontWeight: '700', letterSpacing: '-0.025em' }}>Tulis Jurnal Baru</h2>
+                    <p style={{ fontSize: '12px', lineHeight: '1.5', margin: '4px 0 0', color: '#a9cbbc' }}>Luangkan waktu sejenak untuk mencatat perasaan dan pengalamanmu.</p>
+                  </div>
+                </div>
 
                 <div style={{ marginBottom: '16px', width: '100%', boxSizing: 'border-box' }}>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '700', color: '#cbd5e1' }}>Judul Jurnal (Opsional)[cite: 10]</label>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', lineHeight: '1.4', fontWeight: '600', color: '#dcebe3' }}>Judul jurnal <span style={{ color: '#8fb1a0', fontWeight: '400' }}>(opsional)</span></label>
                   <input 
                     type="text" 
                     value={judul}
                     onChange={(e) => setJudul(e.target.value)}
-                    placeholder="Berikan judul jurnalmu..."
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', boxSizing: 'border-box', fontSize: '13px', outline: 'none', backgroundColor: '#021f18', color: '#fff' }} 
+                    placeholder="Contoh: Hal baik yang terjadi hari ini"
+                    style={{ width: '100%', minHeight: '44px', padding: '11px 13px', borderRadius: '10px', border: '1px solid rgba(148, 190, 169, 0.3)', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: '14px', lineHeight: '1.5', outline: 'none', backgroundColor: 'rgba(3, 24, 18, 0.7)', color: '#f0fdf4' }} 
                   />
                 </div>
 
                 <div style={{ marginBottom: '16px', width: '100%', boxSizing: 'border-box' }}>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '700', color: '#cbd5e1' }}>Bagaimana Perasaanmu Saat Ini?[cite: 10]</label>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', lineHeight: '1.4', fontWeight: '600', color: '#dcebe3' }}>Bagaimana perasaanmu saat ini?</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: '10px' }}>
                     {['😁', '😌', '😞', '😡', '😭', '😵'].map((emoji, idx) => (
                       <button 
                         key={idx} 
                         type="button"
                         onClick={() => setSelectedMood(emoji)}
                         style={{ 
-                          flex: 1, 
-                          minWidth: '40px',
-                          fontSize: '24px', 
-                          padding: '8px 0', 
-                          backgroundColor: selectedMood === emoji ? '#064e3b' : '#021f18', 
-                          border: selectedMood === emoji ? '2px solid #34d399' : '1px solid rgba(52, 211, 153, 0.2)', 
-                          borderRadius: '10px', 
+                          minWidth: 0,
+                          minHeight: '52px',
+                          fontSize: '23px',
+                          padding: '8px 0',
+                          backgroundColor: selectedMood === emoji ? 'rgba(16, 89, 62, 0.75)' : 'rgba(3, 24, 18, 0.62)',
+                          border: selectedMood === emoji ? '1px solid #6ee7b7' : '1px solid rgba(148, 190, 169, 0.2)',
+                          borderRadius: '11px',
                           cursor: 'pointer',
+                          boxShadow: selectedMood === emoji ? '0 0 0 3px rgba(110, 231, 183, 0.1)' : 'none',
+                          transition: 'all 0.18s ease',
                         }}
                       >
                         {emoji}
@@ -233,23 +240,23 @@ export default function JurnalPage() {
                 </div>
 
                 <div style={{ marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '700', color: '#cbd5e1' }}>Isi Cerita / Refleksi[cite: 10]</label>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', lineHeight: '1.4', fontWeight: '600', color: '#dcebe3' }}>Isi cerita dan refleksi</label>
                   <textarea 
                     required
                     rows={6} 
                     value={isi}
                     onChange={(e) => setIsi(e.target.value)}
-                    placeholder="Tuliskan semua pikiran dan perasaanmu di sini..."
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', boxSizing: 'border-box', fontSize: '13px', resize: 'vertical', outline: 'none', backgroundColor: '#021f18', color: '#fff' }}
+                    placeholder="Tuliskan pikiran dan perasaanmu dengan nyaman. Catatan ini bersifat pribadi."
+                    style={{ width: '100%', minHeight: '160px', padding: '13px', borderRadius: '10px', border: '1px solid rgba(148, 190, 169, 0.3)', boxSizing: 'border-box', fontFamily: 'inherit', fontSize: '14px', lineHeight: '1.7', resize: 'vertical', outline: 'none', backgroundColor: 'rgba(3, 24, 18, 0.7)', color: '#f0fdf4' }}
                   />
                 </div>
 
                 <button 
                   type="submit"
-                  style={{ width: '100%', padding: '12px', background: 'linear-gradient(135deg, #059669 0%, #047857 50%, #064e3b 100%)', border: 'none', borderRadius: '10px', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', color: '#ffffff', boxShadow: '0 4px 15px rgba(5, 150, 105, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', minHeight: '48px', padding: '12px 18px', background: 'linear-gradient(135deg, #16845e 0%, #0d6849 100%)', border: '1px solid rgba(167, 243, 208, 0.25)', borderRadius: '11px', fontFamily: 'inherit', fontSize: '14px', fontWeight: '650', letterSpacing: '0.01em', cursor: 'pointer', color: '#ffffff', boxShadow: '0 8px 18px rgba(5, 100, 68, 0.24)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '9px', boxSizing: 'border-box' }}
                 >
                   <CheckCircle2 size={16} color="#a7f3d0" />
-                  <span>Simpan Ke Jurnal Saya[cite: 10]</span>
+                  <span>Simpan Ke Jurnal Saya</span>
                 </button>
               </form>
             </div>
@@ -257,7 +264,7 @@ export default function JurnalPage() {
           </div>
 
           <footer style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#a7f3d0', textAlign: 'center', padding: '16px', marginTop: 'auto', borderTop: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
-            <p style={{ margin: '0', fontSize: '11.5px', color: '#a7f3d0' }}>&copy; 2026 Ruang Tenang MindGuard - SMK Budi Bakti Ciwidey[cite: 10]</p>
+            <p style={{ margin: '0', fontSize: '11.5px', color: '#a7f3d0' }}>&copy; 2026 Ruang Tenang MindGuard - SMK Budi Bakti Ciwidey</p>
           </footer>
 
         </div>
@@ -266,10 +273,10 @@ export default function JurnalPage() {
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '15px', boxSizing: 'border-box' }}>
             <div style={{ backgroundColor: '#021f18', padding: '24px', borderRadius: '16px', maxWidth: '380px', width: '100%', textAlign: 'center', boxShadow: '0 8px 30px rgba(0,0,0,0.6)', border: '1px solid rgba(52, 211, 153, 0.3)', boxSizing: 'border-box' }}>
               <h3 style={{ color: '#ffffff', margin: '0 0 8px 0', fontSize: '16px', fontWeight: '700' }}>
-                Pilih Mood Hari {weeklyMoods[editingDayIndex].day}[cite: 10]
+                Pilih Mood Hari {weeklyMoods[editingDayIndex].day}
               </h3>
               <p style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '16px' }}>
-                Pilih emoji yang menggambarkan perasaanmu di hari tersebut:[cite: 10]
+                Pilih emoji yang menggambarkan perasaanmu di hari tersebut:
               </p>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center', marginBottom: '16px' }}>
@@ -298,10 +305,10 @@ export default function JurnalPage() {
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '15px', boxSizing: 'border-box' }}>
             <div style={{ backgroundColor: '#021f18', padding: '28px 24px', borderRadius: '16px', maxWidth: '400px', width: '100%', textAlign: 'center', boxShadow: '0 8px 30px rgba(0,0,0,0.6)', border: '1px solid rgba(52, 211, 153, 0.3)', boxSizing: 'border-box' }}>
               <h2 style={{ color: '#ffffff', margin: '0 0 8px 0', fontSize: '18px', fontWeight: '700' }}>
-                Jurnal Berhasil Disimpan![cite: 10]
+                Jurnal Berhasil Disimpan!
               </h2>
               <p style={{ color: '#94a3b8', fontSize: '13px', lineHeight: '1.5', marginBottom: '20px' }}>
-                Catatan jurnalmu tersimpan rapi dan aman hanya di perangkatmu.[cite: 10]
+                Catatan jurnalmu tersimpan rapi dan aman hanya di perangkatmu.
               </p>
 
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -309,13 +316,13 @@ export default function JurnalPage() {
                   onClick={handleCloseModal}
                   style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: '#ffffff', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '10px 18px', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12px' }}
                 >
-                  Tulis Lagi[cite: 10]
+                  Tulis Lagi
                 </button>
                 <Link href="/dashboard" style={{ textDecoration: 'none' }}>
                   <button
                     style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 50%, #064e3b 100%)', color: '#ffffff', border: 'none', padding: '10px 18px', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', boxShadow: '0 4px 15px rgba(5, 150, 105, 0.4)' }}
                   >
-                    Ke Beranda[cite: 10]
+                    Ke Beranda
                   </button>
                 </Link>
               </div>

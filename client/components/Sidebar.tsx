@@ -2,15 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useMemo, useState, useSyncExternalStore } from 'react';
-import ThemeToggle from './ThemeToggle';
+import { useEffect, useState } from 'react';
 import {
-  getServerStorageSnapshot,
-  getUserSessionSnapshot,
-  subscribeToLocalStorage,
-} from '@/lib/browser-storage';
-import {
-  Shield,
   Menu,
   X,
   LayoutDashboard,
@@ -22,7 +15,7 @@ import {
   Clock,
   MessageCircle,
   BookOpen,
-  FileText,
+  CalendarDays,
   LogOut,
   GraduationCap
 } from 'lucide-react';
@@ -30,28 +23,42 @@ import {
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const rawSession = useSyncExternalStore(
-    subscribeToLocalStorage,
-    getUserSessionSnapshot,
-    getServerStorageSnapshot
-  );
-  const user = useMemo(() => {
-    if (!rawSession) return null;
-    try {
-      const parsed: unknown = JSON.parse(rawSession);
-      if (typeof parsed !== 'object' || parsed === null) return null;
-      const session = parsed as { nama?: string; email?: string; role?: string };
-      return {
-        nama: session.nama || session.email || 'Pengguna',
-        role: (session.role || 'SISWA').toUpperCase(),
-      };
-    } catch (error) {
-      console.error('Error parsing session:', error);
-      return null;
-    }
-  }, [rawSession]);
-  const [openState, setOpenState] = useState({ pathname: '', isOpen: false });
-  const isOpen = openState.pathname === pathname && openState.isOpen;
+  const [user, setUser] = useState<{ nama: string; role: string } | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) setIsOpen(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      try {
+        const sessionData = localStorage.getItem('user_session');
+        if (!sessionData) return;
+        const parsed = JSON.parse(sessionData);
+        setUser({
+          nama: parsed.nama || parsed.email || 'Pengguna',
+          role: (parsed.role || 'SISWA').toUpperCase(),
+        });
+      } catch (err) {
+        console.error('Error parsing session:', err);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('user_session');
@@ -82,14 +89,24 @@ export default function Sidebar() {
       {/* 1. HEADER & TOMBOL HAMBURGER MOBILE */}
       <div className="mobile-header">
         <button
-          onClick={() => setOpenState({ pathname, isOpen: !isOpen })}
+          onClick={() => setIsOpen(!isOpen)}
           className="hamburger-btn"
           aria-label="Toggle Navigation"
         >
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Shield size={22} className="text-emerald-400" color="#86efac" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* LOGO APLIKASI MOBILE HEADER */}
+          <img
+            src="/logo-mindguard.jpeg"
+            alt="MindGuard Logo"
+            style={{
+              width: '30px',
+              height: '30px',
+              objectFit: 'contain',
+              mixBlendMode: 'screen', // 👈 Trik menghilangkan background hitam JPEG
+            }}
+          />
           <span style={{ fontWeight: 'bold', color: '#ffffff', fontSize: '16px' }}>MindGuard</span>
         </div>
       </div>
@@ -98,17 +115,27 @@ export default function Sidebar() {
       {isOpen && (
         <div
           className="sidebar-overlay"
-          onClick={() => setOpenState({ pathname, isOpen: false })}
+          onClick={() => setIsOpen(false)}
         />
       )}
 
       {/* 3. CONTAINER SIDEBAR */}
       <aside className={`sidebar-container ${isOpen ? 'open' : ''}`}>
         <div>
-          {/* LOGO BRAND */}
+          {/* LOGO BRAND SIDEBAR */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 6px 16px 6px' }}>
-            <div style={{ backgroundColor: '#2d523e', padding: '8px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Shield size={24} color="#86efac" />
+            <div style={{ backgroundColor: '#2d523e', width: '42px', height: '42px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}>
+              {/* LOGO APLIKASI DESKTOP / SIDEBAR MAIN */}
+              <img
+                src="/logo-mindguard.jpeg"
+                alt="MindGuard Logo"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  mixBlendMode: 'screen', // 👈 Trik menghilangkan background hitam JPEG
+                }}
+              />
             </div>
             <div>
               <h1 style={{ margin: 0, fontSize: '17px', fontWeight: 'bold', color: '#ffffff', letterSpacing: '-0.025em' }}>MindGuard</h1>
@@ -163,10 +190,7 @@ export default function Sidebar() {
                   <UserCheck size={18} />
                   <span>Konseling Individual</span>
                 </Link>
-                <Link href="/bk/perizinan" style={getLinkStyle('/bk/perizinan')}>
-                  <ClipboardList size={18} />
-                  <span>Izin & Sakit Siswa</span>
-                </Link>
+              
                 <Link href="/bk/home-visit" style={getLinkStyle('/bk/home-visit')}>
                   <Home size={18} />
                   <span>Home Visit</span>
@@ -175,15 +199,25 @@ export default function Sidebar() {
                   <PhoneCall size={18} />
                   <span>Panggilan Orang Tua</span>
                 </Link>
+                <Link href="/osis/rekap-mingguan" style={getLinkStyle('/osis/rekap-mingguan')}>
+                  <CalendarDays size={18} />
+                  <span>Rekap Mingguan OSIS</span>
+                </Link>
               </>
             )}
 
             {/* KHUSUS OSIS & MPK */}
             {isOSIS && (
-              <Link href="/osis" style={getLinkStyle('/osis')}>
-                <Clock size={18} />
-                <span>Input Keterlambatan</span>
-              </Link>
+              <>
+                <Link href="/osis" style={getLinkStyle('/osis')}>
+                  <Clock size={18} />
+                  <span>Input Keterlambatan</span>
+                </Link>
+                <Link href="/osis/rekap-mingguan" style={getLinkStyle('/osis/rekap-mingguan')}>
+                  <CalendarDays size={18} />
+                  <span>Rekap Mingguan</span>
+                </Link>
+              </>
             )}
 
             {/* KHUSUS SISWA */}
@@ -193,6 +227,10 @@ export default function Sidebar() {
                   <Home size={18} />
                   <span>Beranda</span>
                 </Link>
+                <Link href="/booking" style={getLinkStyle('/booking')}>
+                  <CalendarDays size={18} />
+                  <span>Permohonan Konseling BK</span>
+                </Link>
                 <Link href="/curhat" style={getLinkStyle('/curhat')}>
                   <MessageCircle size={18} />
                   <span>Curhat ke Guru BK</span>
@@ -200,10 +238,6 @@ export default function Sidebar() {
                 <Link href="/jurnal" style={getLinkStyle('/jurnal')}>
                   <BookOpen size={18} />
                   <span>Menulis Jurnal Harian</span>
-                </Link>
-                <Link href="/perizinan" style={getLinkStyle('/perizinan')}>
-                  <FileText size={18} />
-                  <span>Perizinan Siswa</span>
                 </Link>
               </>
             )}
@@ -213,9 +247,6 @@ export default function Sidebar() {
 
         {/* FOOTER & LOGOUT */}
         <div style={{ marginTop: '20px' }}>
-          <div style={{ marginBottom: '12px' }}>
-            <ThemeToggle />
-          </div>
           {/* GARIS PEMBATAS SEBELUM LOGOUT */}
           <div className="sidebar-divider" style={{ marginBottom: '14px' }} />
 
@@ -288,6 +319,7 @@ export default function Sidebar() {
 
         .sidebar-container {
           width: 260px;
+          flex: 0 0 260px;
           background-color: #1b3b2b;
           border-right: 1px solid #2d523e;
           color: #ffffff;
@@ -297,10 +329,10 @@ export default function Sidebar() {
           justify-content: space-between;
           padding: 20px 14px;
           box-sizing: border-box;
-          position: fixed;
+          position: sticky;
           top: 0;
-          left: 0;
-          bottom: 0;
+          align-self: flex-start;
+          height: 100vh;
           z-index: 50;
           transition: transform 0.3s ease-in-out;
           overflow-y: auto;
@@ -320,8 +352,12 @@ export default function Sidebar() {
           }
 
           .sidebar-container {
+            position: fixed;
             transform: translateX(-100%);
             top: 0;
+            left: 0;
+            bottom: 0;
+            height: 100vh;
           }
 
           .sidebar-container.open {

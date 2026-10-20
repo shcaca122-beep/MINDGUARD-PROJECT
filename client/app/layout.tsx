@@ -1,6 +1,9 @@
 import './globals.css';
-import AppLayout from '@/components/AppLayout';
-import ThemeSync from '@/components/ThemeSync';
+
+export const metadata = {
+  title: 'MindGuard - SMK Budi Bakti Ciwidey',
+  description: 'Sistem Informasi Bimbingan Konseling',
+};
 
 export default function RootLayout({
   children,
@@ -9,9 +12,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id">
-      <body>
-        <ThemeSync />
-        <AppLayout>{children}</AppLayout>
+      <body className="antialiased bg-[#07241B]">
+        {children}
       </body>
     </html>
   );

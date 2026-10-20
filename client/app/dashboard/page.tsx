@@ -1,7 +1,7 @@
 'use client';
 
 import Sidebar from '@/components/Sidebar';
-import { useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -11,47 +11,42 @@ import {
   Calendar, 
   MessageSquareHeart, 
   BookOpen, 
-  FileText, 
   HeartHandshake
 } from 'lucide-react';
-import {
-  getServerStorageSnapshot,
-  getUserSessionSnapshot,
-  subscribeToLocalStorage,
-} from '@/lib/browser-storage';
 
 export default function DashboardPage() {
   const router = useRouter();
-  const rawSession = useSyncExternalStore(
-    subscribeToLocalStorage,
-    getUserSessionSnapshot,
-    getServerStorageSnapshot
-  );
-  const session = useMemo(() => {
-    if (!rawSession) return null;
-    try {
-      const parsed: unknown = JSON.parse(rawSession);
-      return typeof parsed === 'object' && parsed !== null
-        ? parsed as { role?: string; nama?: string }
-        : null;
-    } catch (error) {
-      console.error('Error parsing session:', error);
-      return null;
-    }
-  }, [rawSession]);
-  const userNama = session?.nama || 'Siswa';
+  const [userNama, setUserNama] = useState('Siswa');
 
   // AUTOMATIC REDIRECT BERDASARKAN ROLE
   useEffect(() => {
-    const role = (session?.role || '').toUpperCase();
-    if (role.includes('OSIS') || role.includes('MPK')) {
-      router.push('/osis');
-    } else if (role.includes('PIKET')) {
-      router.push('/piket');
-    } else if (role.includes('BK')) {
-      router.push('/bk');
+    const sessionData = localStorage.getItem('user_session');
+    if (sessionData) {
+      try {
+        const session = JSON.parse(sessionData);
+        const role = (session.role || '').toUpperCase();
+        
+        if (session.nama) {
+          // Hydrate the greeting from the client-only session after mounting.
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setUserNama(session.nama);
+        }
+
+        // 🔀 Pengalihan Otomatis Sesuai Role Account
+        if (session.isAdmin === true || role.includes('ADMIN') || role === 'TU' || role.includes('TATA USAHA')) {
+          router.replace('/admin1');
+        } else if (role.includes('OSIS') || role.includes('MPK')) {
+          router.push('/osis');
+        } else if (role.includes('PIKET')) {
+          router.push('/piket');
+        } else if (role.includes('BK')) {
+          router.push('/bk');
+        }
+      } catch (err) {
+        console.error('Error parsing session:', err);
+      }
     }
-  }, [router, session]);
+  }, [router]);
 
   return (
     <>
@@ -136,10 +131,6 @@ export default function DashboardPage() {
                 <BookOpen size={15} color="#38bdf8" />
                 <span>Mulai Menulis Jurnal</span>
               </Link>
-              <Link href="/perizinan" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', color: '#ffffff', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '10px 18px', borderRadius: '20px', textDecoration: 'none', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FileText size={15} color="#f87171" />
-                <span>Ajukan Izin / Sakit</span>
-              </Link>
             </div>
 
             {/* Grid Fitur Utama */}
@@ -181,16 +172,6 @@ export default function DashboardPage() {
                 </div>
               </Link>
 
-              <Link href="/perizinan" style={{ textDecoration: 'none' }}>
-                <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px 20px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', textAlign: 'center', height: '100%', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-                  <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '12px', background: 'rgba(220, 38, 38, 0.2)', color: '#f87171', marginBottom: '12px', border: '1px solid rgba(248, 113, 113, 0.3)' }}>
-                    <FileText size={24} />
-                  </div>
-                  <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', color: '#ffffff', fontWeight: '700' }}>Perizinan Siswa</h4>
-                  <p style={{ margin: 0, fontSize: '11.5px', color: '#94a3b8', lineHeight: '1.4' }}>Kirim surat izin atau sakit langsung ke Guru BK secara online.</p>
-                </div>
-              </Link>
-
               <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px 20px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', textAlign: 'center', height: '100%', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
                 <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '12px', background: 'rgba(217, 119, 6, 0.2)', color: '#fcd34d', marginBottom: '12px', border: '1px solid rgba(252, 211, 77, 0.3)' }}>
                   <HeartHandshake size={24} />
@@ -206,7 +187,7 @@ export default function DashboardPage() {
           <footer style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#a7f3d0', padding: '20px', textAlign: 'center', marginTop: 'auto', borderTop: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
             <p style={{ margin: '0 0 4px 0', fontSize: '13px', fontWeight: '700', color: '#34d399' }}>Ruang Tenang - Tempat Berbagi Cerita</p>
             <p style={{ margin: '0 0 6px 0', fontSize: '11.5px', color: '#a7f3d0' }}>Identitasmu aman. Semua curhat terlindungi.</p>
-            <p style={{ margin: '0 0 4px 0', fontSize: '11.5px', color: '#a7f3d0', opacity: 0.8 }}>&copy; 2026 Ruang Tenang. Made With Z-Solution</p>
+            <p style={{ margin: '0 0 4px 0', fontSize: '11.5px', color: '#a7f3d0', opacity: 0.8 }}>&copy; 2026 Ruang Tenang. Made With SR-Solution</p>
             <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', color: '#ffffff', letterSpacing: '0.05em' }}>SMK BUDI BAKTI CIWIDEY</p>
           </footer>
 
