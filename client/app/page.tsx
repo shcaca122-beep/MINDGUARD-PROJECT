@@ -21,37 +21,81 @@ export default function LoginPage() {
 
     try {
       if (!isSupabaseConfigured) {
-        throw new Error('Konfigurasi Supabase belum lengkap. Isi NEXT_PUBLIC_SUPABASE_ANON_KEY atau NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY dengan API key dari project Supabase yang benar, lalu restart server.');
+        setErrorMsg('Konfigurasi Supabase belum lengkap. Isi NEXT_PUBLIC_SUPABASE_ANON_KEY atau NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY dengan API key dari project Supabase yang benar, lalu restart server.');
+        return;
       }
 
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password,
-      });
+      let userId: string;
+      let userEmail: string | null;
+      let profile: {
+        role: string;
+        display_name: string | null;
+        student_record_id: string | null;
+        kelas: string | null;
+      } | null;
 
-      if (authError || !authData.user) {
-        throw new Error(authError?.message || 'Email atau password salah. Silakan periksa kembali.');
+      const loginIdentifier = email.trim();
+      if (loginIdentifier.includes('@')) {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: loginIdentifier.toLowerCase(),
+          password,
+        });
+
+        if (authError || !authData.user) {
+          const authErrorMessage = authError?.message;
+          setErrorMsg(
+            authErrorMessage === 'Invalid login credentials'
+              ? 'Supabase Auth tidak mengenali email/password ini. Periksa kredensial atau hubungi administrator.'
+              : authErrorMessage === 'Database error querying schema'
+                ? 'Layanan login Supabase gagal membaca skema database. Ini bukan kesalahan password. Periksa status database dan log Auth di dashboard Supabase.'
+                : authErrorMessage || 'Email atau password salah. Silakan periksa kembali.',
+          );
+          return;
+        }
+
+        userId = authData.user.id;
+        userEmail = authData.user.email || null;
+        const { data, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('role, display_name, student_record_id, kelas')
+          .eq('user_id', authData.user.id)
+          .single();
+        if (profileError || !data) {
+          await supabase.auth.signOut();
+          setErrorMsg(`Profil akun tidak ditemukan atau tidak dapat diakses: ${profileError?.message || 'hubungi administrator.'}`);
+          return;
+        }
+        profile = data;
+      } else {
+        const response = await fetch('/api/auth/student-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nisn: loginIdentifier, password }),
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          setErrorMsg(result.error || 'NISN atau password salah.');
+          return;
+        }
+        userId = result.userId;
+        userEmail = result.email || null;
+        profile = result.profile;
       }
 
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('role, display_name, student_record_id, kelas')
-        .eq('user_id', authData.user.id)
-        .single();
-
-      if (profileError || !profile) {
+      if (!profile) {
         await supabase.auth.signOut();
-        throw new Error(`Profil akun tidak ditemukan atau tidak dapat diakses: ${profileError?.message || 'hubungi administrator.'}`);
+        setErrorMsg('Profil akun tidak ditemukan. Hubungi administrator.');
+        return;
       }
 
       const userRole = String(profile.role || '').trim().toLowerCase();
       const isAdminAccount = ['admin', 'administrator', 'tu', 'tata usaha'].includes(userRole);
 
       const sessionData = {
-        id: authData.user.id,
+        id: userId,
         studentRecordId: profile.student_record_id,
-        email: authData.user.email,
-        nama: profile.display_name || authData.user.email,
+        email: userEmail,
+        nama: profile.display_name || userEmail || 'Pengguna',
         role: userRole,
         isAdmin: isAdminAccount,
         kelas: profile.kelas || '-',
@@ -80,7 +124,6 @@ export default function LoginPage() {
         router.push('/dashboard');
       }
     } catch (err: unknown) {
-      console.error('Login error:', err);
       setErrorMsg(err instanceof Error ? err.message : 'Gagal login. Silakan periksa koneksi internet Anda.');
     } finally {
       setIsLoading(false);
@@ -114,6 +157,7 @@ export default function LoginPage() {
         }
       ` }} />
       <div
+        className="login-page"
         style={{
           display: 'flex',
           justifyContent: 'center',
@@ -221,12 +265,12 @@ export default function LoginPage() {
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#cbd5e1', marginBottom: '8px' }}>
-                  Email / Akun
+                  Email (disarankan) / NISN
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Mail size={18} color="#94a3b8" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
                   <input
-                    type="email"
+                    type="text"
                     required
                     placeholder="nama@email.com"
                     value={email}
@@ -244,6 +288,9 @@ export default function LoginPage() {
                     }}
                   />
                 </div>
+                <p style={{ margin: '6px 0 0', color: '#94a3b8', fontSize: '11px', lineHeight: '1.4' }}>
+                  Gunakan Email Login dari CSV reset password. NISN juga tetap bisa dipakai.
+                </p>
               </div>
 
               <div>
@@ -286,6 +333,11 @@ export default function LoginPage() {
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
+                </div>
+                <div style={{ marginTop: '8px', textAlign: 'right' }}>
+                  <a href="/lupa-password" style={{ color: '#a7f3d0', fontSize: '12px', fontWeight: 600, textDecoration: 'none' }}>
+                    Lupa kata sandi?
+                  </a>
                 </div>
               </div>
 

@@ -78,7 +78,7 @@ export default function BookingPage() {
           overflow-x: hidden !important;
         }
       ` }} />
-      <div style={{ display: 'flex', minHeight: '100vh', width: '100vw', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
+      <div className="student-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100vw', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         
         {/* SIDEBAR */}
         <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>

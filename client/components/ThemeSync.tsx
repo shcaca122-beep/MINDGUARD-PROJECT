@@ -8,6 +8,7 @@ export default function ThemeSync() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    document.body.dataset.theme = theme;
   }, [theme]);
 
   return null;

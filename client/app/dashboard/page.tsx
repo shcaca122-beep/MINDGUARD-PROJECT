@@ -11,7 +11,8 @@ import {
   Calendar, 
   MessageSquareHeart, 
   BookOpen, 
-  HeartHandshake
+  HeartHandshake,
+  ShieldAlert
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -61,7 +62,7 @@ export default function DashboardPage() {
         }
       ` }} />
       {/* DIPERBAIKI: Menggunakan width 100% agar simetris dan seimbang di tengah */}
-      <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
+      <div className="student-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         
         {/* Sidebar Navigasi */}
         <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
@@ -119,15 +120,15 @@ export default function DashboardPage() {
 
             {/* Akses Cepat Button Bar */}
             <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '35px', width: '100%', boxSizing: 'border-box' }}>
-              <Link href="/booking" style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 50%, #064e3b 100%)', color: '#fff', padding: '10px 18px', borderRadius: '20px', textDecoration: 'none', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(5, 150, 105, 0.4)' }}>
+              <Link className="dashboard-quick-action" href="/booking" style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 50%, #064e3b 100%)', color: '#fff', padding: '10px 18px', borderRadius: '20px', textDecoration: 'none', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Calendar size={15} color="#a7f3d0" />
                 <span>Booking Konseling BK</span>
               </Link>
-              <Link href="/curhat" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', color: '#ffffff', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '10px 18px', borderRadius: '20px', textDecoration: 'none', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Link className="dashboard-quick-action" href="/curhat" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', color: '#ffffff', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '10px 18px', borderRadius: '20px', textDecoration: 'none', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <MessageSquareHeart size={15} color="#34d399" />
                 <span>Curhat Anonim</span>
               </Link>
-              <Link href="/jurnal" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', color: '#ffffff', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '10px 18px', borderRadius: '20px', textDecoration: 'none', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Link className="dashboard-quick-action" href="/jurnal" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', color: '#ffffff', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '10px 18px', borderRadius: '20px', textDecoration: 'none', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <BookOpen size={15} color="#38bdf8" />
                 <span>Mulai Menulis Jurnal</span>
               </Link>
@@ -142,7 +143,7 @@ export default function DashboardPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
               
-              <Link href="/booking" style={{ textDecoration: 'none' }}>
+              <Link className="dashboard-feature-card" href="/booking" style={{ textDecoration: 'none' }}>
                 <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px 20px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', textAlign: 'center', height: '100%', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
                   <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '12px', background: 'rgba(37, 99, 235, 0.2)', color: '#60a5fa', marginBottom: '12px', border: '1px solid rgba(96, 165, 250, 0.3)' }}>
                     <Calendar size={24} />
@@ -152,7 +153,7 @@ export default function DashboardPage() {
                 </div>
               </Link>
 
-              <Link href="/curhat" style={{ textDecoration: 'none' }}>
+              <Link className="dashboard-feature-card" href="/curhat" style={{ textDecoration: 'none' }}>
                 <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px 20px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', textAlign: 'center', height: '100%', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
                   <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '12px', background: 'rgba(5, 150, 105, 0.2)', color: '#34d399', marginBottom: '12px', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
                     <MessageSquareHeart size={24} />
@@ -162,13 +163,23 @@ export default function DashboardPage() {
                 </div>
               </Link>
 
-              <Link href="/jurnal" style={{ textDecoration: 'none' }}>
+              <Link className="dashboard-feature-card" href="/jurnal" style={{ textDecoration: 'none' }}>
                 <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px 20px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', textAlign: 'center', height: '100%', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
                   <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', marginBottom: '12px', border: '1px solid rgba(129, 140, 248, 0.3)' }}>
                     <BookOpen size={24} />
                   </div>
                   <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', color: '#ffffff', fontWeight: '700' }}>Jurnal Pribadi</h4>
                   <p style={{ margin: 0, fontSize: '11.5px', color: '#94a3b8', lineHeight: '1.4' }}>Tulis perasaanmu dan simpan sebagai catatan refleksi harian.</p>
+                </div>
+              </Link>
+
+              <Link className="dashboard-feature-card" href="/pelanggaran-saya" style={{ textDecoration: 'none' }}>
+                <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px 20px', borderRadius: '16px', border: '1px solid rgba(251, 191, 36, 0.25)', textAlign: 'center', height: '100%', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
+                  <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '12px', background: 'rgba(217, 119, 6, 0.2)', color: '#fbbf24', marginBottom: '12px', border: '1px solid rgba(252, 211, 77, 0.3)' }}>
+                    <ShieldAlert size={24} />
+                  </div>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', color: '#ffffff', fontWeight: '700' }}>Poin & Pelanggaran Saya</h4>
+                  <p style={{ margin: 0, fontSize: '11.5px', color: '#94a3b8', lineHeight: '1.4' }}>Lihat total poin dan rincian catatan pelanggaranmu.</p>
                 </div>
               </Link>
 

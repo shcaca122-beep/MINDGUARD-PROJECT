@@ -222,7 +222,6 @@ export default function BKPage() {
     <>
       <style dangerouslySetInnerHTML={{ __html: `
         body, html {
-          background-color: #021f18 !important;
           margin: 0 !important;
           padding: 0 !important;
           width: 100% !important;
@@ -231,7 +230,7 @@ export default function BKPage() {
         }
       ` }} />
       {/* STRUKTUR UTAMA: Menggunakan width 100% agar simetris dan seimbang di tengah */}
-      <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
+      <div className="bk-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         
         {/* SIDEBAR */}
         <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>

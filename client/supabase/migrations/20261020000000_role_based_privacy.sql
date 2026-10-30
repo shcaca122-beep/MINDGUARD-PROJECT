@@ -1,3 +1,16 @@
+CREATE TABLE IF NOT EXISTS public.jenis_layanan (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  nama_layanan text NOT NULL,
+  deskripsi text
+);
+
+CREATE TABLE IF NOT EXISTS public.profil_sekolah (
+  id boolean PRIMARY KEY DEFAULT true CHECK (id IS TRUE),
+  nama_sekolah text,
+  alamat text,
+  kepala_sekolah text
+);
+
 CREATE TABLE IF NOT EXISTS public.user_profiles (
   user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   student_record_id uuid UNIQUE REFERENCES public.users(id) ON DELETE SET NULL,
@@ -7,6 +20,35 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
   kelas text,
   email text
 );
+
+DO $$
+BEGIN
+  DROP POLICY IF EXISTS "Users can read their own profile" ON public.user_profiles;
+  DROP POLICY IF EXISTS "Students and authorized staff can read student directory" ON public.users;
+  DROP POLICY IF EXISTS "Administrators manage student accounts" ON public.users;
+  DROP POLICY IF EXISTS "Administrators manage admin roles" ON public.admin_roles;
+  DROP POLICY IF EXISTS "Students can read only their own violations" ON public.pelanggaran_siswa;
+  DROP POLICY IF EXISTS "Authorized staff can record violations" ON public.pelanggaran_siswa;
+  DROP POLICY IF EXISTS "Administrators and counselors can update violations" ON public.pelanggaran_siswa;
+  DROP POLICY IF EXISTS "Administrators can delete violations" ON public.pelanggaran_siswa;
+  DROP POLICY IF EXISTS "Staff can manage violation reports" ON public.laporan_pelanggaran;
+  DROP POLICY IF EXISTS "Staff can manage lateness records" ON public.keterlambatan;
+  DROP POLICY IF EXISTS "Administrators and counselors manage counseling records" ON public.konseling;
+  DROP POLICY IF EXISTS "Administrators and counselors manage home visits" ON public.home_visit;
+  DROP POLICY IF EXISTS "Administrators and counselors manage parent calls" ON public.panggilan_ortu;
+  DROP POLICY IF EXISTS "Authorized staff can access student reference photos" ON public.master_foto_siswa;
+  DROP POLICY IF EXISTS "Authenticated staff can read violation categories" ON public.master_pelanggaran;
+  DROP POLICY IF EXISTS "Administrators manage service types" ON public.jenis_layanan;
+  DROP POLICY IF EXISTS "Administrators manage school profile" ON public.profil_sekolah;
+  DROP POLICY IF EXISTS "Students can read their own counseling requests" ON public.layanan_siswa;
+  DROP POLICY IF EXISTS "Students and counselors can create counseling requests" ON public.layanan_siswa;
+  DROP POLICY IF EXISTS "Counselors can manage counseling requests" ON public.layanan_siswa;
+  DROP POLICY IF EXISTS "Staff can access legacy violations" ON public.pelanggaran;
+  DROP POLICY IF EXISTS "Staff can access violation evidence" ON storage.objects;
+  DROP POLICY IF EXISTS "Authorized staff can upload violation evidence" ON storage.objects;
+  DROP POLICY IF EXISTS "Administrators can delete stored evidence" ON storage.objects;
+END;
+$$;
 
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.user_profiles FROM anon, authenticated;
@@ -174,6 +216,9 @@ CREATE POLICY "Administrators manage school profile"
   ON public.profil_sekolah FOR ALL TO authenticated
   USING (public.current_app_role() = 'admin')
   WITH CHECK (public.current_app_role() = 'admin');
+
+ALTER TABLE public.layanan_siswa
+  ADD COLUMN IF NOT EXISTS email_siswa text;
 
 ALTER TABLE public.layanan_siswa ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.layanan_siswa FROM anon;

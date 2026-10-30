@@ -76,9 +76,8 @@ export default function HomeVisitPage() {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `body, html { background-color: #021f18 !important; margin: 0; padding: 0; width: 100%; height: 100%; overflow-x: hidden; }` }} />
       {/* DIPERBAIKI: Menggunakan width 100% agar simetris dan seimbang di tengah */}
-      <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, sans-serif', boxSizing: 'border-box' }}>
+      <div className="bk-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, sans-serif', boxSizing: 'border-box' }}>
         <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
           <Sidebar />
         </div>

@@ -195,7 +195,7 @@ export default function DataGuruPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
           <thead>
             <tr style={{ backgroundColor: '#10201a', color: '#688c7d', borderBottom: '1px solid #193328' }}>
-              <th style={{ padding: '12px 16px' }}>NIP / ID</th>
+              <th style={{ padding: '12px 16px' }}>NO</th>
               <th style={{ padding: '12px 16px' }}>NAMA ADMIN</th>
               <th style={{ padding: '12px 16px' }}>ROLE</th>
               <th style={{ padding: '12px 16px' }}>KONTAK / EMAIL</th>
@@ -219,7 +219,7 @@ export default function DataGuruPage() {
             ) : (
               filteredGuru.map((item, idx) => (
                 <tr key={item.id || idx} style={{ borderBottom: '1px solid #193328', color: '#e2e8f0' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: '600' }}>{item.nip || item.id || '-'}</td>
+                  <td style={{ padding: '12px 16px', fontWeight: '600' }}>{idx + 1}</td>
                   <td style={{ padding: '12px 16px', fontWeight: '700', color: '#fff' }}>{item.nama || item.username || 'Tanpa Nama'}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', color: '#34d399', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '700' }}>

@@ -67,7 +67,7 @@ export default function JurnalPage() {
         }
       ` }} />
       {/* DIPERBAIKI: Menggunakan width 100% agar simetris dan seimbang di tengah */}
-      <div className="student-journal-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #071a14 0%, #0a2b20 48%, #0d3829 100%)', fontFamily: '"Segoe UI", "Helvetica Neue", Arial, sans-serif', boxSizing: 'border-box' }}>
+      <div className="student-panel-page student-journal-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #071a14 0%, #0a2b20 48%, #0d3829 100%)', fontFamily: '"Segoe UI", "Helvetica Neue", Arial, sans-serif', boxSizing: 'border-box' }}>
         
         {/* SIDEBAR */}
         <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
@@ -150,7 +150,8 @@ export default function JurnalPage() {
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
                 {weeklyMoods.map((item, index) => (
-                  <div 
+                  <div
+                    className="student-journal-mood-day"
                     key={index} 
                     onClick={() => setEditingDayIndex(index)}
                     style={{ 
@@ -216,7 +217,8 @@ export default function JurnalPage() {
                   <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', lineHeight: '1.4', fontWeight: '600', color: '#dcebe3' }}>Bagaimana perasaanmu saat ini?</label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: '10px' }}>
                     {['😁', '😌', '😞', '😡', '😭', '😵'].map((emoji, idx) => (
-                      <button 
+                      <button
+                        className={`student-journal-mood-choice${selectedMood === emoji ? ' is-selected' : ''}`}
                         key={idx} 
                         type="button"
                         onClick={() => setSelectedMood(emoji)}
@@ -251,7 +253,8 @@ export default function JurnalPage() {
                   />
                 </div>
 
-                <button 
+                <button
+                  className="student-journal-submit"
                   type="submit"
                   style={{ width: '100%', minHeight: '48px', padding: '12px 18px', background: 'linear-gradient(135deg, #16845e 0%, #0d6849 100%)', border: '1px solid rgba(167, 243, 208, 0.25)', borderRadius: '11px', fontFamily: 'inherit', fontSize: '14px', fontWeight: '650', letterSpacing: '0.01em', cursor: 'pointer', color: '#ffffff', boxShadow: '0 8px 18px rgba(5, 100, 68, 0.24)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '9px', boxSizing: 'border-box' }}
                 >

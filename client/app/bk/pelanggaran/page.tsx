@@ -88,7 +88,7 @@ export default function BKPelanggaranPage() {
   });
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div className="bk-panel-page" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <Sidebar />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>

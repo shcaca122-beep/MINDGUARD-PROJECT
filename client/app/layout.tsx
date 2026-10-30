@@ -1,4 +1,6 @@
 import './globals.css';
+import ThemeSync from '@/components/ThemeSync';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export const metadata = {
   title: 'MindGuard - SMK Budi Bakti Ciwidey',
@@ -11,9 +13,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id">
-      <body className="antialiased bg-[#07241B]">
+    <html lang="id" data-theme="light">
+      <body className="antialiased">
+        <ThemeSync />
         {children}
+        <ThemeToggle compact />
       </body>
     </html>
   );

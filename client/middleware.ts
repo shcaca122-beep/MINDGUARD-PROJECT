@@ -46,6 +46,18 @@ export async function middleware(request: NextRequest) {
   const role = String(user.app_metadata?.role || '').trim().toLowerCase();
   const path = request.nextUrl.pathname;
   const isAdmin = ['admin', 'administrator', 'tu', 'tata usaha'].includes(role);
+  const mustChangePassword = user.app_metadata?.password_reset_required === true;
+
+  if (mustChangePassword && path !== '/ganti-password') {
+    const changePasswordResponse = NextResponse.redirect(new URL('/ganti-password', request.url));
+    response.cookies.getAll().forEach((cookie) => changePasswordResponse.cookies.set(cookie));
+    return changePasswordResponse;
+  }
+  if (!mustChangePassword && path === '/ganti-password') {
+    const dashboardResponse = NextResponse.redirect(new URL('/dashboard', request.url));
+    response.cookies.getAll().forEach((cookie) => dashboardResponse.cookies.set(cookie));
+    return dashboardResponse;
+  }
 
   if ((path.startsWith('/admin1') || path.startsWith('/admin')) && !isAdmin) return forbidden();
   if (path.startsWith('/bk') && !['bk', 'admin', 'administrator', 'tu'].includes(role)) return forbidden();
@@ -62,7 +74,7 @@ export async function middleware(request: NextRequest) {
 
   if (path === '/siswa' && !['bk', 'admin', 'administrator', 'tu'].includes(role)) return forbidden();
   if (
-    ['/dashboard', '/booking', '/curhat', '/jurnal', '/perizinan'].some((route) => path === route || path.startsWith(`${route}/`)) &&
+    ['/dashboard', '/booking', '/curhat', '/jurnal', '/perizinan', '/pelanggaran-saya'].some((route) => path === route || path.startsWith(`${route}/`)) &&
     !['siswa', 'student'].includes(role)
   ) {
     return forbidden();
@@ -84,5 +96,7 @@ export const config = {
     '/curhat/:path*',
     '/jurnal/:path*',
     '/perizinan/:path*',
+    '/pelanggaran-saya',
+    '/ganti-password',
   ],
 };

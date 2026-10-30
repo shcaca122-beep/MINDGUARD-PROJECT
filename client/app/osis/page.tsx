@@ -213,14 +213,24 @@ export default function OsisPage() {
     let cancelled = false;
     const loadStudentDirectory = async () => {
       try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('nama,kelas,role')
-          .ilike('role', '%siswa%');
-        if (error) throw error;
+        const pageSize = 500;
+        const students: { nama: string | null; kelas: string | null; role: string | null }[] = [];
+
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await supabase
+            .from('users')
+            .select('nama,kelas,role')
+            .ilike('role', '%siswa%')
+            .order('id', { ascending: true })
+            .range(offset, offset + pageSize - 1);
+          if (error) throw error;
+
+          students.push(...(data || []));
+          if (!data || data.length < pageSize) break;
+        }
 
         const mapSiswa: { [kelas: string]: string[] } = {};
-        for (const student of data || []) {
+        for (const student of students) {
           const nama = String(student.nama || '').trim();
           const studentClass = String(student.kelas || '').trim();
           if (!nama || !studentClass) continue;
@@ -272,6 +282,7 @@ export default function OsisPage() {
 
       setDbFotoUrl(null);
       setReferenceStatus('loading');
+      setVerificationMessage('');
       try {
         const { data, error } = await supabase
           .from('master_foto_siswa')
@@ -287,34 +298,63 @@ export default function OsisPage() {
         }
 
         const storedPhoto = String(data.foto_url).trim();
-        let storagePath = storedPhoto.replace(/^\/?foto-siswaq\//i, '');
+        let storageBucket = 'foto-siswaq';
+        let storagePath = storedPhoto;
         if (/^https?:\/\//i.test(storedPhoto)) {
           const photoUrl = new URL(storedPhoto);
           const supabaseOrigin = new URL(
             process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://pqjkihmvjikawttraetr.supabase.co'
           ).origin;
-          const pathMatch = photoUrl.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/foto-siswaq\/(.+)$/);
-          if (photoUrl.origin !== supabaseOrigin || !pathMatch) {
-            throw new Error('Foto referensi harus disimpan di bucket privat foto-siswaq.');
+          if (photoUrl.origin !== supabaseOrigin) {
+            throw new Error('URL foto bukan berasal dari proyek Supabase yang digunakan aplikasi.');
           }
-          storagePath = decodeURIComponent(pathMatch[1]);
+          const pathMatch = photoUrl.pathname.match(
+            /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/
+          );
+          if (!pathMatch) throw new Error('Format URL foto Supabase tidak valid.');
+          storageBucket = decodeURIComponent(pathMatch[1]);
+          storagePath = decodeURIComponent(pathMatch[2]);
+        } else if (storedPhoto.includes('/storage/v1/object/')) {
+          const pathMatch = storedPhoto.match(
+            /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+?)(?:\?.*)?$/
+          );
+          if (!pathMatch) throw new Error('Format URL foto Supabase tidak valid.');
+          storageBucket = decodeURIComponent(pathMatch[1]);
+          storagePath = decodeURIComponent(pathMatch[2]);
+        } else {
+          const bucketPrefix = storedPhoto.match(/^\/?(foto-siswaq|foto-siswa)\/(.+)$/i);
+          if (bucketPrefix) {
+            storageBucket = bucketPrefix[1].toLowerCase();
+            storagePath = bucketPrefix[2];
+          }
         }
 
-        const { data: signedPhoto, error: signedUrlError } = await supabase.storage
-          .from('foto-siswaq')
-          .createSignedUrl(storagePath, 3600);
-        if (signedUrlError || !signedPhoto?.signedUrl) {
-          throw new Error(`Gagal membuat URL foto privat: ${signedUrlError?.message || 'URL tidak tersedia.'}`);
+        if (!storagePath) throw new Error('Path foto di bucket kosong.');
+
+        let photoUrl: string;
+        if (storageBucket === 'foto-siswa') {
+          photoUrl = supabase.storage.from(storageBucket).getPublicUrl(storagePath).data.publicUrl;
+        } else if (storageBucket === 'foto-siswaq') {
+          const { data: signedPhoto, error: signedUrlError } = await supabase.storage
+            .from(storageBucket)
+            .createSignedUrl(storagePath, 3600);
+          if (signedUrlError || !signedPhoto?.signedUrl) {
+            throw new Error(`Gagal membuat URL foto privat: ${signedUrlError?.message || 'URL tidak tersedia.'}`);
+          }
+          photoUrl = signedPhoto.signedUrl;
+        } else {
+          throw new Error(`Bucket foto "${storageBucket}" tidak dikenal.`);
         }
-        const photoUrl = signedPhoto.signedUrl;
 
         if (!cancelled) {
           setDbFotoUrl(photoUrl);
           setReferenceStatus('ready');
         }
       } catch (err) {
-        console.error('Gagal mengambil foto referensi siswa:', err);
-        if (!cancelled) setReferenceStatus('error');
+        if (!cancelled) {
+          setVerificationMessage(err instanceof Error ? err.message : 'Gagal memuat foto referensi.');
+          setReferenceStatus('error');
+        }
       }
     };
 
@@ -670,7 +710,7 @@ export default function OsisPage() {
         }
       ` }} />
 
-      <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
+      <div className="osis-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         
         {/* SIDEBAR */}
         <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>

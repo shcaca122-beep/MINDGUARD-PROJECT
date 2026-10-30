@@ -134,8 +134,7 @@ export default function RekapMingguanPage() {
   return (
     <>
       <style>{`
-        body:has(.weekly-report-page), html:has(.weekly-report-page) {
-          background: #021f18 !important;
+        body:has(.weekly-report-page) {
           overflow-x: hidden;
         }
         .weekly-report-page button { transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease; }
@@ -155,7 +154,7 @@ export default function RekapMingguanPage() {
           .weekly-report-search { width: 100% !important; }
         }
       `}</style>
-      <div className="weekly-report-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', color: '#ecfdf5', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
+      <div className="osis-panel-page weekly-report-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', color: '#ecfdf5', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
           <Sidebar />
         </div>
