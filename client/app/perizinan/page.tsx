@@ -5,6 +5,17 @@ import { supabase } from '@/lib/supabase';
 import { useState, useEffect } from 'react';
 import { FileText, Calendar, RefreshCw, Send, Sparkles, ClipboardList } from 'lucide-react';
 
+type StudentPermission = {
+  id: string | number;
+  jenis_izin?: string | null;
+  alasan?: string | null;
+  tanggal?: string | null;
+  jam_mulai?: string | null;
+  lampiran_url?: string | null;
+  created_at?: string | null;
+  status?: string | null;
+};
+
 export default function PerizinanPage() {
   const today = new Date().toISOString().split('T')[0];
 
@@ -21,7 +32,7 @@ export default function PerizinanPage() {
   const [lampiranBase64, setLampiranBase64] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
 
-  const [listIzin, setListIzin] = useState<any[]>([]);
+  const [listIzin, setListIzin] = useState<StudentPermission[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -52,14 +63,17 @@ export default function PerizinanPage() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setListIzin(data || []);
+      setListIzin((data || []) as StudentPermission[]);
     } catch (err) {
       console.error('Error fetching perizinan:', err);
     }
   };
 
   useEffect(() => {
-    fetchPerizinan();
+    const initialLoad = window.setTimeout(() => {
+      void fetchPerizinan();
+    }, 0);
+    return () => window.clearTimeout(initialLoad);
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,11 +148,11 @@ export default function PerizinanPage() {
       setLampiranBase64('');
       setFileName('');
       fetchPerizinan();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setStatusMsg({
         type: 'error',
-        message: err.message || 'Gagal mengirim pengajuan perizinan.',
+        message: err instanceof Error ? err.message : 'Gagal mengirim pengajuan perizinan.',
       });
     } finally {
       setIsLoading(false);
@@ -439,7 +453,7 @@ export default function PerizinanPage() {
                           )}
 
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', flexWrap: 'wrap', gap: '6px' }}>
-                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>Dibuat: {new Date(item.created_at).toLocaleDateString('id-ID')}[cite: 11]</span>
+                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>Dibuat: {item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : 'Tanggal tidak tersedia'}[cite: 11]</span>
                             <span style={{ fontSize: '11px', fontWeight: '700', padding: '3px 8px', borderRadius: '6px', backgroundColor: item.status === 'DISETUJUI PIKET' || item.status === 'DISETUJUI' ? 'rgba(5, 150, 105, 0.2)' : 'rgba(217, 119, 6, 0.2)', color: item.status === 'DISETUJUI PIKET' || item.status === 'DISETUJUI' ? '#34d399' : '#fcd34d', border: item.status === 'DISETUJUI PIKET' || item.status === 'DISETUJUI' ? '1px solid rgba(52, 211, 153, 0.3)' : '1px solid rgba(252, 211, 77, 0.3)' }}>
                               {item.status || 'MENUNGGU ACC'}
                             </span>

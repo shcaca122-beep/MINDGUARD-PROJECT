@@ -1,17 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Loader2 } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
+type CounselingRow = {
+  id: string | number;
+};
+
 export default function LaporanKonselingPage() {
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<CounselingRow[]>([]);
 
   useEffect(() => {
     supabase.from('konseling').select('*').then(({ data }) => {
-      if (data) setData(data);
-      setLoading(false);
+      if (data) setData(data as CounselingRow[]);
     });
   }, []);
 

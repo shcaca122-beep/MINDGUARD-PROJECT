@@ -1,44 +1,37 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
 import { FileText, Printer, Search, RefreshCw, X } from 'lucide-react';
 
+type PermissionRow = {
+  id: string | number;
+  nama_siswa?: string | null;
+  kelas?: string | null;
+  jenis_izin?: string | null;
+  kategori?: string | null;
+  created_at?: string | null;
+  tanggal_mulai?: string | null;
+  tanggal?: string | null;
+  status?: string | null;
+  alasan?: string | null;
+};
+
 export default function IzinSakitBKPage() {
   const router = useRouter();
-  const [dataIzin, setDataIzin] = useState<any[]>([]);
+  const [dataIzin, setDataIzin] = useState<PermissionRow[]>([]);
   const [filterText, setFilterText] = useState('');
   const [filterWaktu, setFilterWaktu] = useState<'semua' | 'mingguan' | 'bulanan'>('semua');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTable, setActiveTable] = useState<string>('perizinan_siswa');
   const [showPrintModal, setShowPrintModal] = useState(false);
 
-  useEffect(() => {
-    const session = localStorage.getItem('user_session') || localStorage.getItem('admin_session');
-    if (!session) {
-      router.push('/');
-      return;
-    }
-    fetchDataIzin();
-
-    const channel = supabase
-      .channel('realtime_perizinan_all')
-      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-        fetchDataIzin();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [router]);
-
-  const fetchDataIzin = async () => {
+  const fetchDataIzin = useCallback(async () => {
     setIsLoading(true);
     try {
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from('perizinan_siswa')
         .select('*')
         .order('created_at', { ascending: false });
@@ -50,11 +43,11 @@ export default function IzinSakitBKPage() {
           .order('created_at', { ascending: false });
 
         if (res.data) {
-          setDataIzin(res.data);
+          setDataIzin(res.data as PermissionRow[]);
           setActiveTable('izin_siswa');
         }
       } else {
-        setDataIzin(data);
+        setDataIzin(data as PermissionRow[]);
         setActiveTable('perizinan_siswa');
       }
     } catch (err) {
@@ -62,9 +55,32 @@ export default function IzinSakitBKPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const handleUpdateStatus = async (id: string, statusBaru: string) => {
+  useEffect(() => {
+    const session = localStorage.getItem('user_session') || localStorage.getItem('admin_session');
+    if (!session) {
+      router.push('/');
+      return;
+    }
+
+    const initialLoad = window.setTimeout(() => {
+      void fetchDataIzin();
+    }, 0);
+    const channel = supabase
+      .channel('realtime_perizinan_all')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        void fetchDataIzin();
+      })
+      .subscribe();
+
+    return () => {
+      window.clearTimeout(initialLoad);
+      void supabase.removeChannel(channel);
+    };
+  }, [fetchDataIzin, router]);
+
+  const handleUpdateStatus = async (id: string | number, statusBaru: string) => {
     try {
       const { error } = await supabase
         .from(activeTable)
@@ -73,8 +89,8 @@ export default function IzinSakitBKPage() {
 
       if (error) throw error;
       fetchDataIzin();
-    } catch (err: any) {
-      alert('Gagal memperbarui status ke database: ' + err.message);
+    } catch (err: unknown) {
+      alert(`Gagal memperbarui status ke database: ${err instanceof Error ? err.message : 'Terjadi kesalahan.'}`);
     }
   };
 
@@ -89,7 +105,7 @@ export default function IzinSakitBKPage() {
 
     if (filterWaktu === 'semua') return true;
 
-    const itemDate = new Date(item.created_at || item.tanggal_mulai || item.tanggal);
+    const itemDate = new Date(item.created_at || item.tanggal_mulai || item.tanggal || '');
     const now = new Date();
 
     if (filterWaktu === 'mingguan') {
@@ -301,7 +317,7 @@ export default function IzinSakitBKPage() {
                       src="/logo-smk.png"
                       alt="Logo SMK"
                       style={{ width: '75px', height: '75px', objectFit: 'contain', margin: '0 auto 6px auto', display: 'block' }}
-                      onError={(e: any) => { e.target.style.display = 'none'; }}
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                     <h3 style={{ margin: '2px 0', fontSize: '13px', letterSpacing: '0.5px' }}>YAYASAN PENDIDIKAN BUDI BAKTI</h3>
                     <h2 style={{ margin: '3px 0', fontSize: '18px', fontWeight: 'bold', letterSpacing: '1px' }}>SMK BUDI BAKTI CIWIDEY</h2>

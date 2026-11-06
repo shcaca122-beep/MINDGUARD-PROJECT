@@ -34,6 +34,47 @@ interface AdminProfile {
   badgeColor: string;
 }
 
+type AdminTab = 'curhat' | 'izin_sakit' | 'konseling_ind' | 'home_visit' | 'panggilan_ortu';
+
+type AdminRow = {
+  [key: string]: string | number | null | undefined;
+  id: string | number;
+  balasan?: string | null;
+  foto?: string | null;
+  foto_url?: string | null;
+};
+
+type ServiceRow = {
+  id: string | number;
+  layanan?: string | null;
+  pesan?: string | null;
+  judul_pesan?: string | null;
+  judul?: string | null;
+  jenis?: string | null;
+  keterangan?: string | null;
+  created_at?: string | null;
+  tanggal?: string | null;
+  tujuan_konselor?: string | null;
+  status?: string | null;
+  balasan?: string | null;
+  nama_siswa?: string | null;
+  nama?: string | null;
+  kelas?: string | null;
+  jenis_izin?: string | null;
+  foto_bukti?: string | null;
+  topik?: string | null;
+  alamat?: string | null;
+  alasan?: string | null;
+  ortu?: string | null;
+  nama_ortu?: string | null;
+};
+
+type AdminRoleRow = {
+  role: string | null;
+  nama: string | null;
+  email: string | null;
+};
+
 const DEFAULT_PROFILES: Record<RoleType, AdminProfile> = {
   BK: { nama: 'Bu Hj Eli, S.Pd', email: 'bk@smkbudibakti.sch.id', initial: 'BK', color: '#bfdbfe', badgeColor: '#059669' },
   PIKET: { nama: 'Pak Cecep, S.Pd', email: 'piket@smkbudibakti.sch.id', initial: 'PK', color: '#fef08a', badgeColor: '#0d9488' },
@@ -56,15 +97,15 @@ export default function AdminDashboardPage() {
   const [tabBK, setTabBK] = useState<'curhat' | 'izin_sakit' | 'konseling_ind' | 'home_visit' | 'panggilan_ortu'>('curhat');
   const [isLoading, setIsLoading] = useState(false);
 
-  const [dataCurhat, setDataCurhat] = useState<any[]>([]);
-  const [dataIzinSakit, setDataIzinSakit] = useState<any[]>([]);
-  const [dataKonselingInd, setDataKonselingInd] = useState<any[]>([]);
-  const [dataHomeVisit, setDataHomeVisit] = useState<any[]>([]);
-  const [dataPanggilanOrtu, setDataPanggilanOrtu] = useState<any[]>([]);
-  const [dataTerlambat, setDataTerlambat] = useState<any[]>([]);
-  const [dataPelanggaran, setDataPelanggaran] = useState<any[]>([]);
+  const [dataCurhat, setDataCurhat] = useState<AdminRow[]>([]);
+  const [dataIzinSakit, setDataIzinSakit] = useState<AdminRow[]>([]);
+  const [dataKonselingInd, setDataKonselingInd] = useState<AdminRow[]>([]);
+  const [dataHomeVisit, setDataHomeVisit] = useState<AdminRow[]>([]);
+  const [dataPanggilanOrtu, setDataPanggilanOrtu] = useState<AdminRow[]>([]);
+  const [dataTerlambat, setDataTerlambat] = useState<AdminRow[]>([]);
+  const [dataPelanggaran, setDataPelanggaran] = useState<AdminRow[]>([]);
 
-  const [modalCurhatDetail, setModalCurhatDetail] = useState<any>(null);
+  const [modalCurhatDetail, setModalCurhatDetail] = useState<AdminRow | null>(null);
   const [textBalasan, setTextBalasan] = useState('');
   const [previewFoto, setPreviewFoto] = useState<string | null>(null);
   const [showModalAddKonseling, setShowModalAddKonseling] = useState(false);
@@ -98,7 +139,7 @@ export default function AdminDashboardPage() {
       const { data: dbRoles } = await supabase.from('admin_roles').select('id,email,role,nama');
       if (dbRoles && dbRoles.length > 0) {
         const updated = { ...DEFAULT_PROFILES };
-        dbRoles.forEach((r: any) => {
+        dbRoles.forEach((r: AdminRoleRow) => {
           const key = (r.role || '').toUpperCase() as RoleType;
           if (updated[key]) {
             updated[key].nama = r.nama || updated[key].nama;
@@ -109,14 +150,14 @@ export default function AdminDashboardPage() {
       }
 
       const { data: sbData } = await supabase.from('layanan_siswa').select('*').order('created_at', { ascending: false });
-      const layananList = sbData || [];
+      const layananList = (sbData || []) as ServiceRow[];
 
       const curhatList = layananList
-        .filter((d: any) => {
+        .filter((d) => {
           const lay = (d.layanan || '').toUpperCase();
           return lay === 'CURHAT' || (!lay && Boolean(d.pesan));
         })
-        .map((item: any) => ({
+        .map((item) => ({
           id: item.id,
           judul: item.judul_pesan || item.judul || 'Curhat Siswa',
           isi: item.pesan || item.keterangan || '-',
@@ -130,8 +171,8 @@ export default function AdminDashboardPage() {
       setDataCurhat(curhatList);
 
       const izinList = layananList
-        .filter((d: any) => (d.layanan || '').toUpperCase() === 'IZIN')
-        .map((item: any) => ({
+        .filter((d) => (d.layanan || '').toUpperCase() === 'IZIN')
+        .map((item) => ({
           id: item.id,
           nama: item.nama_siswa || item.nama || 'Siswa',
           kelas: item.kelas || '-',
@@ -144,11 +185,11 @@ export default function AdminDashboardPage() {
       setDataIzinSakit(izinList);
 
       const konselingList = layananList
-        .filter((d: any) => {
+        .filter((d) => {
           const lay = (d.layanan || '').toUpperCase();
           return lay === 'KONSELING' || lay === 'KELOMPOK';
         })
-        .map((item: any) => ({
+        .map((item) => ({
           id: item.id,
           nama: item.nama_siswa ? `${item.nama_siswa} (${item.kelas || '-'})` : (item.nama || '-'),
           tanggal: item.tanggal || (item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-'),
@@ -158,8 +199,8 @@ export default function AdminDashboardPage() {
       setDataKonselingInd(konselingList);
 
       const homeVisitList = layananList
-        .filter((d: any) => (d.layanan || '').toUpperCase() === 'HOME_VISIT')
-        .map((item: any) => ({
+        .filter((d) => (d.layanan || '').toUpperCase() === 'HOME_VISIT')
+        .map((item) => ({
           id: item.id,
           nama: item.nama_siswa || item.nama || '-',
           alamat: item.alamat || '-',
@@ -170,8 +211,8 @@ export default function AdminDashboardPage() {
       setDataHomeVisit(homeVisitList);
 
       const ortuList = layananList
-        .filter((d: any) => (d.layanan || '').toUpperCase() === 'PANGGILAN_ORTU')
-        .map((item: any) => ({
+        .filter((d) => (d.layanan || '').toUpperCase() === 'PANGGILAN_ORTU')
+        .map((item) => ({
           id: item.id,
           nama: item.nama_siswa || item.nama || '-',
           ortu: item.ortu || item.nama_ortu || '-',
@@ -213,7 +254,10 @@ export default function AdminDashboardPage() {
   };
 
   useEffect(() => {
-    fetchAllData();
+    const initialLoad = window.setTimeout(() => {
+      void fetchAllData();
+    }, 0);
+    return () => window.clearTimeout(initialLoad);
   }, []);
 
   const startCamera = async () => {
@@ -297,8 +341,8 @@ export default function AdminDashboardPage() {
       setFormPelanggaran({ pelapor: '', nama_siswa: '', kelas: 'X BRP 1', jenis_pelanggaran: '', poin: '5', keterangan: '' });
       setPreviewFotoPelanggaran(null);
       stopCamera();
-    } catch (err: any) {
-      alert('Gagal menyimpan: ' + err.message);
+    } catch (err: unknown) {
+      alert(`Gagal menyimpan: ${err instanceof Error ? err.message : 'Terjadi kesalahan.'}`);
     }
   };
 
@@ -314,7 +358,7 @@ export default function AdminDashboardPage() {
     setTextBalasan('');
   };
 
-  const handleUpdateStatusIzin = async (id: any, status: string) => {
+  const handleUpdateStatusIzin = async (id: string | number, status: string) => {
     try {
       const { error } = await supabase.from('layanan_siswa').update({ status }).eq('id', id);
       if (!error) fetchAllData();
@@ -524,7 +568,7 @@ export default function AdminDashboardPage() {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setTabBK(tab.id as any)}
+                    onClick={() => setTabBK(tab.id as AdminTab)}
                     style={{
                       padding: '10px 16px',
                       borderRadius: '10px',
@@ -596,7 +640,7 @@ export default function AdminDashboardPage() {
                               </td>
                               <td style={{ padding: '12px', textAlign: 'center' }}>
                                 <button
-                                  onClick={() => { setModalCurhatDetail(item); setTextBalasan(item.balasan); }}
+                                  onClick={() => { setModalCurhatDetail(item); setTextBalasan(item.balasan || ''); }}
                                   style={{ background: 'linear-gradient(135deg, #1b3b2b 0%, #2d523e 100%)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', fontSize: '11px', fontWeight: '700', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                                 >
                                   <FolderOpen size={13} color="#86efac" />
@@ -647,7 +691,7 @@ export default function AdminDashboardPage() {
                               <td style={{ padding: '12px', textAlign: 'center' }}>
                                 {item.foto ? (
                                   <button
-                                    onClick={() => setPreviewFoto(item.foto)}
+                                    onClick={() => setPreviewFoto(item.foto || null)}
                                     style={{ backgroundColor: '#059669', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                   >
                                     <Eye size={13} />
@@ -903,7 +947,7 @@ export default function AdminDashboardPage() {
                         </td>
                         <td style={{ padding: '12px', textAlign: 'center' }}>
                           <button
-                            onClick={() => { setModalCurhatDetail(item); setTextBalasan(item.balasan); }}
+                            onClick={() => { setModalCurhatDetail(item); setTextBalasan(item.balasan || ''); }}
                             style={{ backgroundColor: '#be185d', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}
                           >
                             Buka & Balas
@@ -974,7 +1018,7 @@ export default function AdminDashboardPage() {
                         <td style={{ padding: '12px', color: '#475569' }}>{item.pelapor}</td>
                         <td style={{ padding: '12px', textAlign: 'center' }}>
                           {item.foto_url ? (
-                            <button onClick={() => setPreviewFoto(item.foto_url)} style={{ backgroundColor: '#be185d', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <button onClick={() => setPreviewFoto(item.foto_url || null)} style={{ backgroundColor: '#be185d', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                               <Eye size={13} />
                               <span>Lihat Foto</span>
                             </button>
@@ -1183,7 +1227,7 @@ export default function AdminDashboardPage() {
             <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '10px', fontSize: '12px', marginBottom: '14px', border: '1px solid #e2e8f0', lineHeight: '1.5' }}>
               <strong>Pengirim:</strong> {modalCurhatDetail.nama_siswa} ({modalCurhatDetail.kelas})<br />
               <strong>Judul:</strong> {modalCurhatDetail.judul} <br />
-              <strong>Pesan:</strong> "{modalCurhatDetail.isi}"
+              <strong>Pesan:</strong> &quot;{modalCurhatDetail.isi}&quot;
             </div>
 
             <textarea value={textBalasan} onChange={(e) => setTextBalasan(e.target.value)} rows={4} placeholder="Ketik jawaban konseling di sini..." style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #cbd5e1', boxSizing: 'border-box', fontSize: '13px', outline: 'none' }} />

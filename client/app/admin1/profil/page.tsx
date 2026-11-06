@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { School, Save, Loader2 } from 'lucide-react';
+import { Save, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function ProfilSekolahPage() {
@@ -13,22 +13,25 @@ export default function ProfilSekolahPage() {
     kepala_sekolah: 'Ahmad Fadhla Fauzan'
   });
 
-  useEffect(() => {
-    fetchProfil();
-  }, []);
-
   const fetchProfil = async () => {
     setLoading(true);
     const { data } = await supabase.from('profil_sekolah').select('*').single();
     if (data) {
-      setProfil({
-        nama_sekolah: data.nama_sekolah || profil.nama_sekolah,
-        alamat: data.alamat || profil.alamat,
-        kepala_sekolah: data.kepala_sekolah || profil.kepala_sekolah
-      });
+      setProfil((current) => ({
+        nama_sekolah: data.nama_sekolah || current.nama_sekolah,
+        alamat: data.alamat || current.alamat,
+        kepala_sekolah: data.kepala_sekolah || current.kepala_sekolah
+      }));
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    const initialLoad = window.setTimeout(() => {
+      void fetchProfil();
+    }, 0);
+    return () => window.clearTimeout(initialLoad);
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);

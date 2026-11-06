@@ -50,13 +50,13 @@ export async function POST(request: Request) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 4. Return JSON Response Gagal (500 Internal Server Error)
+    console.error('Gagal menyimpan data pelanggaran:', error);
     return NextResponse.json(
       {
         success: false,
         message: 'Gagal menyimpan data pelanggaran ke database.',
-        error: error.message,
       },
       { status: 500 }
     );

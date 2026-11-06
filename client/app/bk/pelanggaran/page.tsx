@@ -5,9 +5,25 @@ import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
 import { Eye, Loader2, Image as ImageIcon, X } from 'lucide-react';
 
+type ViolationRow = {
+  id?: string | number;
+  nama_siswa?: string | null;
+  kelas?: string | null;
+  jenis_pelanggaran?: string | null;
+  jenis?: string | null;
+  pencatat?: string | null;
+  created_at?: string | null;
+  tanggal?: string | null;
+  poin?: number | null;
+  foto_bukti_path?: string | null;
+  nama_pelanggaran?: string | null;
+  kategori?: string | null;
+  tingkat?: string | null;
+};
+
 export default function BKPelanggaranPage() {
-  const [data, setData] = useState<any[]>([]);
-  const [masterData, setMasterData] = useState<any[]>([]);
+  const [data, setData] = useState<ViolationRow[]>([]);
+  const [masterData, setMasterData] = useState<ViolationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
@@ -46,7 +62,9 @@ export default function BKPelanggaranPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    const initialLoad = window.setTimeout(() => {
+      void fetchData();
+    }, 0);
 
     const handlePelanggaranUpdate = () => {
       fetchData();
@@ -57,6 +75,7 @@ export default function BKPelanggaranPage() {
     }
 
     return () => {
+      window.clearTimeout(initialLoad);
       if (typeof window !== 'undefined') {
         window.removeEventListener('pelanggaran-updated', handlePelanggaranUpdate);
       }
@@ -75,8 +94,8 @@ export default function BKPelanggaranPage() {
 
       if (error) throw error;
       setViewBuktiUrl(signedData.signedUrl);
-    } catch (err: any) {
-      alert(`Gagal memuat foto bukti: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Gagal memuat foto bukti: ${err instanceof Error ? err.message : 'Terjadi kesalahan.'}`);
     } finally {
       setLoadingBuktiId(null);
     }
@@ -144,7 +163,7 @@ export default function BKPelanggaranPage() {
 
                         {item.foto_bukti_path ? (
                           <button
-                            onClick={() => handleOpenBukti(item.foto_bukti_path, String(itemId))}
+                            onClick={() => handleOpenBukti(item.foto_bukti_path!, String(itemId))}
                             disabled={loadingBuktiId === String(itemId)}
                             style={{
                               backgroundColor: '#1b3b2b',
