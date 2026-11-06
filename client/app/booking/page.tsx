@@ -78,14 +78,14 @@ export default function BookingPage() {
           overflow-x: hidden !important;
         }
       ` }} />
-      <div className="student-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100vw', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
+      <div className="student-panel-page" style={{ display: 'flex', height: '100dvh', minHeight: 0, width: '100vw', overflow: 'hidden', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         
         {/* SIDEBAR */}
-        <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
+        <div className="student-panel-sidebar" style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
           <Sidebar />
         </div>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto' }}>
+        <div className="student-panel-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100dvh', minHeight: 0, overflowY: 'auto' }}>
           
           {/* TOP BAR */}
           <div style={{ 

@@ -1255,6 +1255,40 @@ html[data-theme="light"] .bk-panel-page [style*="background-color: rgb(69, 26, 3
   width: 100%;
 }
 
+.student-panel-page {
+  height: 100dvh !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.student-panel-sidebar .sidebar-container {
+  overflow: hidden !important;
+}
+
+.student-panel-content {
+  height: 100dvh;
+  min-height: 0;
+}
+
+body:has(.student-panel-page) {
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  body:has(.student-panel-page) {
+    padding-top: 0 !important;
+  }
+
+  .student-panel-page {
+    height: calc(100dvh - 60px) !important;
+    margin-top: 60px;
+  }
+
+  .student-panel-content {
+    height: calc(100dvh - 60px);
+  }
+}
+
 .main-content {
   flex: 1;
   padding: 24px;
