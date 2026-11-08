@@ -6,10 +6,10 @@ layanan BK melalui satu aplikasi web.
 
 ## Fitur
 
-- **Siswa:** login dengan email atau NISN, mengajukan konseling dan perizinan,
-  mengirim curhat, mengisi jurnal, serta melihat catatan pelanggaran milik
+- **Siswa:** login dengan email atau NISN, mengajukan konseling, mengirim curhat,
+  mengisi jurnal, serta melihat catatan pelanggaran milik
   sendiri.
-- **Guru BK:** mengelola konseling, curhat, perizinan, pelanggaran, panggilan
+- **Guru BK:** mengelola konseling, curhat, pelanggaran, panggilan
   orang tua, dan home visit.
 - **Piket dan OSIS/MPK:** mengakses halaman dan rekap sesuai peran.
 - **Admin/Tata Usaha:** mengelola data siswa dan staf, layanan BK, akun, serta
