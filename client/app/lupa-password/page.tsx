@@ -52,13 +52,16 @@ export default function ForgotPasswordPage() {
         </div>
         <h1 style={{ margin: '0 0 8px', fontSize: '25px', color: '#fff' }}>Lupa kata sandi?</h1>
         <p style={{ margin: '0 0 22px', color: '#a9c5b7', fontSize: '14px', lineHeight: 1.55 }}>
-          Masukkan email aktif yang terdaftar. Kami akan mengirim tautan untuk membuat kata sandi baru.
+          Masukkan email pribadi yang sudah terdaftar pada akun Anda. Tautan untuk membuat kata sandi baru akan dikirim ke email tersebut.
+        </p>
+        <p style={{ margin: '0 0 18px', padding: '11px 13px', borderRadius: '9px', background: '#10261c', color: '#cbd5e1', fontSize: '13px', lineHeight: 1.5 }}>
+          Jika email login Anda masih berupa email otomatis dari aplikasi atau belum terdaftar, hubungi administrator agar email pribadi Anda didaftarkan terlebih dahulu.
         </p>
         {errorMessage && <p role="alert" style={{ margin: '0 0 16px', padding: '11px 13px', borderRadius: '9px', background: '#451a1a', color: '#fecaca', fontSize: '13px' }}>{errorMessage}</p>}
         {infoMessage && <p role="status" style={{ margin: '0 0 16px', padding: '11px 13px', borderRadius: '9px', background: '#123b2d', color: '#d1fae5', fontSize: '13px', lineHeight: 1.5 }}>{infoMessage}</p>}
         <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '14px' }}>
           <label style={{ display: 'grid', gap: '7px', color: '#cbd5e1', fontSize: '13px', fontWeight: 700 }}>
-            Email terdaftar
+            Email pribadi terdaftar
             <span style={{ position: 'relative' }}>
               <Mail size={17} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
               <input

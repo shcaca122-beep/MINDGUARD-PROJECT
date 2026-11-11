@@ -56,12 +56,67 @@ The key bypasses RLS and must remain on the server.
 
 ## Password recovery by email
 
-The login page can send a Supabase Auth password recovery email for accounts
-with an accessible email address. In **Authentication → URL Configuration**,
-set the production app URL as the Site URL and allow the app's recovery URL
-(for example `https://your-domain.example/reset-password`; add
-`http://localhost:3000/reset-password` for local development). Configure the
-project's Auth email/SMTP settings so recovery messages can be delivered.
-Students who sign in with NISN and have only an internal
-`@students.budibakti.sch.id` login address cannot receive recovery email and
-must ask an administrator to reset their password from **Data Siswa**.
+After their first login, students can register their personal Gmail through
+**Email untuk Reset Kata Sandi** in the student menu. Supabase sends a verification link to
+that address. The email only becomes the account's recovery address after the
+student opens the link; the verified Auth address is then synchronized to the
+student record and trusted profile. Password recovery sends a link to the
+email associated with the Auth account; typing a different address on
+`/lupa-password` does not change it. Administrators can also verify and update
+a student's email through **Admin → Data Siswa → Email pemulihan**.
+
+For accounts that currently use an internal or automatically generated email,
+configure Supabase Auth to confirm the new email address during email changes.
+If Supabase is configured to require confirmation at both the old and new
+addresses, students without access to the old address will need an
+administrator to update their email instead.
+
+In **Authentication → URL Configuration**, set the production app URL as the
+Site URL and allow the app's recovery URL (for example
+`https://your-domain.example/reset-password`; add
+`http://localhost:3000/reset-password` for local development). Also allow the
+email verification redirect (`https://your-domain.example/akun/email` and
+`http://localhost:3000/akun/email` during local development).
+
+To send recovery emails through Google, configure the project's custom SMTP
+settings in **Authentication → SMTP Settings**:
+
+- Host: `smtp.gmail.com`
+- Port: `587`
+- Username: the complete Gmail or Google Workspace email address
+- Password: a Google App Password for that account (not its regular sign-in
+  password)
+- Sender email: the same Google email address
+- Sender name: the school's official name
+
+Enable 2-Step Verification on the Google account before creating an App
+Password. A Google Workspace address on the school's domain is recommended for
+official school mail. Keep SMTP credentials in Supabase settings only; never
+put them in client-side code or commit them to the repository. Customize the
+recovery email template in Supabase Auth as needed.
+
+## Uploading XII RPL student photos
+
+The PowerShell uploader at `client/scripts/upload-student-photos.ps1` reads
+`XII.RPL.zip` and uploads only the `XII.RPL-1` through `XII.RPL-4` JPEG folders.
+It preserves those class folders as object-path prefixes inside the selected
+Supabase Storage bucket. The default bucket is `foto-siswa`; the default
+project URL is this app's configured Supabase project. It does not update
+student database records.
+
+In PowerShell, set the project URL and server-only service-role key for the
+current session, then preview and upload:
+
+```powershell
+$env:SUPABASE_URL = "https://<project-ref>.supabase.co"
+$env:SUPABASE_SERVICE_ROLE_KEY = "<service-role-key>"
+
+.\client\scripts\upload-student-photos.ps1 -WhatIf
+.\client\scripts\upload-student-photos.ps1
+```
+
+By default, PowerShell asks for confirmation before uploading. The default ZIP
+path is `$HOME\Downloads\XII.RPL.zip`; pass `-ZipPath` to use another location.
+Pass `-Bucket` only if you want to use a different bucket.
+Existing objects are not overwritten unless `-Upsert` is specified. Never put
+the service-role key in client-side code or commit it to the repository.

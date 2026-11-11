@@ -292,14 +292,12 @@ export default function OsisPage() {
           .maybeSingle();
 
         if (error) throw error;
-        if (!data?.foto_url) {
-          if (!cancelled) setReferenceStatus('missing');
-          return;
-        }
 
-        const storedPhoto = String(data.foto_url).trim();
+        const storedPhoto = String(data?.foto_url || '').trim();
+        const usingUploadedClassPhoto = !storedPhoto;
         let storageBucket = 'foto-siswaq';
-        let storagePath = storedPhoto;
+        let storagePath = storedPhoto || `${kelas}/${namaSiswa.trim()}.JPG`;
+        if (usingUploadedClassPhoto) storageBucket = 'foto-siswa';
         if (/^https?:\/\//i.test(storedPhoto)) {
           const photoUrl = new URL(storedPhoto);
           const supabaseOrigin = new URL(
@@ -346,14 +344,22 @@ export default function OsisPage() {
           throw new Error(`Bucket foto "${storageBucket}" tidak dikenal.`);
         }
 
+        await loadReferenceImage(photoUrl);
+        if (cancelled) return;
+
         if (!cancelled) {
           setDbFotoUrl(photoUrl);
           setReferenceStatus('ready');
         }
       } catch (err) {
         if (!cancelled) {
-          setVerificationMessage(err instanceof Error ? err.message : 'Gagal memuat foto referensi.');
-          setReferenceStatus('error');
+          const message = err instanceof Error ? err.message : 'Gagal memuat foto referensi.';
+          setVerificationMessage(
+            message === 'Foto referensi siswa tidak dapat dibuka.'
+              ? 'Foto siswa tidak ditemukan atau tidak dapat diakses di Storage.'
+              : message
+          );
+          setReferenceStatus(message === 'Foto referensi siswa tidak dapat dibuka.' ? 'missing' : 'error');
         }
       }
     };
@@ -362,7 +368,7 @@ export default function OsisPage() {
     return () => {
       cancelled = true;
     };
-  }, [namaSiswa]);
+  }, [kelas, namaSiswa]);
 
   const handleKelasChange = (newKelas: string) => {
     setKelas(newKelas);

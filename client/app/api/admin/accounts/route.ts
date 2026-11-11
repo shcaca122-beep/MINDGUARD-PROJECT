@@ -230,12 +230,17 @@ export async function PATCH(request: Request) {
     if (!role) {
       return NextResponse.json({ error: 'Role staf tidak dikenal; perubahan dibatalkan.' }, { status: 400 });
     }
-    const authUpdates: { email: string; email_confirm: boolean; password?: string; app_metadata: { role: string } } = {
+    const { data: authData, error: authLookupError } = await adminClient.auth.admin.getUserById(profile.user_id);
+    if (authLookupError || !authData.user) {
+      return NextResponse.json({ error: `Gagal memeriksa autentikasi akun: ${authLookupError?.message || ''}` }, { status: 404 });
+    }
+
+    const authUpdates = {
       email: account.email,
       email_confirm: true,
-      app_metadata: { role },
+      app_metadata: { ...authData.user.app_metadata, role },
+      ...(account.password ? { password: account.password } : {}),
     };
-    if (account.password) authUpdates.password = account.password;
 
     const { error: authError } = await adminClient.auth.admin.updateUserById(profile.user_id, authUpdates);
     if (authError) {

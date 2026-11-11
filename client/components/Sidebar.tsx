@@ -8,6 +8,7 @@ import {
   Menu,
   X,
   LayoutDashboard,
+  Mail,
   MessageSquareText,
   UserCheck,
   ClipboardList,
@@ -234,6 +235,10 @@ export default function Sidebar() {
                 <Link href="/dashboard" className={pathname === '/dashboard' ? 'sidebar-nav-active' : undefined} style={getLinkStyle('/dashboard')}>
                   <Home size={18} />
                   <span>Beranda</span>
+                </Link>
+                <Link href="/akun/email" className={pathname === '/akun/email' ? 'sidebar-nav-active' : undefined} style={getLinkStyle('/akun/email')}>
+                  <Mail size={18} />
+                  <span>Email untuk Reset Kata Sandi</span>
                 </Link>
                 <Link href="/pelanggaran-saya" className={pathname === '/pelanggaran-saya' ? 'sidebar-nav-active' : undefined} style={getLinkStyle('/pelanggaran-saya')}>
                   <ShieldAlert size={18} />

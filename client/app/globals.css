@@ -1555,6 +1555,107 @@ body:has(.auth-container) .main-content {
   border-radius: 16px !important;
 }
 
+@media (max-width: 768px) {
+  .bk-panel-sidebar {
+    width: 0;
+    flex: 0 0 0 !important;
+    overflow: hidden;
+    border: 0 !important;
+  }
+
+  .bk-panel-main {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .bk-panel-content {
+    padding: 16px !important;
+  }
+
+  .bk-panel-page > .bk-panel-main > div:first-child {
+    padding: 14px 16px !important;
+    gap: 12px;
+  }
+
+  .bk-counseling-table-scroll {
+    overflow-x: visible !important;
+  }
+
+  .bk-counseling-table {
+    display: block;
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .bk-counseling-table thead {
+    display: none;
+  }
+
+  .bk-counseling-table tbody {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .bk-counseling-table tbody tr:not(.bk-counseling-empty-row) {
+    display: grid;
+    gap: 0;
+    padding: 8px 12px;
+    border: 1px solid rgba(52, 211, 153, 0.18);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .bk-counseling-table tbody td {
+    display: grid;
+    grid-template-columns: minmax(78px, 0.7fr) minmax(0, 1.3fr);
+    align-items: start;
+    gap: 8px;
+    min-width: 0;
+    padding: 9px 0 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    text-align: left !important;
+    overflow-wrap: anywhere;
+  }
+
+  .bk-counseling-table tbody td::before {
+    content: attr(data-label);
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .bk-counseling-table tbody td > div {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .bk-counseling-table tbody td:last-child {
+    border-bottom: 0;
+  }
+
+  .bk-counseling-table tbody td:last-child > div {
+    justify-content: flex-start !important;
+  }
+
+  .bk-counseling-table tbody .bk-counseling-empty-row {
+    display: block;
+  }
+
+  .bk-counseling-table tbody .bk-counseling-empty-row td {
+    display: block;
+    padding: 28px 16px !important;
+    border: 0;
+    text-align: center !important;
+  }
+
+  .bk-counseling-table tbody .bk-counseling-empty-row td::before {
+    content: none;
+  }
+}
+
 /* ================= MEDIA QUERIES (RESPONSIVE) ================= */
 
 /* DESKTOP (> 768px): Mendorong konten ke kanan sebesar lebar Sidebar (260px) */

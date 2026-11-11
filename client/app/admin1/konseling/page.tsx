@@ -7,23 +7,39 @@ import { supabase } from '@/lib/supabase';
 type KonselingRecord = {
   id?: string | number;
   tanggal?: string;
+  created_at?: string;
   nama_siswa?: string;
+  nama?: string;
   guru_bk?: string;
+  tujuan_konselor?: string;
   topik?: string;
+  judul_pesan?: string;
+  deskripsi?: string;
   status?: string;
 };
 
 export default function SesiKonselingPage() {
   const [konselingList, setKonselingList] = useState<KonselingRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     let isMounted = true;
     const loadKonseling = async () => {
       setLoading(true);
-      const { data } = await supabase.from('konseling').select('*');
+      const { data, error } = await supabase
+        .from('layanan_siswa')
+        .select('*')
+        .in('layanan', ['KONSELING', 'KELOMPOK'])
+        .order('created_at', { ascending: false });
       if (isMounted) {
-        if (data) setKonselingList(data as KonselingRecord[]);
+        if (error) {
+          console.error('Gagal memuat sesi konseling:', error);
+          setLoadError(error.message);
+        } else {
+          setKonselingList((data || []) as KonselingRecord[]);
+          setLoadError('');
+        }
         setLoading(false);
       }
     };
@@ -59,6 +75,12 @@ export default function SesiKonselingPage() {
                   Memuat data konseling...
                 </td>
               </tr>
+            ) : loadError ? (
+              <tr>
+                <td colSpan={5} role="alert" style={{ padding: '24px', textAlign: 'center', color: '#f87171' }}>
+                  Gagal memuat sesi konseling: {loadError}
+                </td>
+              </tr>
             ) : konselingList.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#688c7d' }}>
@@ -68,13 +90,13 @@ export default function SesiKonselingPage() {
             ) : (
               konselingList.map((item, idx) => (
                 <tr key={item.id || idx} style={{ borderBottom: '1px solid #193328', color: '#e2e8f0' }}>
-                  <td style={{ padding: '12px 16px' }}>{item.tanggal || '-'}</td>
-                  <td style={{ padding: '12px 16px', fontWeight: '700', color: '#fff' }}>{item.nama_siswa || '-'}</td>
-                  <td style={{ padding: '12px 16px' }}>{item.guru_bk || '-'}</td>
-                  <td style={{ padding: '12px 16px' }}>{item.topik || '-'}</td>
+                  <td style={{ padding: '12px 16px' }}>{item.tanggal || (item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-')}</td>
+                  <td style={{ padding: '12px 16px', fontWeight: '700', color: '#fff' }}>{item.nama_siswa || item.nama || '-'}</td>
+                  <td style={{ padding: '12px 16px' }}>{item.guru_bk || item.tujuan_konselor || '-'}</td>
+                  <td style={{ padding: '12px 16px' }}>{item.topik || item.judul_pesan || item.deskripsi || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ backgroundColor: 'rgba(52, 211, 153, 0.1)', color: '#34d399', padding: '2px 8px', borderRadius: '4px', fontSize: '10px' }}>
-                      {item.status || 'Selesai'}
+                      {item.status || 'MENUNGGU ACC'}
                     </span>
                   </td>
                 </tr>

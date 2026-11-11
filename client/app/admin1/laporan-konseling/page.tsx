@@ -10,11 +10,25 @@ type CounselingRow = {
 
 export default function LaporanKonselingPage() {
   const [data, setData] = useState<CounselingRow[]>([]);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
-    supabase.from('konseling').select('*').then(({ data }) => {
-      if (data) setData(data as CounselingRow[]);
-    });
+    let isMounted = true;
+    const loadCounseling = async () => {
+      const { data, error } = await supabase
+        .from('layanan_siswa')
+        .select('id')
+        .in('layanan', ['KONSELING', 'KELOMPOK']);
+      if (!isMounted) return;
+      if (error) {
+        console.error('Gagal memuat laporan konseling:', error);
+        setLoadError(error.message);
+      } else {
+        setData((data || []) as CounselingRow[]);
+      }
+    };
+    void loadCounseling();
+    return () => { isMounted = false; };
   }, []);
 
   return (
@@ -33,6 +47,7 @@ export default function LaporanKonselingPage() {
         <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0 }}>
           Total rekapitulasi data konseling tercatat: <strong style={{ color: '#34d399' }}>{data.length} data</strong>.
         </p>
+        {loadError && <p role="alert" style={{ fontSize: '12px', color: '#f87171', margin: '10px 0 0' }}>Gagal memuat laporan konseling: {loadError}</p>}
       </div>
     </div>
   );

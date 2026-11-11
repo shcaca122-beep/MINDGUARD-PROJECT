@@ -49,6 +49,7 @@ export default function BKPage() {
   const [tabAktif, setTabAktif] = useState<'curhat' | 'konseling'>('curhat');
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const permohonanKonselingRef = useRef<HTMLDivElement>(null);
 
   // State untuk Input Nama Guru BK Manual & Notifikasi Modern (Default "Umum")
   const [namaGuruBK, setNamaGuruBK] = useState('Umum');
@@ -57,6 +58,7 @@ export default function BKPage() {
   const [serviceNotification, setServiceNotification] = useState<ServiceNotification | null>(null);
   const seenServiceIds = useRef(new Set<string>());
   const hasInitialServiceData = useRef(false);
+  const [dismissedUrgentCounselingIds, setDismissedUrgentCounselingIds] = useState<string[]>([]);
 
   const announceNewService = useCallback((record: StudentServiceRecord) => {
     const id = String(record.id || '');
@@ -208,6 +210,30 @@ export default function BKPage() {
   const pendingCounselingCount = dataKonseling.filter((item) =>
     !['DISETUJUI', 'DIBALAS', 'SELESAI', 'DITOLAK', 'DIBATALKAN'].includes((item.status || 'MENUNGGU ACC').toUpperCase())
   ).length;
+  const urgentCounselingItems = dataKonseling.filter((item) =>
+    isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi)
+    && !['DISETUJUI', 'DIBALAS', 'SELESAI', 'DITOLAK', 'DIBATALKAN'].includes((item.status || 'MENUNGGU ACC').toUpperCase())
+  );
+  const urgentCounselingCount = urgentCounselingItems.length;
+  const isUrgentCounselingPopupOpen = urgentCounselingItems.some(
+    (item) => !dismissedUrgentCounselingIds.includes(String(item.id))
+  );
+  const dismissUrgentCounselingPopup = () => {
+    setDismissedUrgentCounselingIds((dismissedIds) => [
+      ...new Set([
+        ...dismissedIds,
+        ...urgentCounselingItems.map((item) => String(item.id)),
+      ]),
+    ]);
+  };
+
+  const bukaPermohonanKonseling = () => {
+    dismissUrgentCounselingPopup();
+    setTabAktif('konseling');
+    window.requestAnimationFrame(() => {
+      permohonanKonselingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
 
   if (!isAuthorized) {
@@ -302,7 +328,7 @@ export default function BKPage() {
                   <Calendar size={18} color="#34d399" />
                   <strong style={{ fontSize: '12px' }}>{pendingCounselingCount} permohonan konseling menunggu verifikasi.</strong>
                 </div>
-                <button type="button" onClick={() => setTabAktif('konseling')} style={{ padding: '7px 11px', border: '1px solid rgba(52, 211, 153, 0.3)', borderRadius: '6px', background: 'rgba(52, 211, 153, 0.1)', color: '#a7f3d0', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>Lihat permohonan</button>
+                <button type="button" onClick={bukaPermohonanKonseling} style={{ padding: '7px 11px', border: '1px solid rgba(52, 211, 153, 0.3)', borderRadius: '6px', background: 'rgba(52, 211, 153, 0.1)', color: '#a7f3d0', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>Lihat permohonan</button>
               </div>
             )}
 
@@ -399,7 +425,7 @@ export default function BKPage() {
             </div>
 
             {/* TAB INTERNAL */}
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', width: '100%', boxSizing: 'border-box' }}>
+            <div ref={permohonanKonselingRef} style={{ display: 'flex', gap: '10px', marginBottom: '16px', width: '100%', boxSizing: 'border-box', scrollMarginTop: '20px' }}>
               <button
                 onClick={() => setTabAktif('curhat')}
                 style={{ 
@@ -511,6 +537,53 @@ export default function BKPage() {
 
         </div>
       </div>
+      {isUrgentCounselingPopupOpen && urgentCounselingCount > 0 && (
+        <div
+          onClick={dismissUrgentCounselingPopup}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'grid', placeItems: 'center', padding: '20px', background: 'rgba(0, 0, 0, 0.72)', backdropFilter: 'blur(4px)' }}
+        >
+          <section
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="urgent-counseling-title"
+            aria-describedby="urgent-counseling-description"
+            onClick={(event) => event.stopPropagation()}
+            style={{ width: 'min(100%, 520px)', maxHeight: '85vh', overflowY: 'auto', padding: '24px', borderRadius: '18px', border: '1px solid rgba(248, 113, 113, 0.6)', background: 'linear-gradient(145deg, #1f1515 0%, #10251d 100%)', color: '#fee2e2', boxShadow: '0 24px 80px rgba(0, 0, 0, 0.55)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
+              <div style={{ display: 'grid', flex: '0 0 auto', width: '44px', height: '44px', placeItems: 'center', borderRadius: '12px', border: '1px solid rgba(248, 113, 113, 0.45)', background: 'rgba(127, 29, 29, 0.4)' }}>
+                <AlertTriangle size={23} color="#f87171" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <h2 id="urgent-counseling-title" style={{ margin: '2px 0 6px', fontSize: '18px', color: '#fff1f2' }}>Konseling perlu ditinjau segera</h2>
+                <p id="urgent-counseling-description" style={{ margin: 0, fontSize: '13px', lineHeight: 1.6, color: '#fecaca' }}>
+                  Ada {urgentCounselingCount} permohonan konseling prioritas yang belum ditindaklanjuti.
+                </p>
+              </div>
+              <button type="button" aria-label="Tutup notifikasi" onClick={dismissUrgentCounselingPopup} style={{ display: 'grid', flex: '0 0 auto', placeItems: 'center', padding: '6px', border: 0, borderRadius: '8px', background: 'transparent', color: '#fecaca', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gap: '8px', marginTop: '18px' }}>
+              {urgentCounselingItems.slice(0, 5).map((item) => (
+                <div key={item.id} style={{ padding: '11px 12px', borderRadius: '10px', border: '1px solid rgba(248, 113, 113, 0.25)', background: 'rgba(2, 31, 24, 0.72)' }}>
+                  <strong style={{ display: 'block', fontSize: '13px', color: '#fff' }}>{item.nama_siswa || 'Siswa'}{item.kelas ? ` · ${item.kelas}` : ''}</strong>
+                  <span style={{ display: 'block', marginTop: '4px', fontSize: '12px', color: '#fecaca' }}>{item.judul_pesan || item.topik || 'Permohonan konseling prioritas'}</span>
+                </div>
+              ))}
+              {urgentCounselingCount > 5 && (
+                <span style={{ fontSize: '12px', color: '#fecaca' }}>Dan {urgentCounselingCount - 5} permohonan prioritas lainnya.</span>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap', marginTop: '22px' }}>
+              <button type="button" onClick={dismissUrgentCounselingPopup} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(248, 113, 113, 0.35)', background: 'transparent', color: '#fecaca', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Nanti</button>
+              <button type="button" onClick={bukaPermohonanKonseling} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #ef4444', background: 'linear-gradient(135deg, #dc2626, #991b1b)', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Tinjau sekarang</button>
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
 }

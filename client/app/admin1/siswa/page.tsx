@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Search, Loader2, Upload, X, Download, KeyRound } from 'lucide-react';
+import { Plus, Search, Loader2, Upload, X, Download, KeyRound, Mail } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { readSheet } from 'read-excel-file/browser';
 import writeExcelFile from 'write-excel-file/browser';
@@ -64,6 +64,10 @@ export default function DataSiswaPage() {
   const [resetPassword, setResetPassword] = useState('');
   const [resetError, setResetError] = useState('');
   const [isResetting, setIsResetting] = useState(false);
+  const [emailStudent, setEmailStudent] = useState<StudentRecord | null>(null);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
   const [studentForm, setStudentForm] = useState({ nisn: '', nama: '', kelas: '', email: '', password: '' });
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -230,6 +234,53 @@ export default function DataSiswaPage() {
       setResetError(error instanceof Error ? error.message : 'Reset password gagal.');
     } finally {
       setIsResetting(false);
+    }
+  };
+
+  const handleUpdateRecoveryEmail = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setEmailError('');
+    if (!emailStudent?.id) {
+      setEmailError('ID siswa tidak tersedia.');
+      return;
+    }
+
+    const email = recoveryEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError('Masukkan alamat email yang valid.');
+      return;
+    }
+
+    setIsSavingEmail(true);
+    try {
+      const response = await fetch('/api/admin/accounts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          legacyId: emailStudent.id,
+          account: {
+            kind: 'student',
+            email,
+            nama: emailStudent.nama || emailStudent.nama_siswa || emailStudent.full_name || 'Siswa',
+            role: 'Siswa',
+            nisn: emailStudent.nisn || '',
+            kelas: emailStudent.kelas || emailStudent.class || '',
+          },
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Gagal memperbarui email siswa.');
+
+      setSiswaList((current) =>
+        current.map((student) => student.id === emailStudent.id ? { ...student, email } : student),
+      );
+      setImportMessage(`Email pemulihan ${emailStudent.nama || emailStudent.nisn || 'siswa'} berhasil diperbarui.`);
+      setEmailStudent(null);
+      setRecoveryEmail('');
+    } catch (error) {
+      setEmailError(error instanceof Error ? error.message : 'Gagal memperbarui email siswa.');
+    } finally {
+      setIsSavingEmail(false);
     }
   };
 
@@ -519,6 +570,18 @@ export default function DataSiswaPage() {
                   <td style={{ padding: '12px 16px' }}>
                     <button
                       type="button"
+                      onClick={() => {
+                        setEmailError('');
+                        setRecoveryEmail(item.email || '');
+                        setEmailStudent(item);
+                      }}
+                      disabled={!item.id}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', marginRight: '6px', padding: '6px 9px', border: '1px solid #1d3d30', borderRadius: '6px', background: '#10201a', color: '#a7f3d0', cursor: item.id ? 'pointer' : 'not-allowed' }}
+                    >
+                      <Mail size={13} /> Email pemulihan
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => { setResetError(''); setResetPassword(''); setResetStudent(item); }}
                       disabled={!item.id}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '6px 9px', border: '1px solid #1d3d30', borderRadius: '6px', background: '#10201a', color: '#a7f3d0', cursor: item.id ? 'pointer' : 'not-allowed' }}
@@ -558,6 +621,36 @@ export default function DataSiswaPage() {
                 <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '9px 13px', border: '1px solid #1d3d30', borderRadius: '7px', background: 'transparent', color: '#cbd5e1', fontWeight: 600 }}>Batal</button>
                 <button type="submit" disabled={isSaving} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '9px 14px', border: 0, borderRadius: '7px', background: '#34d399', color: '#07100d', fontWeight: 700 }}>
                   {isSaving && <Loader2 size={15} className="animate-spin" />}{isSaving ? 'Menyimpan...' : 'Simpan Siswa'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {emailStudent && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'grid', placeItems: 'center', padding: '16px', backgroundColor: 'rgba(0, 0, 0, 0.72)' }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="student-recovery-email-title" style={{ width: '100%', maxWidth: '420px', padding: '22px', border: '1px solid #1d3d30', borderRadius: '12px', backgroundColor: '#13261f', color: '#f1f5f9', boxShadow: '0 20px 50px rgba(0,0,0,.4)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 id="student-recovery-email-title" style={{ margin: 0, fontSize: '16px' }}>Email pemulihan siswa</h2>
+              <button type="button" aria-label="Tutup" onClick={() => setEmailStudent(null)} style={{ display: 'grid', placeItems: 'center', padding: '5px', border: '1px solid #1d3d30', borderRadius: '6px', background: 'transparent', color: '#a7f3d0' }}><X size={17} /></button>
+            </div>
+            <p style={{ margin: '0 0 14px', color: '#a7f3d0', fontSize: '13px' }}>
+              {emailStudent.nama || 'Siswa'} · NISN {emailStudent.nisn || '-'}
+            </p>
+            <form onSubmit={handleUpdateRecoveryEmail} style={{ display: 'grid', gap: '12px' }}>
+              <label style={{ display: 'grid', gap: '5px', color: '#a7f3d0', fontSize: '12px', fontWeight: 600 }}>
+                Email pribadi siswa
+                <input required type="email" autoComplete="email" value={recoveryEmail} onChange={(event) => setRecoveryEmail(event.target.value)} style={{ width: '100%', padding: '10px 11px', border: '1px solid #1d3d30', borderRadius: '7px', outline: 'none', background: '#0a1410', color: '#f1f5f9', boxSizing: 'border-box' }} />
+              </label>
+              <p style={{ margin: 0, color: '#cbd5e1', fontSize: '12px', lineHeight: 1.5 }}>
+                Pastikan alamat ini sudah dikonfirmasi milik siswa. Setelah disimpan, tautan reset kata sandi akan dikirim ke alamat tersebut.
+              </p>
+              {emailError && <p role="alert" style={{ margin: 0, color: '#f87171', fontSize: '12px' }}>{emailError}</p>}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '5px' }}>
+                <button type="button" onClick={() => setEmailStudent(null)} style={{ padding: '9px 13px', border: '1px solid #1d3d30', borderRadius: '7px', background: 'transparent', color: '#cbd5e1', fontWeight: 600 }}>Batal</button>
+                <button type="submit" disabled={isSavingEmail} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '9px 14px', border: 0, borderRadius: '7px', background: '#34d399', color: '#07100d', fontWeight: 700 }}>
+                  {isSavingEmail && <Loader2 size={15} className="animate-spin" />}{isSavingEmail ? 'Menyimpan...' : 'Simpan email'}
                 </button>
               </div>
             </form>
