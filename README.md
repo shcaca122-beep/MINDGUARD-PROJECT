@@ -26,6 +26,30 @@ layanan BK melalui satu aplikasi web.
 
 Aplikasi web yang dijalankan saat pengembangan berada di direktori `client`.
 
+## Peta struktur kode
+
+| Lokasi | Isi |
+| --- | --- |
+| `client/app/` | Halaman, layout, dan endpoint API Next.js. Nama folder halaman menentukan URL; pertahankan lokasinya saat merapikan kode. |
+| `client/components/` | Komponen UI yang dipakai ulang di beberapa halaman. |
+| `client/lib/` | Klien Supabase, penyimpanan browser, dan helper/domain logic. |
+| `client/supabase/migrations/` | Perubahan skema dan kebijakan database. |
+| `client/scripts/` | Skrip migrasi dan utilitas operasional. |
+| `client/public/` | Aset statis yang dapat diakses dari browser. |
+| `client/private-data/` | Data lokal privat; tidak untuk di-commit. |
+| `server/src/` | Kode sumber backend pendamping. |
+| `server/prisma/` | Skema Prisma untuk PostgreSQL. |
+
+### Titik awal saat mencari error
+
+- Error pada halaman: periksa `client/app/<halaman>/page.tsx`, lalu komponen yang dipakai halaman tersebut.
+- Error tampilan bersama: periksa `client/components/` dan `client/app/globals.css`.
+- Error API: periksa endpoint di `client/app/api/<nama-endpoint>/route.ts`.
+- Error runtime halaman: `client/app/error.tsx`; error tingkat aplikasi: `client/app/global-error.tsx`; URL tidak ditemukan: `client/app/not-found.tsx`.
+- Error query atau autentikasi: periksa helper di `client/lib/`, konfigurasi Supabase, dan migrasi terkait.
+
+Saat live coding, letakkan kode khusus satu halaman di folder halamannya. Pindahkan kode ke `components/` atau `lib/` hanya jika memang dipakai lintas halaman. Jangan memindahkan folder halaman tanpa memeriksa perubahan URL.
+
 ## Persiapan
 
 - Node.js yang kompatibel dengan Next.js 16
