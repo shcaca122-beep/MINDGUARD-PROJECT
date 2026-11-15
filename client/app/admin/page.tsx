@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import MindGuardMark from '@/components/MindGuardMark';
+import PanelCompanion from '@/components/PanelCompanion';
 import {
-  ShieldCheck,
   RotateCw,
   MessageSquareText,
   ClipboardList,
@@ -431,7 +432,7 @@ export default function AdminDashboardPage() {
   const filteredPelanggaranList = LIST_PELANGGARAN.filter(p => p.text.toLowerCase().includes(searchPelanggaran.toLowerCase()));
 
   return (
-    <div style={{ backgroundColor: '#e4f4ea', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#1f2937', margin: 0, padding: 0 }}>
+    <div className="legacy-admin-panel" style={{ backgroundColor: '#e4f4ea', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#1f2937', margin: 0, padding: 0 }}>
 
       {/* 🧭 NAVBAR RESPONSIVE DENGAN GRADASI PREMIUM */}
       <nav style={{
@@ -456,7 +457,8 @@ export default function AdminDashboardPage() {
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            <ShieldCheck size={24} color="#86efac" />
+            <MindGuardMark size={24} />
+            <PanelCompanion audience="admin" />
           </div>
           <div>
             <div style={{ fontSize: '16px', fontWeight: '700', letterSpacing: '-0.02em' }}>MindGuard - SMK Budi Bakti</div>

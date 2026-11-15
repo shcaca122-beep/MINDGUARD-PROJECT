@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
+import BKUtilityBar from '../BKUtilityBar';
 import { supabase } from '@/lib/supabase';
 import { Eye, Loader2, Image as ImageIcon, X } from 'lucide-react';
 
@@ -107,33 +108,30 @@ export default function BKPelanggaranPage() {
   });
 
   return (
-    <div className="bk-panel-page" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <Sidebar />
+    <div className="bk-panel-page bk-violations" style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      <div className="bk-panel-sidebar">
+        <Sidebar />
+      </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <div style={{ backgroundColor: '#ffffff', padding: '16px 24px', borderBottom: '1px solid #e2e8f0' }}>
+      <div className="bk-panel-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <BKUtilityBar
+          currentRoute="Data Pelanggaran"
+          searchValue={search}
+          searchPlaceholder="Cari nama, kelas, jenis pelanggaran, atau pencatat..."
+          onSearchChange={setSearch}
+          onRefresh={fetchData}
+          isRefreshing={loading}
+        />
+        <div className="bk-route-heading" style={{ backgroundColor: '#ffffff', padding: '16px 24px', borderBottom: '1px solid #e2e8f0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
             <div>
               <h2 style={{ margin: 0, fontSize: '18px', color: '#1b3b2b' }}>🚨 Data Pelanggaran BK</h2>
               <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b' }}>Daftar poin pelanggaran yang tersimpan di tabel master_pelanggaran</p>
             </div>
-            <button onClick={fetchData} style={{ backgroundColor: '#1b3b2b', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-              🔄 Refresh
-            </button>
           </div>
         </div>
 
-        <div style={{ padding: '24px' }}>
-          <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="🔍 Cari nama siswa, kelas, jenis pelanggaran, atau pencatat..."
-              style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
-            />
-          </div>
-
+        <div className="bk-panel-content" style={{ padding: '24px' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '16px', marginBottom: '16px' }}>
             <h3 style={{ margin: '0 0 10px', fontSize: '14px', color: '#1b3b2b' }}>📌 Rekap Pelanggaran Masuk dari OSIS</h3>
             {loading ? (

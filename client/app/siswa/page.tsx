@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { formatErrorMessage } from '@/lib/error-utils';
 import { useRouter } from 'next/navigation';
+import MindGuardMark from '@/components/MindGuardMark';
+import PanelCompanion from '@/components/PanelCompanion';
 
 type BKUser = {
   nama?: string;
@@ -49,7 +52,7 @@ export default function BKDashboardPage() {
       if (error) throw error;
       setCurhatList((data || []) as CurhatRecord[]);
     } catch (error: unknown) {
-      console.error('Error fetching curhat:', error instanceof Error ? error.message : String(error));
+      console.error('Error fetching curhat:', formatErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -115,7 +118,8 @@ export default function BKDashboardPage() {
       setBalasanText('');
       fetchCurhatData();
     } catch (error: unknown) {
-      alert('❌ Gagal menyimpan balasan: ' + (error instanceof Error ? error.message : String(error)));
+      console.error('Gagal menyimpan balasan curhat:', error);
+      alert('❌ Gagal menyimpan balasan: ' + formatErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
@@ -141,15 +145,18 @@ export default function BKDashboardPage() {
   if (!bkUser) return null;
 
   return (
-    <div style={{ backgroundColor: '#f3f4f6', minHeight: '100vh', fontFamily: 'sans-serif', color: '#1f2937', paddingBottom: '40px' }}>
+    <div className="legacy-bk-panel" style={{ backgroundColor: '#f3f4f6', minHeight: '100vh', fontFamily: 'sans-serif', color: '#1f2937', paddingBottom: '40px' }}>
       
       {/* NAVBAR */}
       <nav style={{ backgroundColor: '#1b3b2b', color: '#ffffff', padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '28px' }}>👩‍🏫</span>
+          <span style={{ width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0, borderRadius: '10px', backgroundColor: '#24563c' }}>
+            <MindGuardMark size={40} />
+          </span>
           <div>
             <div style={{ fontSize: '18px', fontWeight: 'bold' }}>MindGuard - Panel Guru BK</div>
             <div style={{ fontSize: '11px', color: '#a7f3d0' }}>Manajemen Curhat & Konseling Siswa</div>
+            <PanelCompanion audience="bk" />
           </div>
         </div>
 

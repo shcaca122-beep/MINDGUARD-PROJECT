@@ -1,12 +1,12 @@
 'use client';
 
 import Sidebar from '@/components/Sidebar';
+import BKUtilityBar from '../BKUtilityBar';
 import { supabase } from '@/lib/supabase';
 import { isHighPriorityMessage } from '@/lib/counseling-priority';
 import { useState, useEffect, useCallback } from 'react';
 import { 
   MessageSquareText, 
-  RefreshCw, 
   ShieldCheck, 
   Clock, 
   Tag, 
@@ -30,6 +30,7 @@ type CurhatRecord = {
 export default function CurhatBKPage() {
   const [curhatList, setCurhatList] = useState<CurhatRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchText, setSearchText] = useState('');
 
   const fetchCurhat = useCallback(async () => {
     setIsLoading(true);
@@ -57,6 +58,11 @@ export default function CurhatBKPage() {
     isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi)
     && !['DIBALAS', 'SELESAI'].includes((item.status || '').toUpperCase())
   ).length;
+  const normalizedSearch = searchText.trim().toLowerCase();
+  const filteredCurhat = curhatList.filter((item) =>
+    [item.nama_siswa, item.kelas, item.judul_pesan, item.pesan, item.deskripsi, item.topik, item.status]
+      .some((value) => (value || '').toLowerCase().includes(normalizedSearch))
+  );
 
   return (
     <>
@@ -73,14 +79,22 @@ export default function CurhatBKPage() {
       <div className="bk-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         
         {/* SIDEBAR */}
-        <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
+        <div className="bk-panel-sidebar" style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
           <Sidebar />
         </div>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
-          
+        <div className="bk-panel-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
+          <BKUtilityBar
+            currentRoute="Curhat Siswa"
+            searchValue={searchText}
+            searchPlaceholder="Cari nama, kelas, topik, atau isi pesan..."
+            onSearchChange={setSearchText}
+            onRefresh={fetchCurhat}
+            isRefreshing={isLoading}
+          />
+
           {/* TOP BAR HEADER */}
-          <div style={{
+          <div className="bk-route-heading" style={{
             background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)',
             color: '#ffffff',
             padding: '18px 30px',
@@ -114,31 +128,10 @@ export default function CurhatBKPage() {
               </div>
             </div>
 
-            <button
-              onClick={fetchCurhat}
-              disabled={isLoading}
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(52, 211, 153, 0.3)',
-                color: '#ffffff',
-                padding: '9px 16px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} color="#34d399" />
-              <span>{isLoading ? 'Memperbarui...' : 'Refresh Data'}</span>
-            </button>
           </div>
 
           {/* KONTEN UTAMA - DISIMETRISKAN KE TENGAH */}
-          <div style={{ padding: '30px', maxWidth: '1400px', width: '100%', margin: '0 auto', flex: 1, boxSizing: 'border-box' }}>
+          <div className="bk-panel-content" style={{ padding: '30px', maxWidth: '1400px', width: '100%', margin: '0 auto', flex: 1, boxSizing: 'border-box' }}>
             
             {/* BANNER INFORMASI RINGKAS */}
             <div style={{
@@ -192,7 +185,7 @@ export default function CurhatBKPage() {
             )}
 
             {/* DAFTAR CARD PESAN CURHAT */}
-            {curhatList.length === 0 ? (
+            {filteredCurhat.length === 0 ? (
               <div style={{
                 backgroundColor: 'rgba(2, 31, 24, 0.85)',
                 backdropFilter: 'blur(12px)',
@@ -209,12 +202,12 @@ export default function CurhatBKPage() {
                     <Inbox size={32} />
                   </div>
                 </div>
-                <h3 style={{ margin: 0, fontSize: '15px', color: '#ffffff', fontWeight: '700' }}>Belum Ada Pesan Masuk</h3>
-                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>Pesan curhatan anonim yang dikirimkan oleh siswa akan otomatis tampil di sini.</p>
+                <h3 style={{ margin: 0, fontSize: '15px', color: '#ffffff', fontWeight: '700' }}>{curhatList.length > 0 ? 'Tidak Ada Hasil Pencarian' : 'Belum Ada Pesan Masuk'}</h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>{curhatList.length > 0 ? 'Coba kata kunci lain untuk mencari pesan.' : 'Pesan curhatan anonim yang dikirimkan oleh siswa akan otomatis tampil di sini.'}</p>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', boxSizing: 'border-box' }}>
-                {curhatList.map((item) => (
+                {filteredCurhat.map((item) => (
                   <div
                     key={item.id} 
                     style={{ 

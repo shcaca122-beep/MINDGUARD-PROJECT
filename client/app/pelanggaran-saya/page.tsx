@@ -2,7 +2,21 @@
 
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
-import { AlertTriangle, CalendarDays, Loader2, RefreshCw, ShieldAlert } from 'lucide-react';
+import Link from 'next/link';
+import {
+  AlertTriangle,
+  ArrowRight,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Loader2,
+  RefreshCw,
+  Search,
+  ShieldAlert,
+  SlidersHorizontal,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 type StudentViolation = {
@@ -27,10 +41,22 @@ const formatDate = (dateValue: string | null) => {
   }).format(date);
 };
 
+const getPointStatus = (points: number) => {
+  if (points >= 75) return { label: 'SP3', description: 'Perlu tindak lanjut bersama Guru BK', tone: 'critical' };
+  if (points >= 50) return { label: 'SP2', description: 'Mendekati batas pembinaan lanjutan', tone: 'warning' };
+  if (points >= 25) return { label: 'SP1', description: 'Sudah melewati batas aman', tone: 'caution' };
+  return { label: 'Aman', description: 'Di bawah batas SP1', tone: 'safe' };
+};
+
 export default function PelanggaranSayaPage() {
   const [violations, setViolations] = useState<StudentViolation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [studentName, setStudentName] = useState('Siswa');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedViolation, setExpandedViolation] = useState<string | number | null>(null);
+  const [isSimulationOpen, setIsSimulationOpen] = useState(false);
+  const [simulatedAddedPoints, setSimulatedAddedPoints] = useState(0);
 
   const loadViolations = useCallback(async () => {
     setLoading(true);
@@ -96,6 +122,17 @@ export default function PelanggaranSayaPage() {
     let channel: ReturnType<typeof supabase.channel> | null = null;
     Promise.resolve().then(async () => {
       if (cancelled) return;
+      try {
+        const sessionValue = localStorage.getItem('user_session');
+        if (sessionValue) {
+          const session: unknown = JSON.parse(sessionValue);
+          if (session && typeof session === 'object' && 'nama' in session && typeof session.nama === 'string') {
+            setStudentName(session.nama);
+          }
+        }
+      } catch (error) {
+        console.error('Gagal membaca nama siswa dari sesi:', error);
+      }
       await loadViolations();
       if (cancelled) return;
       channel = supabase
@@ -124,98 +161,269 @@ export default function PelanggaranSayaPage() {
     const points = Number(violation.poin);
     return total + (Number.isFinite(points) ? points : 0);
   }, 0);
+  const pointStatus = getPointStatus(totalPoints);
+  const progressPercent = Math.min(100, Math.max(0, totalPoints));
+  const simulatedTotalPoints = totalPoints + simulatedAddedPoints;
+  const simulatedStatus = getPointStatus(simulatedTotalPoints);
+  const categories = Array.from(new Set(
+    violations.map((violation) => violation.kategori?.trim()).filter((category): category is string => Boolean(category)),
+  ));
+  const normalizedSearch = searchQuery.trim().toLocaleLowerCase('id-ID');
+  const filteredViolations = violations.filter((violation) =>
+    [
+      violation.jenis_pelanggaran,
+      violation.kategori,
+      violation.keterangan,
+      violation.tanggal,
+      violation.created_at,
+    ].some((value) => value?.toLocaleLowerCase('id-ID').includes(normalizedSearch)),
+  );
+
+  useEffect(() => {
+    if (!isSimulationOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsSimulationOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSimulationOpen]);
 
   return (
-    <div className="student-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 45%, #064e3b 100%)', color: '#f1f5f9', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div className="student-panel-page student-feature-refresh student-violations-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 45%, #064e3b 100%)', color: '#f1f5f9', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
         <Sidebar />
       </div>
-      <main style={{ flex: 1, minWidth: 0, padding: '30px', boxSizing: 'border-box' }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap', borderBottom: '1px solid rgba(52, 211, 153, 0.2)', paddingBottom: '18px', marginBottom: '24px' }}>
-          <div>
-            <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0, color: '#fff', fontSize: '21px' }}>
-              <ShieldAlert size={23} color="#fbbf24" /> Poin & Pelanggaran Saya
-            </h1>
-            <p style={{ margin: '6px 0 0', color: '#a7f3d0', fontSize: '13px' }}>
-              Lihat jumlah poin dan rincian catatan pelanggaran yang terhubung ke akunmu.
-            </p>
+      <div className="student-violations-shell">
+        <header className="student-violations-topbar">
+          <div className="student-violations-topbar-title">
+            <div className="student-violations-breadcrumb">Ruang siswa <span>/</span> Poin &amp; Pelanggaran</div>
+            <h1><ShieldAlert size={21} /> Poin &amp; Pelanggaran Saya</h1>
+            <p><Sparkles size={14} /> Hai, {studentName}. Pantau progresmu dan tetap semangat, ya.</p>
           </div>
-          <button
-            type="button"
-            onClick={() => void loadViolations()}
-            disabled={loading}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', border: '1px solid #1d5a43', borderRadius: '8px', padding: '9px 12px', background: '#073b2c', color: '#a7f3d0', fontWeight: 700, cursor: loading ? 'wait' : 'pointer' }}
-          >
-            {loading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-            Muat ulang
-          </button>
+          <div className="student-violations-actions">
+            <button
+              type="button"
+              className="student-violations-button student-violations-button-secondary"
+              onClick={() => {
+                setSimulatedAddedPoints(0);
+                setIsSimulationOpen(true);
+              }}
+              disabled={loading || Boolean(loadError)}
+            >
+              <SlidersHorizontal size={16} /> Simulasi Ambang Poin
+            </button>
+            <button
+              type="button"
+              className="student-violations-button student-violations-button-refresh"
+              onClick={() => void loadViolations()}
+              disabled={loading}
+              aria-label="Muat ulang catatan pelanggaran"
+            >
+              {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              <span>Muat ulang</span>
+            </button>
+          </div>
         </header>
 
-        {loadError ? (
-          <section role="alert" style={{ padding: '18px', border: '1px solid rgba(248, 113, 113, .4)', borderRadius: '12px', background: 'rgba(127, 29, 29, .2)', color: '#fecaca' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '9px', fontWeight: 700 }}>
-              <AlertTriangle size={18} /> Catatan belum dapat dimuat
-            </div>
-            <p style={{ margin: '9px 0 0', fontSize: '13px' }}>{loadError}</p>
-          </section>
-        ) : (
-          <>
-            <section aria-label="Ringkasan poin pelanggaran" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '14px', marginBottom: '24px' }}>
-              <div style={{ padding: '20px', border: '1px solid rgba(251, 191, 36, .3)', borderRadius: '14px', background: 'rgba(2, 31, 24, .8)' }}>
-                <p style={{ margin: 0, color: '#fde68a', fontSize: '12px', fontWeight: 700 }}>TOTAL POIN PELANGGARAN</p>
-                <p style={{ margin: '8px 0 0', color: '#fbbf24', fontSize: '34px', fontWeight: 800 }}>{loading ? '—' : totalPoints}</p>
-                <p style={{ margin: '2px 0 0', color: '#94a3b8', fontSize: '12px' }}>Akumulasi dari catatan yang tampil</p>
-              </div>
-              <div style={{ padding: '20px', border: '1px solid rgba(52, 211, 153, .25)', borderRadius: '14px', background: 'rgba(2, 31, 24, .8)' }}>
-                <p style={{ margin: 0, color: '#a7f3d0', fontSize: '12px', fontWeight: 700 }}>JUMLAH CATATAN</p>
-                <p style={{ margin: '8px 0 0', color: '#34d399', fontSize: '34px', fontWeight: 800 }}>{loading ? '—' : violations.length}</p>
-                <p style={{ margin: '2px 0 0', color: '#94a3b8', fontSize: '12px' }}>Catatan pelanggaran terhubung</p>
-              </div>
+        <main className="student-feature-scroll student-feature-content student-violations-content">
+          {loadError ? (
+            <section role="alert" className="student-violations-error">
+              <div><AlertTriangle size={18} /> Catatan belum dapat dimuat</div>
+              <p>{loadError}</p>
             </section>
+          ) : (
+            <>
+              <section aria-label="Ringkasan poin pelanggaran" className="student-violations-summary">
+                <article className="student-violations-card student-violations-points-card">
+                  <div className="student-violations-card-heading">
+                    <div>
+                      <p className="student-violations-eyebrow">TOTAL POIN PELANGGARAN</p>
+                      <p className="student-violations-total">{loading ? '—' : totalPoints}<span> / 100</span></p>
+                    </div>
+                    <div className="student-violations-card-icon"><ShieldAlert size={22} /></div>
+                  </div>
+                  <p className="student-violations-caption">Akumulasi dari catatan yang terhubung ke akunmu.</p>
+                  <div className="student-violations-meter" role="progressbar" aria-label="Progres poin pelanggaran" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
+                    <div className="student-violations-meter-fill" style={{ width: `${progressPercent}%` }} />
+                    {[25, 50, 75, 100].map((threshold) => (
+                      <span key={threshold} className="student-violations-meter-mark" style={{ left: `${threshold}%` }} />
+                    ))}
+                  </div>
+                  <div className="student-violations-meter-labels">
+                    {[25, 50, 75, 100].map((threshold) => <span key={threshold}>{threshold}</span>)}
+                  </div>
+                  <div className="student-violations-meter-legend">
+                    <span><i className="student-violations-dot student-violations-dot-safe" />Aman</span>
+                    <span><i className="student-violations-dot student-violations-dot-caution" />SP1</span>
+                    <span><i className="student-violations-dot student-violations-dot-warning" />SP2</span>
+                    <span><i className="student-violations-dot student-violations-dot-critical" />SP3</span>
+                  </div>
+                </article>
 
-            <section className="student-violation-details" style={{ overflow: 'hidden', border: '1px solid #1d3d30', borderRadius: '12px', background: '#0b2119' }}>
-              <div style={{ padding: '15px 18px', borderBottom: '1px solid #193328' }}>
-                <h2 style={{ margin: 0, color: '#fff', fontSize: '15px' }}>Rincian Pelanggaran</h2>
-              </div>
-              {loading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '9px', padding: '34px', color: '#a7f3d0', fontSize: '13px' }}>
-                  <Loader2 size={18} className="animate-spin" /> Memuat catatan...
-                </div>
-              ) : violations.length === 0 ? (
-                <div style={{ padding: '34px 18px', textAlign: 'center', color: '#a7f3d0', fontSize: '13px' }}>
-                  Belum ada catatan pelanggaran yang terhubung ke akunmu.
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gap: '0' }}>
-                  {violations.map((violation) => (
-                    <article key={violation.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '12px', padding: '16px 18px', borderBottom: '1px solid #193328' }}>
-                      <div style={{ minWidth: 0 }}>
-                        <h3 style={{ margin: 0, color: '#f1f5f9', fontSize: '14px', lineHeight: 1.5 }}>
-                          {violation.jenis_pelanggaran || 'Jenis pelanggaran tidak dicantumkan'}
-                        </h3>
-                        {violation.kategori && <p style={{ margin: '4px 0 0', color: '#6ee7b7', fontSize: '12px' }}>{violation.kategori}</p>}
-                        {violation.keterangan && violation.keterangan !== violation.jenis_pelanggaran && (
-                          <p style={{ margin: '7px 0 0', color: '#94a3b8', fontSize: '12px', lineHeight: 1.5 }}>{violation.keterangan}</p>
-                        )}
-                        <p style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '9px 0 0', color: '#94a3b8', fontSize: '11px' }}>
-                          <CalendarDays size={13} />
-                          {formatDate(violation.tanggal || violation.created_at)}
-                        </p>
+                <article className="student-violations-card student-violations-count-card">
+                  <div className="student-violations-card-heading">
+                    <div>
+                      <p className="student-violations-eyebrow">JUMLAH CATATAN</p>
+                      <p className="student-violations-total student-violations-count">{loading ? '—' : violations.length}</p>
+                    </div>
+                    <div className="student-violations-card-icon student-violations-card-icon-green"><CalendarDays size={22} /></div>
+                  </div>
+                  <p className="student-violations-caption">Catatan pelanggaran terhubung ke akunmu.</p>
+                  <div className="student-violations-categories">
+                    <span className="student-violations-category-label">Kategori tercatat</span>
+                    {loading ? <span className="student-violations-category">Memuat...</span> : categories.length ? (
+                      <div className="student-violations-category-list">
+                        {categories.map((category) => <span className="student-violations-category" key={category}>{category}</span>)}
                       </div>
-                      <div style={{ alignSelf: 'start', whiteSpace: 'nowrap', padding: '6px 10px', border: '1px solid rgba(251, 191, 36, .3)', borderRadius: '999px', background: 'rgba(120, 53, 15, .25)', color: '#fcd34d', fontSize: '12px', fontWeight: 800 }}>
-                        +{Number.isFinite(Number(violation.poin)) ? Number(violation.poin) : 0} poin
-                      </div>
-                    </article>
-                  ))}
+                    ) : <span className="student-violations-category-empty">Belum ada kategori</span>}
+                  </div>
+                </article>
+              </section>
+
+              <section className={`student-violations-status student-violations-status-${pointStatus.tone}`} aria-label="Status pembinaan">
+                <div className="student-violations-status-icon"><ShieldAlert size={21} /></div>
+                <div className="student-violations-status-copy">
+                  <span className="student-violations-eyebrow">STATUS PEMBINAAN</span>
+                  <h2>{loading ? 'Memuat status...' : pointStatus.label}</h2>
+                  <p>{loading ? 'Menghitung berdasarkan catatanmu.' : pointStatus.description}</p>
                 </div>
-              )}
-            </section>
-            <p style={{ margin: '12px 2px 0', color: '#78998b', fontSize: '11px', lineHeight: 1.5 }}>
-              Hanya catatan yang telah ditautkan ke akun siswa ini yang ditampilkan. Jika ada catatan yang menurutmu belum tercantum, silakan hubungi guru BK.
-            </p>
-          </>
-        )}
-      </main>
+                <Link href="/booking" className="student-violations-consult-link">
+                  Konsultasi dengan Guru BK <ArrowRight size={16} />
+                </Link>
+              </section>
+
+              <section className="student-violation-details student-violations-list-card">
+                <div className="student-violations-list-heading">
+                  <div>
+                    <h2>Rincian Pelanggaran</h2>
+                    <p>Ketuk catatan untuk melihat keterangan lebih lengkap.</p>
+                  </div>
+                  <label className="student-violations-search">
+                    <Search size={17} aria-hidden="true" />
+                    <input
+                      type="search"
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder="Cari catatan..."
+                      aria-label="Cari rincian pelanggaran"
+                    />
+                    {searchQuery && (
+                      <button type="button" onClick={() => setSearchQuery('')} aria-label="Hapus pencarian">
+                        <X size={15} />
+                      </button>
+                    )}
+                  </label>
+                </div>
+                {loading ? (
+                  <div className="student-violations-empty-state">
+                    <Loader2 size={19} className="animate-spin" /> Memuat catatan...
+                  </div>
+                ) : violations.length === 0 ? (
+                  <div className="student-violations-empty-state">
+                    <div className="student-violations-empty-icon"><Check size={20} /></div>
+                    <strong>Belum ada catatan pelanggaran</strong>
+                    <span>Catatan yang terhubung ke akunmu akan muncul di sini.</span>
+                  </div>
+                ) : filteredViolations.length === 0 ? (
+                  <div className="student-violations-empty-state">
+                    <Search size={19} />
+                    Tidak ada catatan yang cocok dengan “{searchQuery}”.
+                  </div>
+                ) : (
+                  <div className="student-violations-list">
+                    {filteredViolations.map((violation, index) => {
+                      const isExpanded = expandedViolation === violation.id;
+                      const points = Number(violation.poin);
+                      const detailId = `student-violation-detail-${index}`;
+                      return (
+                        <article key={violation.id} className={`student-violation-item${isExpanded ? ' is-expanded' : ''}`}>
+                          <button
+                            type="button"
+                            className="student-violation-toggle"
+                            aria-expanded={isExpanded}
+                            aria-controls={detailId}
+                            onClick={() => setExpandedViolation(isExpanded ? null : violation.id)}
+                          >
+                            <span className="student-violation-main">
+                              <span className="student-violation-title">{violation.jenis_pelanggaran || 'Jenis pelanggaran tidak dicantumkan'}</span>
+                              <span className="student-violation-meta">
+                                {violation.kategori && <span className="student-violation-category">{violation.kategori}</span>}
+                                <span><CalendarDays size={13} />{formatDate(violation.tanggal || violation.created_at)}</span>
+                              </span>
+                            </span>
+                            <span className="student-violation-item-actions">
+                              <span className="student-violation-points">+{Number.isFinite(points) ? points : 0} poin</span>
+                              <ChevronDown size={18} className="student-violation-chevron" />
+                            </span>
+                          </button>
+                          {isExpanded && (
+                            <div id={detailId} className="student-violation-expanded" role="region">
+                              <span>Keterangan</span>
+                              <p>
+                                {violation.keterangan && violation.keterangan !== violation.jenis_pelanggaran
+                                  ? violation.keterangan
+                                  : 'Tidak ada keterangan tambahan pada catatan ini.'}
+                              </p>
+                            </div>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+              <p className="student-violations-note">
+                Hanya catatan yang telah ditautkan ke akun siswa ini yang ditampilkan. Jika ada catatan yang menurutmu belum tercantum, silakan hubungi guru BK.
+              </p>
+            </>
+          )}
+        </main>
+      </div>
+
+      {isSimulationOpen && (
+        <div
+          className="student-violations-modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setIsSimulationOpen(false);
+          }}
+        >
+          <section className="student-violations-modal" role="dialog" aria-modal="true" aria-labelledby="student-violations-modal-title">
+            <button type="button" className="student-violations-modal-close" onClick={() => setIsSimulationOpen(false)} aria-label="Tutup simulasi">
+              <X size={19} />
+            </button>
+            <div className="student-violations-modal-icon"><SlidersHorizontal size={21} /></div>
+            <span className="student-violations-eyebrow">SIMULASI PRIBADI</span>
+            <h2 id="student-violations-modal-title">Simulasi Ambang Poin</h2>
+            <p className="student-violations-modal-intro">Coba lihat perubahan status jika ada tambahan poin. Simulasi ini hanya untuk gambaran dan tidak mengubah catatan resmi.</p>
+            <div className="student-violations-simulation-values">
+              <div><span>Poin saat ini</span><strong>{totalPoints}</strong></div>
+              <ArrowRight size={18} />
+              <div><span>Hasil simulasi</span><strong>{simulatedTotalPoints}</strong></div>
+            </div>
+            <label className="student-violations-range-label" htmlFor="student-violations-simulation-range">
+              Tambahan poin simulasi <strong>+{simulatedAddedPoints}</strong>
+            </label>
+            <input
+              id="student-violations-simulation-range"
+              className="student-violations-range"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value={simulatedAddedPoints}
+              onChange={(event) => setSimulatedAddedPoints(Number(event.target.value))}
+            />
+            <div className={`student-violations-simulation-result student-violations-status-${simulatedStatus.tone}`}>
+              <span>Status perkiraan</span>
+              <strong>{simulatedStatus.label}</strong>
+              <p>{simulatedStatus.description}</p>
+            </div>
+            <div className="student-violations-modal-footnote">
+              Ambang pada skala ini: SP1 25 poin, SP2 50 poin, SP3 75 poin.
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

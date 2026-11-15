@@ -1,12 +1,12 @@
 'use client';
 
 import Sidebar from '@/components/Sidebar';
+import BKUtilityBar from '../BKUtilityBar';
 import { supabase } from '@/lib/supabase';
 import { isHighPriorityMessage } from '@/lib/counseling-priority';
 import { useState, useEffect, useCallback } from 'react';
 import { 
   CalendarCheck, 
-  RefreshCw, 
   User, 
   Calendar, 
   Tag, 
@@ -32,10 +32,16 @@ type CounselingRecord = {
 export default function KonselingBKPage() {
   const [konselingList, setKonselingList] = useState<CounselingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchText, setSearchText] = useState('');
   const urgentPendingCount = konselingList.filter((item) =>
     isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi)
     && !['DISETUJUI', 'DIBALAS', 'SELESAI', 'DITOLAK', 'DIBATALKAN'].includes((item.status || 'MENUNGGU ACC').toUpperCase())
   ).length;
+  const normalizedSearch = searchText.trim().toLowerCase();
+  const filteredKonseling = konselingList.filter((item) =>
+    [item.nama_siswa, item.kelas, item.judul_pesan, item.pesan, item.topik, item.deskripsi, item.status, item.tanggal]
+      .some((value) => (value || '').toLowerCase().includes(normalizedSearch))
+  );
 
   const fetchKonseling = useCallback(async () => {
     setIsLoading(true);
@@ -88,9 +94,17 @@ export default function KonselingBKPage() {
         </div>
 
         <div className="bk-panel-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
-          
+          <BKUtilityBar
+            currentRoute="Konseling Individual"
+            searchValue={searchText}
+            searchPlaceholder="Cari nama, kelas, topik, atau jadwal..."
+            onSearchChange={setSearchText}
+            onRefresh={fetchKonseling}
+            isRefreshing={isLoading}
+          />
+
           {/* TOP BAR HEADER */}
-          <div style={{
+          <div className="bk-route-heading" style={{
             background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)',
             color: '#ffffff',
             padding: '18px 30px',
@@ -124,27 +138,6 @@ export default function KonselingBKPage() {
               </div>
             </div>
 
-            <button
-              onClick={fetchKonseling}
-              disabled={isLoading}
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(52, 211, 153, 0.3)',
-                color: '#ffffff',
-                padding: '9px 16px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} color="#34d399" />
-              <span>{isLoading ? 'Memperbarui...' : 'Refresh Data'}</span>
-            </button>
           </div>
 
           {/* KONTEN UTAMA - DISIMETRISKAN KE TENGAH */}
@@ -237,17 +230,17 @@ export default function KonselingBKPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {konselingList.length === 0 ? (
+                    {filteredKonseling.length === 0 ? (
                       <tr className="bk-counseling-empty-row">
                         <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
                           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
                             <Inbox size={28} />
                           </div>
-                          <span>Belum ada permohonan konseling individual dari siswa.</span>
+                          <span>{konselingList.length > 0 ? 'Tidak ada permohonan yang cocok dengan pencarian.' : 'Belum ada permohonan konseling individual dari siswa.'}</span>
                         </td>
                       </tr>
                     ) : (
-                      konselingList.map((item) => (
+                      filteredKonseling.map((item) => (
                         <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background-color 0.15s ease' }}>
                           
                           {/* Nama Siswa */}

@@ -4,206 +4,324 @@ import Sidebar from '@/components/Sidebar';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { 
-  ShieldCheck, 
-  Sparkles, 
-  Quote, 
-  Calendar, 
-  MessageSquareHeart, 
-  BookOpen, 
+import {
+  ArrowRight,
+  BookOpen,
+  CalendarDays,
+  Check,
+  Copy,
   HeartHandshake,
-  ShieldAlert
+  MessageSquareHeart,
+  Quote,
+  RefreshCw,
+  ShieldAlert,
+  ShieldCheck,
+  Sparkles,
+  Wind,
+  X,
 } from 'lucide-react';
+import styles from './dashboard.module.css';
+
+const affirmations = [
+  'Perasaanmu valid. Kamu berhak mendapatkan ruang aman untuk didengarkan.',
+  'Kamu tidak harus menyelesaikan semuanya hari ini. Satu langkah kecil sudah berarti.',
+  'Meminta bantuan adalah bentuk keberanian, bukan kelemahan.',
+  'Kamu pantas bertumbuh dengan tenang, sesuai waktumu sendiri.',
+];
+
+const services = [
+  {
+    href: '/booking',
+    title: 'Booking BK',
+    description: 'Pilih guru BK dan tentukan jadwal konseling tatap muka secara privat.',
+    action: 'Atur jadwal',
+    Icon: CalendarDays,
+    tone: 'blue',
+  },
+  {
+    href: '/curhat',
+    title: 'Curhat Anonim',
+    description: 'Bagikan ceritamu tanpa khawatir. Identitasmu aman dan terlindungi.',
+    action: 'Mulai bercerita',
+    Icon: MessageSquareHeart,
+    tone: 'mint',
+  },
+  {
+    href: '/jurnal',
+    title: 'Jurnal Pribadi',
+    description: 'Tulis perasaanmu dan simpan sebagai catatan refleksi harian.',
+    action: 'Tulis refleksi',
+    Icon: BookOpen,
+    tone: 'violet',
+  },
+  {
+    href: '/pelanggaran-saya',
+    title: 'Poin & Pelanggaran Saya',
+    description: 'Lihat jumlah poin dan rincian catatan pelanggaranmu secara transparan.',
+    action: 'Cek rincian',
+    Icon: ShieldAlert,
+    tone: 'amber',
+  },
+];
+
+type BreathingPhase = 'Tarik napas' | 'Tahan' | 'Hembuskan';
+
+function getBreathingPhase(secondsLeft: number): BreathingPhase {
+  const elapsed = (60 - secondsLeft) % 12;
+  if (elapsed < 4) return 'Tarik napas';
+  if (elapsed < 6) return 'Tahan';
+  return 'Hembuskan';
+}
 
 export default function DashboardPage() {
   const router = useRouter();
   const [userNama, setUserNama] = useState('Siswa');
+  const [affirmationIndex, setAffirmationIndex] = useState(0);
+  const [copyStatus, setCopyStatus] = useState('');
+  const [isBreathingOpen, setIsBreathingOpen] = useState(false);
+  const [isBreathing, setIsBreathing] = useState(false);
+  const [breathingSeconds, setBreathingSeconds] = useState(60);
+  const [breathingComplete, setBreathingComplete] = useState(false);
 
-  // AUTOMATIC REDIRECT BERDASARKAN ROLE
   useEffect(() => {
-    const sessionData = localStorage.getItem('user_session');
-    if (sessionData) {
+    let isMounted = true;
+    Promise.resolve().then(() => {
+      if (!isMounted) return;
       try {
-        const session = JSON.parse(sessionData);
-        const role = (session.role || '').toUpperCase();
-        
-        if (session.nama) {
-          // Hydrate the greeting from the client-only session after mounting.
-          // eslint-disable-next-line react-hooks/set-state-in-effect
-          setUserNama(session.nama);
+        const sessionData = localStorage.getItem('user_session');
+        if (!sessionData) {
+          router.replace('/');
+          return;
         }
 
-        // 🔀 Pengalihan Otomatis Sesuai Role Account
+        const session = JSON.parse(sessionData) as {
+          nama?: string;
+          role?: string;
+          isAdmin?: boolean;
+        };
+        const role = (session.role || '').toUpperCase();
+
+        if (session.nama) setUserNama(session.nama);
+
         if (session.isAdmin === true || role.includes('ADMIN') || role === 'TU' || role.includes('TATA USAHA')) {
           router.replace('/admin1');
         } else if (role.includes('OSIS') || role.includes('MPK')) {
-          router.push('/osis');
+          router.replace('/osis');
         } else if (role.includes('PIKET')) {
-          router.push('/piket');
+          router.replace('/piket');
         } else if (role.includes('BK')) {
-          router.push('/bk');
+          router.replace('/bk');
         }
-      } catch (err) {
-        console.error('Error parsing session:', err);
+      } catch (error) {
+        console.error('Error parsing session:', error);
+        router.replace('/');
       }
-    }
+    });
+
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
+  useEffect(() => {
+    if (!isBreathing) return;
+
+    const intervalId = window.setInterval(() => {
+      setBreathingSeconds((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    const timeoutId = window.setTimeout(() => {
+      setIsBreathing(false);
+      setBreathingComplete(true);
+      setBreathingSeconds(0);
+    }, 60_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [isBreathing]);
+
+  const handleNextAffirmation = () => {
+    setAffirmationIndex((index) => (index + 1) % affirmations.length);
+    setCopyStatus('');
+  };
+
+  const handleCopyAffirmation = async () => {
+    try {
+      await navigator.clipboard.writeText(affirmations[affirmationIndex]);
+      setCopyStatus('Kutipan tersalin');
+    } catch (error) {
+      console.error('Gagal menyalin afirmasi:', error);
+      setCopyStatus('Tidak dapat menyalin kutipan');
+    }
+  };
+
+  const handleOpenBreathing = () => {
+    setBreathingSeconds(60);
+    setBreathingComplete(false);
+    setIsBreathing(false);
+    setIsBreathingOpen(true);
+  };
+
+  const handleCloseBreathing = () => {
+    setIsBreathingOpen(false);
+    setIsBreathing(false);
+    setBreathingSeconds(60);
+    setBreathingComplete(false);
+  };
+
+  const handleStartBreathing = () => {
+    setBreathingSeconds(60);
+    setBreathingComplete(false);
+    setIsBreathing(true);
+  };
+
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: `
-        body, html {
-          background-color: #021f18 !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          width: 100% !important;
-          height: 100% !important;
-          overflow-x: hidden !important;
-        }
-      ` }} />
-      {/* DIPERBAIKI: Menggunakan width 100% agar simetris dan seimbang di tengah */}
-      <div className="student-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
-        
-        {/* Sidebar Navigasi */}
-        <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
-          <Sidebar />
-        </div>
-
-        {/* Konten Utama Dashboard Siswa */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
-          
-          {/* Topbar dengan Gradasi Premium */}
-          <div style={{
-            background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)',
-            color: '#ffffff',
-            padding: '18px 30px',
-            borderBottom: '1px solid rgba(52, 211, 153, 0.2)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-            width: '100%',
-            boxSizing: 'border-box'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <ShieldCheck size={22} color="#34d399" />
-              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
-                Dashboard Ruang Tenang
-              </h2>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
-              <Sparkles size={14} color="#34d399" />
-              <span style={{ fontSize: '13px', fontWeight: '600', color: '#ffffff' }}>
-                Selamat Datang, <strong style={{ color: '#34d399' }}>{userNama}</strong>!
-              </span>
-            </div>
-          </div>
-
-          {/* Hero Section - DISIMETRISKAN KE TENGAH */}
-          <div style={{ padding: '30px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
-            <div style={{ textAlign: 'center', marginBottom: '30px', width: '100%', boxSizing: 'border-box' }}>
-              <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#ffffff', marginBottom: '8px' }}>
-                Selamat Datang di Ruang Tenang
-              </h1>
-              <p style={{ fontSize: '13px', color: '#a7f3d0', margin: 0, fontWeight: '500' }}>
-                Pilih waktu luangmu, pilih guru BK favoritmu. Konseling jadi lebih privat dan terjadwal.
-              </p>
-            </div>
-
-            {/* Banner Quote */}
-            <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', border: '1px solid rgba(52, 211, 153, 0.2)', padding: '20px', borderRadius: '16px', textAlign: 'center', marginBottom: '30px', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
-              <Quote size={18} color="#34d399" />
-              <p style={{ margin: 0, fontSize: '16px', fontStyle: 'italic', fontWeight: '600', color: '#ecfdf5' }}>
-                “Perasaanmu valid. Tidak apa-apa untuk merasa lelah.”
-              </p>
-            </div>
-
-            {/* Akses Cepat Button Bar */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '35px', width: '100%', boxSizing: 'border-box' }}>
-              <Link className="dashboard-quick-action" href="/booking" style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 50%, #064e3b 100%)', color: '#fff', padding: '10px 18px', borderRadius: '20px', textDecoration: 'none', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Calendar size={15} color="#a7f3d0" />
-                <span>Booking Konseling BK</span>
-              </Link>
-              <Link className="dashboard-quick-action" href="/curhat" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', color: '#ffffff', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '10px 18px', borderRadius: '20px', textDecoration: 'none', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <MessageSquareHeart size={15} color="#34d399" />
-                <span>Curhat Anonim</span>
-              </Link>
-              <Link className="dashboard-quick-action" href="/jurnal" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', color: '#ffffff', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '10px 18px', borderRadius: '20px', textDecoration: 'none', fontSize: '13px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <BookOpen size={15} color="#38bdf8" />
-                <span>Mulai Menulis Jurnal</span>
-              </Link>
-            </div>
-
-            {/* Grid Fitur Utama */}
-            <div style={{ textAlign: 'center', marginBottom: '20px', width: '100%', boxSizing: 'border-box' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#ffffff', margin: 0 }}>
-                Fitur Utama Ruang Tenang
-              </h3>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
-              
-              <Link className="dashboard-feature-card" href="/booking" style={{ textDecoration: 'none' }}>
-                <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px 20px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', textAlign: 'center', height: '100%', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-                  <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '12px', background: 'rgba(37, 99, 235, 0.2)', color: '#60a5fa', marginBottom: '12px', border: '1px solid rgba(96, 165, 250, 0.3)' }}>
-                    <Calendar size={24} />
-                  </div>
-                  <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', color: '#ffffff', fontWeight: '700' }}>Booking BK</h4>
-                  <p style={{ margin: 0, fontSize: '11.5px', color: '#94a3b8', lineHeight: '1.4' }}>Pilih guru BK dan tentukan jadwal konseling tatap muka secara privat.</p>
-                </div>
-              </Link>
-
-              <Link className="dashboard-feature-card" href="/curhat" style={{ textDecoration: 'none' }}>
-                <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px 20px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', textAlign: 'center', height: '100%', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-                  <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '12px', background: 'rgba(5, 150, 105, 0.2)', color: '#34d399', marginBottom: '12px', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
-                    <MessageSquareHeart size={24} />
-                  </div>
-                  <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', color: '#ffffff', fontWeight: '700' }}>Curhat Anonim</h4>
-                  <p style={{ margin: 0, fontSize: '11.5px', color: '#94a3b8', lineHeight: '1.4' }}>Bagikan ceritamu tanpa khawatir. Identitasmu aman dan terlindungi.</p>
-                </div>
-              </Link>
-
-              <Link className="dashboard-feature-card" href="/jurnal" style={{ textDecoration: 'none' }}>
-                <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px 20px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', textAlign: 'center', height: '100%', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-                  <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.2)', color: '#818cf8', marginBottom: '12px', border: '1px solid rgba(129, 140, 248, 0.3)' }}>
-                    <BookOpen size={24} />
-                  </div>
-                  <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', color: '#ffffff', fontWeight: '700' }}>Jurnal Pribadi</h4>
-                  <p style={{ margin: 0, fontSize: '11.5px', color: '#94a3b8', lineHeight: '1.4' }}>Tulis perasaanmu dan simpan sebagai catatan refleksi harian.</p>
-                </div>
-              </Link>
-
-              <Link className="dashboard-feature-card" href="/pelanggaran-saya" style={{ textDecoration: 'none' }}>
-                <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px 20px', borderRadius: '16px', border: '1px solid rgba(251, 191, 36, 0.25)', textAlign: 'center', height: '100%', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-                  <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '12px', background: 'rgba(217, 119, 6, 0.2)', color: '#fbbf24', marginBottom: '12px', border: '1px solid rgba(252, 211, 77, 0.3)' }}>
-                    <ShieldAlert size={24} />
-                  </div>
-                  <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', color: '#ffffff', fontWeight: '700' }}>Poin & Pelanggaran Saya</h4>
-                  <p style={{ margin: 0, fontSize: '11.5px', color: '#94a3b8', lineHeight: '1.4' }}>Lihat total poin dan rincian catatan pelanggaranmu.</p>
-                </div>
-              </Link>
-
-              <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px 20px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', textAlign: 'center', height: '100%', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-                <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '12px', background: 'rgba(217, 119, 6, 0.2)', color: '#fcd34d', marginBottom: '12px', border: '1px solid rgba(252, 211, 77, 0.3)' }}>
-                  <HeartHandshake size={24} />
-                </div>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '14px', color: '#ffffff', fontWeight: '700' }}>Afirmasi Harian</h4>
-                <p style={{ margin: 0, fontSize: '11.5px', color: '#94a3b8', lineHeight: '1.4' }}>Dapatkan motivasi positif harian untuk menjaga kesehatan mentalmu.</p>
-              </div>
-
-            </div>
-          </div>
-
-          {/* Footer */}
-          <footer style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#a7f3d0', padding: '20px', textAlign: 'center', marginTop: 'auto', borderTop: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
-            <p style={{ margin: '0 0 4px 0', fontSize: '13px', fontWeight: '700', color: '#34d399' }}>Ruang Tenang - Tempat Berbagi Cerita</p>
-            <p style={{ margin: '0 0 6px 0', fontSize: '11.5px', color: '#a7f3d0' }}>Identitasmu aman. Semua curhat terlindungi.</p>
-            <p style={{ margin: '0 0 4px 0', fontSize: '11.5px', color: '#a7f3d0', opacity: 0.8 }}>&copy; 2026 Ruang Tenang. Made With SR-Solution</p>
-            <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', color: '#ffffff', letterSpacing: '0.05em' }}>SMK BUDI BAKTI CIWIDEY</p>
-          </footer>
-
-        </div>
+    <div className={`student-panel-page student-feature-refresh student-dashboard-page ${styles.page}`}>
+      <div className={styles.sidebar}>
+        <Sidebar />
       </div>
-    </>
+
+      <div className={`student-feature-scroll ${styles.contentColumn}`}>
+        <header className={styles.topbar}>
+          <div className={styles.pageTitle}>
+            <span className={styles.pageIcon}><ShieldCheck size={18} /></span>
+            <h1>Dashboard Ruang Tenang</h1>
+            <code>/dashboard</code>
+          </div>
+          <div className={styles.welcomePill}>
+            <Sparkles size={15} />
+            <span>Selamat datang, <strong>{userNama}</strong></span>
+          </div>
+        </header>
+
+        <main className={`student-feature-content student-dashboard-content ${styles.main}`}>
+          <section className={styles.hero} aria-labelledby="dashboard-heading">
+            <span className={styles.heroEyebrow}>
+              <HeartHandshake size={15} />
+              Portal Bimbingan & Kesehatan Mental Siswa
+            </span>
+            <h2 id="dashboard-heading" className="student-dashboard-welcome-title">
+              Selamat Datang di Ruang Tenang
+            </h2>
+            <p className="student-dashboard-welcome-description">
+              Pilih waktu luangmu, pilih guru BK favoritmu. Konseling jadi lebih privat dan terjadwal.
+            </p>
+            <nav className={styles.quickActions} aria-label="Akses cepat">
+              <Link className={`${styles.quickAction} ${styles.primaryAction}`} href="/booking">
+                <CalendarDays size={16} />
+                Booking Konseling BK
+                <ArrowRight size={15} />
+              </Link>
+              <Link className={styles.quickAction} href="/curhat">
+                <MessageSquareHeart size={16} />
+                Curhat Anonim
+              </Link>
+              <Link className={styles.quickAction} href="/jurnal">
+                <BookOpen size={16} />
+                Mulai Menulis Jurnal
+              </Link>
+            </nav>
+          </section>
+
+          <section className={styles.affirmation} aria-label="Afirmasi harian">
+            <span className={styles.quoteIcon}><Quote size={20} /></span>
+            <div className={styles.affirmationCopy} aria-live="polite">
+              <span className={styles.sectionEyebrow}>Afirmasi untukmu hari ini</span>
+              <p>“{affirmations[affirmationIndex]}”</p>
+            </div>
+            <div className={styles.affirmationActions}>
+              <button type="button" className={styles.utilityButton} onClick={handleNextAffirmation}>
+                <RefreshCw size={14} />
+                Ganti afirmasi
+              </button>
+              <button type="button" className={styles.utilityButton} onClick={handleCopyAffirmation}>
+                {copyStatus === 'Kutipan tersalin' ? <Check size={14} /> : <Copy size={14} />}
+                {copyStatus === 'Kutipan tersalin' ? 'Tersalin' : 'Salin kutipan'}
+              </button>
+              <button type="button" className={`${styles.utilityButton} ${styles.breathingButton}`} onClick={handleOpenBreathing}>
+                <Wind size={14} />
+                Latihan napas 1 menit
+              </button>
+              {copyStatus && <span className={styles.copyStatus} role="status">{copyStatus}</span>}
+            </div>
+          </section>
+
+          <section className={styles.servicesSection} aria-labelledby="services-heading">
+            <div className={styles.sectionHeading}>
+              <h2 id="services-heading">Fitur Utama Ruang Tenang</h2>
+              <p>Pilih layanan sesuai kebutuhanmu</p>
+            </div>
+            <div className={styles.serviceGrid}>
+              {services.map(({ href, title, description, action, Icon, tone }) => (
+                <Link className={styles.serviceCard} href={href} key={href}>
+                  <span className={`${styles.serviceIcon} ${styles[tone]}`}>
+                    <Icon size={22} />
+                  </span>
+                  <h3>{title}</h3>
+                  <p>{description}</p>
+                  <span className={styles.serviceAction}>
+                    {action}
+                    <ArrowRight size={16} />
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <footer className={styles.footer}>
+            <strong>Ruang Tenang — Tempat Berbagi Cerita</strong>
+            <span>Identitasmu aman. Semua curhat terlindungi.</span>
+            <small>© 2026 Ruang Tenang · SMK Budi Bakti Ciwidey</small>
+          </footer>
+        </main>
+      </div>
+
+      {isBreathingOpen && (
+        <div
+          className={styles.modalBackdrop}
+          onClick={handleCloseBreathing}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') handleCloseBreathing();
+          }}
+        >
+          <section
+            aria-labelledby="breathing-title"
+            aria-modal="true"
+            className={styles.breathingModal}
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <button type="button" className={styles.closeButton} onClick={handleCloseBreathing} aria-label="Tutup latihan napas">
+              <X size={18} />
+            </button>
+            <span className={styles.modalIcon}><Wind size={20} /></span>
+            <h2 id="breathing-title">Jeda sejenak</h2>
+            <p className={styles.breathingDescription}>
+              Ikuti ritme perlahan ini. Tarik napas, tahan sebentar, lalu hembuskan dengan tenang.
+            </p>
+            <div className={`${styles.breathOrb} ${isBreathing ? styles.breathing : ''}`} aria-live="polite">
+              {breathingComplete ? (
+                <span>Selesai</span>
+              ) : isBreathing ? (
+                <span>{getBreathingPhase(breathingSeconds)}</span>
+              ) : (
+                <span>Siap?</span>
+              )}
+            </div>
+            <span className={styles.timerText}>
+              {breathingComplete ? 'Bagus, kamu sudah meluangkan waktu untuk dirimu.' : `${breathingSeconds} detik`}
+            </span>
+            {isBreathing ? (
+              <button type="button" className={styles.startButton} onClick={handleCloseBreathing}>Akhiri latihan</button>
+            ) : breathingComplete ? (
+              <button type="button" className={styles.startButton} onClick={handleCloseBreathing}>Selesai</button>
+            ) : (
+              <button type="button" className={styles.startButton} onClick={handleStartBreathing}>Mulai latihan</button>
+            )}
+          </section>
+        </div>
+      )}
+    </div>
   );
 }

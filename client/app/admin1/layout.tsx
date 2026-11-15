@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useSyncExternalStore } from 'react';
-import Image from 'next/image';
+import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { getServerThemeSnapshot, getThemeSnapshot, subscribeToTheme } from '@/lib/theme';
+import MindGuardMark from '@/components/MindGuardMark';
+import PanelCompanion from '@/components/PanelCompanion';
 import { 
   UserCheck, 
   Calendar, 
@@ -20,8 +20,7 @@ import {
 export default function Admin1Layout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const theme = useSyncExternalStore(subscribeToTheme, getThemeSnapshot, getServerThemeSnapshot);
-  const isLightTheme = theme === 'light';
+  const isLightTheme = false;
   
   const [adminName, setAdminName] = useState('STAF IT & TATA USAHA');
   const [adminRole, setAdminRole] = useState('TU');
@@ -128,15 +127,7 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
           {/* Logo Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
             <div className="admin-panel-brand-mark" style={{ width: '38px', height: '38px', borderRadius: '8px', backgroundColor: isLightTheme ? '#174d3a' : 'rgba(52, 211, 153, 0.12)', border: `1px solid ${isLightTheme ? '#3b8a69' : 'rgba(52, 211, 153, 0.3)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3px', boxSizing: 'border-box', overflow: 'hidden' }}>
-              <Image
-                src="/logo-mindguard.jpeg"
-                alt="Logo MindGuard"
-                width={32}
-                height={32}
-                priority
-                unoptimized
-                style={{ width: '170%', height: '170%', maxWidth: 'none', objectFit: 'cover', objectPosition: 'center 38%', mixBlendMode: 'screen' }}
-              />
+              <MindGuardMark size={38} />
             </div>
             <div>
               <span style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff', letterSpacing: '0.5px', display: 'block' }}>MindGuard</span>
@@ -221,6 +212,13 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
           >
             <LogOut size={14} /> <span>Keluar (Logout)</span>
           </button>
+          <div className="sidebar-mindy">
+            <div className="sidebar-mindy-copy">
+              <strong>Teman Mindy</strong>
+              <span>Ketuk untuk bantuan</span>
+            </div>
+            <PanelCompanion audience="admin" placement="sidebar" />
+          </div>
           <div style={{ textAlign: 'center', fontSize: '10px', color: '#567568' }}>SMK Budi Bakti Ciwidey</div>
         </div>
       </aside>

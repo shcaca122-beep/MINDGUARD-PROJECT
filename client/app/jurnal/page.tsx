@@ -67,14 +67,14 @@ export default function JurnalPage() {
         }
       ` }} />
       {/* DIPERBAIKI: Menggunakan width 100% agar simetris dan seimbang di tengah */}
-      <div className="student-panel-page student-journal-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #071a14 0%, #0a2b20 48%, #0d3829 100%)', fontFamily: '"Segoe UI", "Helvetica Neue", Arial, sans-serif', boxSizing: 'border-box' }}>
+      <div className="student-panel-page student-feature-refresh student-journal-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #071a14 0%, #0a2b20 48%, #0d3829 100%)', fontFamily: '"Segoe UI", "Helvetica Neue", Arial, sans-serif', boxSizing: 'border-box' }}>
         
         {/* SIDEBAR */}
         <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
           <Sidebar />
         </div>
 
-        <div className="journal-content" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', boxSizing: 'border-box' }}>
+        <div className="journal-content student-feature-scroll" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', boxSizing: 'border-box' }}>
           
           {/* TOP BAR GRADASI */}
           <div style={{ 
@@ -108,7 +108,7 @@ export default function JurnalPage() {
             </div>
           </div>
 
-          <div style={{ flex: 1, padding: '36px 32px', maxWidth: '1080px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+          <div className="student-feature-content student-journal-content" style={{ flex: 1, padding: '36px 32px', maxWidth: '1080px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
             
             <div style={{ textAlign: 'center', marginBottom: '25px', width: '100%', boxSizing: 'border-box' }}>
               <h1 style={{ fontSize: '26px', fontWeight: '750', letterSpacing: '-0.035em', margin: '0 0 8px 0', color: '#f0fdf4' }}>

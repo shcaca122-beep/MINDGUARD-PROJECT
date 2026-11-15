@@ -78,7 +78,7 @@ export default function BookingPage() {
           overflow-x: hidden !important;
         }
       ` }} />
-      <div className="student-panel-page" style={{ display: 'flex', height: '100dvh', minHeight: 0, width: '100vw', overflow: 'hidden', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
+      <div className="student-panel-page student-feature-refresh student-booking-page" style={{ display: 'flex', height: '100dvh', minHeight: 0, width: '100vw', overflow: 'hidden', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         
         {/* SIDEBAR */}
         <div className="student-panel-sidebar" style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
@@ -118,7 +118,7 @@ export default function BookingPage() {
           </div>
 
           {/* CONTENT UTAMA */}
-          <div style={{ padding: '30px 40px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+          <div className="student-feature-content student-booking-content" style={{ padding: '30px 40px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
             
             {/* BANNER HEADER */}
             <div

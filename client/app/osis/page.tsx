@@ -4,7 +4,8 @@ import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
 import NextImage from 'next/image';
 import { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Send, AlertTriangle, Camera, User, X, CheckCircle2, ScanFace, SwitchCamera } from 'lucide-react';
+import { RefreshCw, Send, AlertTriangle, Camera, User, UserRound, ShieldCheck, X, CheckCircle2, ScanFace, SwitchCamera } from 'lucide-react';
+import styles from './osis.module.css';
 
 type MasterPelanggaranItem = {
   id?: number | string;
@@ -688,45 +689,32 @@ export default function OsisPage() {
       item.jenis_pelanggaran?.toLowerCase().includes(filterText.toLowerCase()) ||
       item.pencatat?.toLowerCase().includes(filterText.toLowerCase())
   );
+  const totalPoints = listPelanggaran.reduce((total, item) => total + Number(item.poin || 0), 0);
+  const formattedToday = new Date(`${today}T00:00:00`).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const verificationStatus = faceVerified
+    ? 'Terverifikasi'
+    : referenceStatus === 'ready'
+      ? 'Menunggu verifikasi'
+      : referenceStatus === 'loading'
+        ? 'Menyiapkan foto siswa'
+        : 'Foto referensi belum tersedia';
 
   return (
-    <>
-      <style dangerouslySetInnerHTML={{ __html: `
-        body, html {
-          background-color: #021f18 !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          width: 100% !important;
-          height: 100% !important;
-          overflow-x: hidden !important;
-        }
-        @keyframes scanAnimation {
-          0% { top: 0%; }
-          50% { top: 90%; }
-          100% { top: 0%; }
-        }
-        .scan-line {
-          position: absolute;
-          left: 0;
-          right: 0;
-          height: 3px;
-          background: #34d399;
-          box-shadow: 0 0 15px #34d399, 0 0 25px #34d399;
-          animation: scanAnimation 2s infinite ease-in-out;
-        }
-      ` }} />
-
-      <div className="osis-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
+      <div className={`osis-panel-page ${styles.page}`} style={{ display: 'flex', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         
         {/* SIDEBAR */}
-        <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
+        <div className={styles.sidebar} style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
           <Sidebar />
         </div>
 
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', boxSizing: 'border-box' }}>
+        <div className={styles.contentColumn} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', boxSizing: 'border-box' }}>
           
           {/* TOP BAR WITH LOGO MINDGUARD */}
-          <div style={{ 
+          <div className={styles.topbar} style={{
             background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', 
             color: '#ffffff', 
             padding: '14px 30px', 
@@ -738,48 +726,71 @@ export default function OsisPage() {
             width: '100%',
             boxSizing: 'border-box'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{ width: '42px', height: '42px', borderRadius: '10px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#021f18', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
-                <NextImage
-                  src="/logo-mindguard.jpeg" 
-                  alt="MindGuard Logo" 
-                  width={42}
-                  height={42}
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  unoptimized
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </div>
-              <div>
-                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#ffffff' }}>
-                  Panel Kedisiplinan OSIS & MPK (Pemeriksaan Gerbang)
-                </h2>
-                <span style={{ fontSize: '11.5px', color: '#a7f3d0', fontWeight: '500' }}>Pencatatan Kedisiplinan & Atribut Siswa di Gerbang Sekolah</span>
-              </div>
+            <div className={styles.topbarTitle}>
+              <span className={styles.topbarIcon}><ShieldCheck size={17} /></span>
+              <h2>Input Keterlambatan &amp; Pemeriksaan Gerbang</h2>
+              <code>/osis</code>
             </div>
-
-            <button onClick={() => { setLoading(true); void fetchPelanggaranSiswa(); }} style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '9px 16px', borderRadius: '8px', color: '#ffffff', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <RefreshCw size={14} color="#34d399" />
-              <span>Refresh</span>
-            </button>
+            <div className={styles.staffPill}>
+              <UserRound size={15} />
+              <span>Petugas: <strong>{namaPetugas || 'OSIS & MPK'}</strong></span>
+            </div>
           </div>
 
           {/* MAIN CONTENT */}
-          <div style={{ padding: '30px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+          <div className={styles.content} style={{ padding: '30px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
             
             {statusMsg && (
-              <div style={{ padding: '12px 16px', borderRadius: '10px', marginBottom: '20px', fontWeight: '700', fontSize: '13px', backgroundColor: statusMsg.type === 'success' ? '#064e3b' : '#7f1d1d', color: statusMsg.type === 'success' ? '#dcfce7' : '#fee2e2', border: `1px solid ${statusMsg.type === 'success' ? '#10b981' : '#f87171'}`, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', width: '100%', boxSizing: 'border-box' }}>
+              <div className={styles.statusMessage} style={{ padding: '12px 16px', borderRadius: '10px', marginBottom: '20px', fontWeight: '700', fontSize: '13px', backgroundColor: statusMsg.type === 'success' ? '#064e3b' : '#7f1d1d', color: statusMsg.type === 'success' ? '#dcfce7' : '#fee2e2', border: `1px solid ${statusMsg.type === 'success' ? '#10b981' : '#f87171'}`, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', width: '100%', boxSizing: 'border-box' }}>
                 {statusMsg.type === 'success' ? '✅ ' : '⚠️️ '} {statusMsg.message}
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '25px', alignItems: 'start', width: '100%', boxSizing: 'border-box' }}>
+            <section className={styles.pageHeading}>
+              <div className={styles.pageHeadingCopy}>
+                <span className={styles.pageIcon}><ShieldCheck size={20} /></span>
+                <div>
+                  <h1>Pemeriksaan Gerbang OSIS &amp; MPK</h1>
+                  <p>Pencatatan kedisiplinan dan atribut siswa secara real-time.</p>
+                </div>
+              </div>
+              <button
+                className={styles.refreshButton}
+                onClick={() => { setLoading(true); void fetchPelanggaranSiswa(); }}
+                type="button"
+              >
+                <RefreshCw size={15} />
+                <span>Muat Ulang</span>
+              </button>
+            </section>
+
+            <section className={styles.summaryToolbar} aria-label="Ringkasan pemeriksaan">
+              <div className={styles.summaryItem}>
+                <span className={styles.summaryLabel}>Tanggal pemeriksaan</span>
+                <strong>{formattedToday}</strong>
+              </div>
+              <div className={styles.summaryItem}>
+                <span className={styles.summaryLabel}>Status verifikasi siswa</span>
+                <strong className={faceVerified ? styles.verifiedStatus : undefined}>
+                  <span className={styles.statusDot} />
+                  {verificationStatus}
+                </strong>
+              </div>
+              <div className={styles.summaryStat}>
+                <span>Total kasus tercatat</span>
+                <strong>{loading ? '…' : listPelanggaran.length}</strong>
+              </div>
+              <div className={styles.summaryStat}>
+                <span>Total poin tercatat</span>
+                <strong>{loading ? '…' : totalPoints}</strong>
+              </div>
+            </section>
+
+            <div className={styles.workspaceGrid} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '25px', alignItems: 'start', width: '100%', boxSizing: 'border-box' }}>
               
               {/* FORM CATAT PELANGGARAN SISWA */}
-              <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
-                <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ecfdf5', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className={`${styles.panel} ${styles.entryPanel}`} style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
+                <h3 className={styles.panelHeading} style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#ecfdf5', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <AlertTriangle size={18} color="#34d399" />
                   Form Input Pemeriksaan Gerbang
                 </h3>
@@ -1036,7 +1047,7 @@ export default function OsisPage() {
               </div>
 
               {/* TABEL / REKAP PELANGGARAN SISWA */}
-              <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
+              <div className={`${styles.panel} ${styles.recordsPanel}`} style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
                 <div style={{ marginBottom: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <h3 style={{ margin: 0, fontSize: '16px', color: '#ecfdf5', fontWeight: '700' }}>
@@ -1058,9 +1069,9 @@ export default function OsisPage() {
                 ) : filteredData.length === 0 ? (
                   <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '13px', margin: '40px 0' }}>Belum ada pelanggaran yang dicatat.</p>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '520px', overflowY: 'auto' }}>
+                  <div className={styles.recordList} style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '520px', overflowY: 'auto' }}>
                     {filteredData.map((item) => (
-                      <div key={item.id} style={{ padding: '14px', borderRadius: '12px', backgroundColor: '#021f18', borderLeft: '4px solid #34d399', border: '1px solid rgba(52, 211, 153, 0.2)' }}>
+                      <div className={styles.recordCard} key={item.id} style={{ padding: '14px', borderRadius: '12px', backgroundColor: '#021f18', borderLeft: '4px solid #34d399', border: '1px solid rgba(52, 211, 153, 0.2)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontWeight: '700', fontSize: '14px', color: '#f8fafc' }}>{item.nama_siswa}</span>
                           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -1100,8 +1111,8 @@ export default function OsisPage() {
 
           {/* MODAL WEBCAM VERIFIKASI WAJAH */}
           {isCameraOpen && (
-            <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-              <div style={{ backgroundColor: '#021f18', border: '1px solid rgba(52, 211, 153, 0.3)', borderRadius: '16px', padding: '20px', maxWidth: '450px', width: '100%', position: 'relative', boxShadow: '0 10px 40px rgba(0,0,0,0.6)' }}>
+            <div className={styles.modalBackdrop} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+              <div className={styles.cameraModal} style={{ backgroundColor: '#021f18', border: '1px solid rgba(52, 211, 153, 0.3)', borderRadius: '16px', padding: '20px', maxWidth: '450px', width: '100%', position: 'relative', boxShadow: '0 10px 40px rgba(0,0,0,0.6)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                   <h4 style={{ margin: 0, color: '#ecfdf5', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {cameraMode === 'face' ? <ScanFace size={18} color="#34d399" /> : <Camera size={18} color="#34d399" />}
@@ -1129,7 +1140,7 @@ export default function OsisPage() {
                 <div style={{ position: 'relative', width: '100%', height: '280px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   <div style={{ position: 'absolute', inset: '20px', border: '2px dashed rgba(52, 211, 153, 0.7)', borderRadius: '16px', pointerEvents: 'none' }} />
-                  {isScanning && <div className="scan-line" />}
+                  {isScanning && <div className={styles.scanLine} />}
                 </div>
 
                 <p style={{ fontSize: '12px', color: '#a7f3d0', textAlign: 'center', margin: '12px 0' }}>
@@ -1160,11 +1171,10 @@ export default function OsisPage() {
             </div>
           )}
 
-          <footer style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#a7f3d0', padding: '16px', textAlign: 'center', fontSize: '11.5px', borderTop: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
+          <footer className={styles.footer} style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#a7f3d0', padding: '16px', textAlign: 'center', fontSize: '11.5px', borderTop: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
             © 2026 Panel OSIS & MPK MindGuard - SMK Budi Bakti Ciwidey
           </footer>
         </div>
       </div>
-    </>
   );
 }

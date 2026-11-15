@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import MindGuardMark from '@/components/MindGuardMark';
+import PanelCompanion from '@/components/PanelCompanion';
 import {
   Menu,
   X,
@@ -21,6 +23,8 @@ import {
   LogOut,
   GraduationCap,
   ShieldAlert,
+  UserRound,
+  Archive,
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -73,6 +77,7 @@ export default function Sidebar() {
   const isPiket = roleUpper.includes('PIKET');
   const isBK = roleUpper.includes('BK');
   const isOSIS = roleUpper.includes('OSIS') || roleUpper.includes('MPK');
+  const companionAudience = isBK ? 'bk' : isOSIS ? 'osis' : isPiket ? 'piket' : 'student';
 
   const getLinkStyle = (path: string) => ({
     display: 'flex',
@@ -101,18 +106,7 @@ export default function Sidebar() {
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span className="mobile-brand-mark" aria-hidden="true">
-            <img
-              src="/logo-mindguard.jpeg"
-              alt=""
-              style={{
-                width: '170%',
-                height: '170%',
-                maxWidth: 'none',
-                objectFit: 'cover',
-                objectPosition: 'center 38%',
-                mixBlendMode: 'screen',
-              }}
-            />
+            <MindGuardMark size={32} />
           </span>
           <span style={{ fontWeight: 'bold', color: '#ffffff', fontSize: '16px' }}>MindGuard</span>
         </div>
@@ -133,18 +127,7 @@ export default function Sidebar() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 6px 16px 6px' }}>
             <div className="sidebar-brand-mark" style={{ backgroundColor: '#2d523e', width: '42px', height: '42px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', overflow: 'hidden', flexShrink: 0 }}>
               {/* LOGO APLIKASI DESKTOP / SIDEBAR MAIN */}
-              <img
-                src="/logo-mindguard.jpeg"
-                alt="MindGuard Logo"
-                style={{
-                  width: '170%',
-                  height: '170%',
-                  maxWidth: 'none',
-                  objectFit: 'cover',
-                  objectPosition: 'center 38%',
-                  mixBlendMode: 'screen',
-                }}
-              />
+              <MindGuardMark size={42} />
             </div>
             <div>
               <h1 style={{ margin: 0, fontSize: '17px', fontWeight: 'bold', color: '#ffffff', letterSpacing: '-0.025em' }}>MindGuard</h1>
@@ -208,9 +191,13 @@ export default function Sidebar() {
                   <PhoneCall size={18} />
                   <span>Panggilan Orang Tua</span>
                 </Link>
-                <Link href="/osis/rekap-mingguan" className={pathname === '/osis/rekap-mingguan' ? 'sidebar-nav-active' : undefined} style={getLinkStyle('/osis/rekap-mingguan')}>
-                  <CalendarDays size={18} />
-                  <span>Rekap Mingguan OSIS</span>
+                <Link href="/bk/arsip" className={pathname === '/bk/arsip' ? 'sidebar-nav-active' : undefined} style={getLinkStyle('/bk/arsip')}>
+                  <Archive size={18} />
+                  <span>Arsip Administrasi BK</span>
+                </Link>
+                <Link href="/bk/pelanggaran" className={pathname === '/bk/pelanggaran' ? 'sidebar-nav-active' : undefined} style={getLinkStyle('/bk/pelanggaran')}>
+                  <ShieldAlert size={18} />
+                  <span>Data Pelanggaran</span>
                 </Link>
               </>
             )}
@@ -235,6 +222,10 @@ export default function Sidebar() {
                 <Link href="/dashboard" className={pathname === '/dashboard' ? 'sidebar-nav-active' : undefined} style={getLinkStyle('/dashboard')}>
                   <Home size={18} />
                   <span>Beranda</span>
+                </Link>
+                <Link href="/profil" className={pathname === '/profil' ? 'sidebar-nav-active' : undefined} style={getLinkStyle('/profil')}>
+                  <UserRound size={18} />
+                  <span>Profil Saya</span>
                 </Link>
                 <Link href="/akun/email" className={pathname === '/akun/email' ? 'sidebar-nav-active' : undefined} style={getLinkStyle('/akun/email')}>
                   <Mail size={18} />
@@ -291,6 +282,14 @@ export default function Sidebar() {
             <LogOut size={16} />
             <span>Keluar (Logout)</span>
           </button>
+
+          <div className="sidebar-mindy">
+            <div className="sidebar-mindy-copy">
+              <strong>Teman Mindy</strong>
+              <span>Ketuk untuk bantuan</span>
+            </div>
+            <PanelCompanion audience={companionAudience} placement="sidebar" />
+          </div>
 
           <div style={{ fontSize: '10px', color: '#86efac', textAlign: 'center', marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: 0.8 }}>
             <GraduationCap size={14} />
