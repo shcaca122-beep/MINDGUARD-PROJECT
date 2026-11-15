@@ -57,6 +57,8 @@
 }
 
 .bk-panel-page .bk-panel-main {
+  display: flex;
+  flex-direction: column;
   height: 100dvh;
   min-height: 0 !important;
   min-width: 0;
@@ -73,6 +75,8 @@
   top: 0;
   z-index: 10;
   display: flex;
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
   height: auto !important;
   max-height: none !important;
   min-height: 54px;
@@ -158,6 +162,8 @@
 .bk-panel-page .bk-route-heading {
   position: relative;
   z-index: 1;
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
   height: auto !important;
   max-height: none !important;
   min-height: 68px;
@@ -182,7 +188,7 @@
 
 .bk-panel-page .bk-panel-main .bk-panel-content,
 .bk-panel-page .bk-panel-content {
-  flex: 1;
+  flex: 1 0 auto !important;
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
@@ -191,6 +197,7 @@
 }
 
 .bk-panel-page .bk-panel-main > footer {
+  flex: 0 0 auto !important;
   border-top: 1px solid rgba(110, 231, 183, 0.14) !important;
   background: rgba(4, 23, 17, 0.76) !important;
   color: #91c9ac !important;
@@ -646,6 +653,8 @@
   }
 
   .bk-panel-page .bk-panel-main {
+    display: flex !important;
+    flex-direction: column !important;
     height: calc(100dvh - 60px);
     min-height: 0 !important;
     margin-top: 0 !important;
@@ -657,6 +666,8 @@
     position: static !important;
     top: auto !important;
     display: flex !important;
+    flex: 0 0 auto !important;
+    flex-shrink: 0 !important;
     height: auto !important;
     max-height: none !important;
     min-height: 0 !important;
@@ -686,6 +697,8 @@
   .bk-panel-page .bk-route-heading {
     position: relative !important;
     top: auto !important;
+    flex: 0 0 auto !important;
+    flex-shrink: 0 !important;
     height: auto !important;
     max-height: none !important;
     min-height: 0 !important;
@@ -696,6 +709,7 @@
 
   .bk-panel-page .bk-panel-main .bk-panel-content,
   .bk-panel-page .bk-panel-content {
+    flex: 1 0 auto !important;
     margin-top: 0 !important;
     padding: 18px 16px !important;
   }
