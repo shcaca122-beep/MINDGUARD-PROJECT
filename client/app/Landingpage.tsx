@@ -58,7 +58,7 @@ export default function HomePage() {
       <section className="landing-hero">
         <div className="landing-hero-copy">
           <div className="landing-eyebrow"><span /> RUANG AMAN UNTUK BERTUMBUH</div>
-          <h1>
+          <h1 style={{ letterSpacing: '-0.01em', wordSpacing: '0.12em', lineHeight: 1.15 }}>
             Jaga langkahmu.
             <br />
             <span>Rawat dirimu.</span>
