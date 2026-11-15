@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase';
 import MindGuardMark from '@/components/MindGuardMark';
 import PanelCompanion from '@/components/PanelCompanion';
 import { 
+  Menu,
+  X,
   UserCheck, 
   Calendar, 
   AlertTriangle, 
@@ -26,6 +28,7 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
   const [adminRole, setAdminRole] = useState('TU');
   const [hoveredIndex, setHoveredIndex] = useState<string | null>(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const savedSession = localStorage.getItem('user_session');
@@ -60,7 +63,13 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
     }
   }, [router]);
 
+  const navigateTo = (path: string) => {
+    setIsMobileMenuOpen(false);
+    router.push(path);
+  };
+
   const handleLogout = async () => {
+    setIsMobileMenuOpen(false);
     await supabase.auth.signOut();
     localStorage.removeItem('user_session');
     localStorage.removeItem('user_role');
@@ -76,7 +85,7 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
       display: 'flex',
       alignItems: 'center',
       gap: '8px',
-      padding: '8px 10px',
+      padding: '9px 10px',
       borderRadius: '6px',
       color: isLightTheme
         ? active || hovered ? '#334155' : '#475569'
@@ -95,7 +104,8 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
   if (!isAuthorized) return null;
 
   return (
-    <div className="admin-panel"
+    <div
+      className="admin-panel"
       style={{
         minHeight: '100vh',
         width: '100vw',
@@ -108,8 +118,52 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
         boxSizing: 'border-box'
       }}
     >
+      {/* ================= HEADER MOBILE (HAMBURGER) ================= */}
+      <header className="admin-mobile-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+            aria-label="Buka atau tutup menu admin"
+            style={{
+              backgroundColor: '#13261f',
+              border: '1px solid #1d3d30',
+              color: '#34d399',
+              borderRadius: '8px',
+              width: '36px',
+              height: '36px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
+          >
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(52, 211, 153, 0.12)', border: '1px solid rgba(52, 211, 153, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px', boxSizing: 'border-box', overflow: 'hidden' }}>
+            <MindGuardMark size={32} />
+          </div>
+          <div>
+            <span style={{ fontSize: '15px', fontWeight: '800', color: '#ffffff', display: 'block', lineHeight: 1.1 }}>MindGuard</span>
+            <span style={{ fontSize: '10px', color: '#688c7d', fontWeight: '600' }}>Panel Admin</span>
+          </div>
+        </div>
+        <span style={{ fontSize: '10px', fontWeight: '700', color: '#34d399', backgroundColor: '#13261f', border: '1px solid #1d3d30', padding: '4px 9px', borderRadius: '999px' }}>
+          {adminRole}
+        </span>
+      </header>
+
+      {/* ================= OVERLAY MOBILE ================= */}
+      {isMobileMenuOpen && (
+        <div
+          className="admin-mobile-overlay"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* ================= SIDEBAR ================= */}
-      <aside className="admin-panel-sidebar"
+      <aside
+        className={`admin-panel-sidebar ${isMobileMenuOpen ? 'is-open' : ''}`}
         style={{
           width: '260px',
           flexShrink: 0,
@@ -125,14 +179,24 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
       >
         <div>
           {/* Logo Brand */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-            <div className="admin-panel-brand-mark" style={{ width: '38px', height: '38px', borderRadius: '8px', backgroundColor: isLightTheme ? '#174d3a' : 'rgba(52, 211, 153, 0.12)', border: `1px solid ${isLightTheme ? '#3b8a69' : 'rgba(52, 211, 153, 0.3)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3px', boxSizing: 'border-box', overflow: 'hidden' }}>
-              <MindGuardMark size={38} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="admin-panel-brand-mark" style={{ width: '38px', height: '38px', borderRadius: '8px', backgroundColor: isLightTheme ? '#174d3a' : 'rgba(52, 211, 153, 0.12)', border: `1px solid ${isLightTheme ? '#3b8a69' : 'rgba(52, 211, 153, 0.3)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3px', boxSizing: 'border-box', overflow: 'hidden' }}>
+                <MindGuardMark size={38} />
+              </div>
+              <div>
+                <span style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff', letterSpacing: '0.5px', display: 'block' }}>MindGuard</span>
+                <span style={{ fontSize: '10px', color: '#688c7d', fontWeight: '600' }}>Panel Konseling</span>
+              </div>
             </div>
-            <div>
-              <span style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff', letterSpacing: '0.5px', display: 'block' }}>MindGuard</span>
-              <span style={{ fontSize: '10px', color: '#688c7d', fontWeight: '600' }}>Panel Konseling</span>
-            </div>
+            <button
+              type="button"
+              className="admin-sidebar-close-btn"
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-label="Tutup menu"
+            >
+              <X size={18} />
+            </button>
           </div>
 
           {/* User Info Box */}
@@ -148,7 +212,7 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
           {/* Navigation Menu */}
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div 
-              onClick={() => router.push('/admin1')}
+              onClick={() => navigateTo('/admin1')}
               style={navItemStyle('/admin1', 'dashboard')}
               onMouseEnter={() => setHoveredIndex('dashboard')}
               onMouseLeave={() => setHoveredIndex(null)}
@@ -161,16 +225,16 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ fontSize: '10px', fontWeight: '700', color: '#567568', textTransform: 'uppercase', letterSpacing: '0.5px' }}>DATA MASTER</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <div onClick={() => router.push('/admin1/guru')} onMouseEnter={() => setHoveredIndex('guru')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/guru', 'guru')}>
+                <div onClick={() => navigateTo('/admin1/guru')} onMouseEnter={() => setHoveredIndex('guru')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/guru', 'guru')}>
                   <UserCheck size={14} /> <span>Data Admin</span>
                 </div>
-                <div onClick={() => router.push('/admin1/siswa')} onMouseEnter={() => setHoveredIndex('siswa')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/siswa', 'siswa')}>
+                <div onClick={() => navigateTo('/admin1/siswa')} onMouseEnter={() => setHoveredIndex('siswa')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/siswa', 'siswa')}>
                   <GraduationCap size={14} /> <span>Data Siswa</span>
                 </div>
-                <div onClick={() => router.push('/admin1/layanan')} onMouseEnter={() => setHoveredIndex('layanan')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/layanan', 'layanan')}>
+                <div onClick={() => navigateTo('/admin1/layanan')} onMouseEnter={() => setHoveredIndex('layanan')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/layanan', 'layanan')}>
                   <Layers size={14} /> <span>Jenis Layanan</span>
                 </div>
-                <div onClick={() => router.push('/admin1/profil')} onMouseEnter={() => setHoveredIndex('profil')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/profil', 'profil')}>
+                <div onClick={() => navigateTo('/admin1/profil')} onMouseEnter={() => setHoveredIndex('profil')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/profil', 'profil')}>
                   <School size={14} /> <span>Profil Sekolah</span>
                 </div>
               </div>
@@ -180,10 +244,10 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ fontSize: '10px', fontWeight: '700', color: '#567568', textTransform: 'uppercase', letterSpacing: '0.5px' }}>KEGIATAN BK</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <div onClick={() => router.push('/admin1/konseling')} onMouseEnter={() => setHoveredIndex('konseling')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/konseling', 'konseling')}>
+                <div onClick={() => navigateTo('/admin1/konseling')} onMouseEnter={() => setHoveredIndex('konseling')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/konseling', 'konseling')}>
                   <Calendar size={14} /> <span>Sesi Konseling</span>
                 </div>
-                <div onClick={() => router.push('/admin1/pelanggaran')} onMouseEnter={() => setHoveredIndex('pelanggaran')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/pelanggaran', 'pelanggaran')}>
+                <div onClick={() => navigateTo('/admin1/pelanggaran')} onMouseEnter={() => setHoveredIndex('pelanggaran')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/pelanggaran', 'pelanggaran')}>
                   <AlertTriangle size={14} /> <span>Pelanggaran Siswa</span>
                 </div>
               </div>
@@ -193,10 +257,10 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ fontSize: '10px', fontWeight: '700', color: '#567568', textTransform: 'uppercase', letterSpacing: '0.5px' }}>LAPORAN</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <div onClick={() => router.push('/admin1/laporan-konseling')} onMouseEnter={() => setHoveredIndex('lap-konseling')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/laporan-konseling', 'lap-konseling')}>
+                <div onClick={() => navigateTo('/admin1/laporan-konseling')} onMouseEnter={() => setHoveredIndex('lap-konseling')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/laporan-konseling', 'lap-konseling')}>
                   <FileText size={14} /> <span>Laporan Konseling</span>
                 </div>
-                <div onClick={() => router.push('/admin1/laporan-pelanggaran')} onMouseEnter={() => setHoveredIndex('lap-pelanggaran')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/laporan-pelanggaran', 'lap-pelanggaran')}>
+                <div onClick={() => navigateTo('/admin1/laporan-pelanggaran')} onMouseEnter={() => setHoveredIndex('lap-pelanggaran')} onMouseLeave={() => setHoveredIndex(null)} style={navItemStyle('/admin1/laporan-pelanggaran', 'lap-pelanggaran')}>
                   <FileText size={14} /> <span>Laporan Pelanggaran</span>
                 </div>
               </div>
@@ -227,6 +291,98 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
       <main className="admin-panel-main" style={{ flex: 1, minWidth: 0, backgroundColor: '#0e1a15', border: '1px solid #193328', borderRadius: '12px', padding: '24px', boxSizing: 'border-box', overflowY: 'auto' }}>
         {children}
       </main>
+
+      <style jsx global>{`
+        .admin-mobile-header,
+        .admin-mobile-overlay,
+        .admin-sidebar-close-btn {
+          display: none;
+        }
+
+        @media (max-width: 768px) {
+          .admin-panel {
+            flex-direction: column !important;
+            width: 100% !important;
+            padding: 12px !important;
+            gap: 12px !important;
+            overflow-x: hidden;
+          }
+
+          .admin-mobile-header {
+            display: flex !important;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #0e1a15;
+            border: 1px solid #193328;
+            border-radius: 12px;
+            padding: 10px 14px;
+            position: sticky;
+            top: 12px;
+            z-index: 30;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+          }
+
+          .admin-mobile-overlay {
+            display: block;
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(2px);
+            z-index: 45;
+          }
+
+          .admin-sidebar-close-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background-color: #13261f;
+            border: 1px solid #1d3d30;
+            color: #cbd5e1;
+            cursor: pointer;
+          }
+
+          .admin-panel-sidebar {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            bottom: 0 !important;
+            width: 270px !important;
+            max-width: 82vw !important;
+            height: 100dvh !important;
+            border-radius: 0 14px 14px 0 !important;
+            z-index: 50 !important;
+            overflow-y: auto !important;
+            transform: translateX(-105%) !important;
+            transition: transform 0.25s ease-in-out !important;
+            box-shadow: 12px 0 32px rgba(0, 0, 0, 0.5) !important;
+          }
+
+          .admin-panel-sidebar.is-open {
+            transform: translateX(0) !important;
+          }
+
+          .admin-panel-main {
+            width: 100% !important;
+            padding: 16px !important;
+          }
+
+          .admin-panel-main table {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .admin-panel-main th,
+          .admin-panel-main td {
+            white-space: nowrap;
+          }
+        }
+      `}</style>
     </div>
   );
 }

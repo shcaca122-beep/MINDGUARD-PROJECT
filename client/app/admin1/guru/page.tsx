@@ -171,7 +171,7 @@ export default function DataGuruPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #193328', paddingBottom: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#fff', margin: 0 }}>DATA GURU BK & STAF</h1>
+          <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#fff', margin: 0 }}>DATA OSIS/MPK & STAF</h1>
           <p style={{ fontSize: '12px', color: '#688c7d', margin: '4px 0 0 0' }}>Kelola daftar pembimbing konseling dan pengelola dari Supabase</p>
         </div>
         <button type="button" onClick={openAddModal} style={{ backgroundColor: '#34d399', color: '#07100d', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>

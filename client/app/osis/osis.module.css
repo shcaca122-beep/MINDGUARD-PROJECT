@@ -35,7 +35,7 @@
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 1;
   min-height: 66px;
   gap: 16px;
   padding: 12px clamp(20px, 2.4vw, 36px) !important;
@@ -417,10 +417,19 @@
 }
 
 @media (max-width: 768px) {
+  .page {
+    height: calc(100dvh - 60px);
+    min-height: 0;
+  }
+
+  .sidebar {
+    z-index: 1000;
+  }
+
   .contentColumn {
     height: calc(100dvh - 60px);
     min-height: 0 !important;
-    margin-top: 60px;
+    margin-top: 0;
   }
 
   .topbar {

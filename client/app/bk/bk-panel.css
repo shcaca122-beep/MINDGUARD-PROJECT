@@ -70,8 +70,9 @@
 .bk-panel-page .bk-panel-main > .bk-utility-bar {
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: 10;
   display: flex;
+  height: auto !important;
   min-height: 54px;
   align-items: center;
   gap: 18px;
@@ -154,6 +155,7 @@
 .bk-panel-page .bk-panel-main > .bk-route-heading {
   position: relative;
   z-index: 1;
+  height: auto !important;
   min-height: 68px;
   padding: 13px 28px !important;
   background: rgba(4, 27, 21, 0.94) !important;
@@ -620,8 +622,15 @@
 }
 
 @media (max-width: 768px) {
+  .bk-panel-page {
+    height: calc(100dvh - 60px);
+    min-height: 0 !important;
+  }
+
   .bk-panel-page > .bk-panel-sidebar,
   .bk-panel-page > div.bk-panel-sidebar {
+    position: relative;
+    z-index: 1000;
     width: 0;
     flex: 0 0 0;
     overflow: visible !important;
@@ -630,16 +639,17 @@
   .bk-panel-page .bk-panel-main {
     height: calc(100dvh - 60px);
     min-height: 0 !important;
-    margin-top: 60px;
+    margin-top: 0;
     padding-top: 0;
   }
 
   .bk-panel-page .bk-panel-main > .bk-utility-bar {
     top: 0;
+    height: auto !important;
     min-height: 52px;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 8px 16px !important;
+    padding: 10px 16px !important;
   }
 
   .bk-utility-route {
@@ -659,8 +669,9 @@
   }
 
   .bk-panel-page .bk-panel-main > .bk-route-heading {
+    height: auto !important;
+    min-height: 0;
     padding: 12px 16px !important;
-    min-height: 60px;
   }
 
   .bk-panel-page .bk-panel-main > .bk-panel-content {
