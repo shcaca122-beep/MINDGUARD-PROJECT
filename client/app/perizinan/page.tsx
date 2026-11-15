@@ -5,6 +5,17 @@ import { supabase } from '@/lib/supabase';
 import { useState, useEffect } from 'react';
 import { FileText, Calendar, RefreshCw, Send, Sparkles, ClipboardList } from 'lucide-react';
 
+type StudentPermission = {
+  id: string | number;
+  jenis_izin?: string | null;
+  alasan?: string | null;
+  tanggal?: string | null;
+  jam_mulai?: string | null;
+  lampiran_url?: string | null;
+  created_at?: string | null;
+  status?: string | null;
+};
+
 export default function PerizinanPage() {
   const today = new Date().toISOString().split('T')[0];
 
@@ -17,42 +28,52 @@ export default function PerizinanPage() {
 
   const [waktu, setWaktu] = useState('');
   const [alasan, setAlasan] = useState('');
-  
+
   const [lampiranBase64, setLampiranBase64] = useState<string>('');
   const [fileName, setFileName] = useState<string>('');
 
-  const [listIzin, setListIzin] = useState<any[]>([]);
+  const [listIzin, setListIzin] = useState<StudentPermission[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  const needsDateRange = 
+  const needsDateRange =
     (tabKategori === 'sakit' && subSakit.includes('Dari Rumah')) ||
     (tabKategori === 'izin' && subIzin.includes('Urusan Keluarga')) ||
     (tabKategori === 'izin' && subIzin.includes('Dispensasi'));
 
   const fetchPerizinan = async () => {
     try {
-      const sessionData = localStorage.getItem('user_session');
-      const session = sessionData ? JSON.parse(sessionData) : {};
-      const namaSiswa = session.nama || session.email;
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Sesi login tidak valid. Silakan masuk kembali.');
 
-      let query = supabase.from('perizinan_siswa').select('*').order('created_at', { ascending: false });
-
-      if (namaSiswa) {
-        query = query.ilike('nama_siswa', `%${namaSiswa}%`);
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('role, student_record_id')
+        .eq('user_id', user.id)
+        .single();
+      if (profileError) throw profileError;
+      if (profile.role !== 'siswa' || !profile.student_record_id) {
+        throw new Error('Profil siswa tidak terhubung ke data siswa.');
       }
 
-      const { data, error } = await query;
-      if (!error && data) {
-        setListIzin(data);
-      }
+      const { data, error } = await supabase
+        .from('perizinan_siswa')
+        .select('*')
+        .eq('siswa_id', profile.student_record_id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setListIzin((data || []) as StudentPermission[]);
     } catch (err) {
       console.error('Error fetching perizinan:', err);
     }
   };
 
   useEffect(() => {
-    fetchPerizinan();
+    const initialLoad = window.setTimeout(() => {
+      void fetchPerizinan();
+    }, 0);
+    return () => window.clearTimeout(initialLoad);
   }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,6 +100,18 @@ export default function PerizinanPage() {
     try {
       const sessionData = localStorage.getItem('user_session');
       const session = sessionData ? JSON.parse(sessionData) : {};
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Sesi login tidak valid. Silakan masuk kembali.');
+
+      const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('role, student_record_id')
+        .eq('user_id', user.id)
+        .single();
+      if (profileError) throw profileError;
+      if (profile.role !== 'siswa' || !profile.student_record_id) {
+        throw new Error('Profil siswa tidak terhubung ke data siswa.');
+      }
 
       const subKategoriAktif = tabKategori === 'sakit' ? subSakit : subIzin;
       const jenisFinal = `[${tabKategori.toUpperCase()}] ${subKategoriAktif}`;
@@ -88,6 +121,7 @@ export default function PerizinanPage() {
         : today;
 
       const payload = {
+        siswa_id: profile.student_record_id,
         nama_siswa: session.nama || session.email || 'Siswa',
         kelas: session.kelas || 'X',
         jenis_izin: jenisFinal,
@@ -114,11 +148,11 @@ export default function PerizinanPage() {
       setLampiranBase64('');
       setFileName('');
       fetchPerizinan();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setStatusMsg({
         type: 'error',
-        message: err.message || 'Gagal mengirim pengajuan perizinan.',
+        message: err instanceof Error ? err.message : 'Gagal mengirim pengajuan perizinan.',
       });
     } finally {
       setIsLoading(false);
@@ -138,23 +172,23 @@ export default function PerizinanPage() {
         }
       ` }} />
       {/* DIPERBAIKI: Menggunakan width 100% agar simetris dan seimbang di tengah */}
-      <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
-        
+      <div className="student-panel-page student-feature-refresh student-perizinan-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
+
         {/* SIDEBAR */}
         <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
           <Sidebar />
         </div>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
-          
+        <div className="student-feature-scroll" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
+
           {/* TOP BAR GRADASI */}
-          <div style={{ 
-            background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', 
-            color: '#ffffff', 
-            padding: '18px 30px', 
-            borderBottom: '1px solid rgba(52, 211, 153, 0.2)', 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)',
+            color: '#ffffff',
+            padding: '18px 30px',
+            borderBottom: '1px solid rgba(52, 211, 153, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
             gap: '10px',
             boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
             width: '100%',
@@ -180,8 +214,8 @@ export default function PerizinanPage() {
           </div>
 
           {/* CONTENT UTAMA - DISIMETRISKAN KE TENGAH */}
-          <div style={{ padding: '30px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
-            
+          <div className="student-feature-content student-perizinan-content" style={{ padding: '30px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+
             {statusMsg && (
               <div style={{ padding: '14px 18px', borderRadius: '12px', marginBottom: '20px', fontWeight: '700', fontSize: '13.5px', backgroundColor: statusMsg.type === 'success' ? '#064e3b' : '#7f1d1d', color: statusMsg.type === 'success' ? '#dcfce7' : '#fee2e2', border: `1px solid ${statusMsg.type === 'success' ? '#10b981' : '#f87171'}`, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', width: '100%', boxSizing: 'border-box' }}>
                 {statusMsg.type === 'success' ? '✅ ' : '⚠️ '} {statusMsg.message}
@@ -189,10 +223,10 @@ export default function PerizinanPage() {
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '25px', alignItems: 'start', width: '100%', boxSizing: 'border-box' }}>
-              
+
               {/* FORMULIR PERIZINAN */}
               <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '24px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
-                
+
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', backgroundColor: '#021f18', padding: '6px', borderRadius: '12px', border: '1px solid rgba(52, 211, 153, 0.2)', width: '100%', boxSizing: 'border-box' }}>
                   <button
                     type="button"
@@ -233,7 +267,7 @@ export default function PerizinanPage() {
                 </div>
 
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', boxSizing: 'border-box' }}>
-                  
+
                   {tabKategori === 'sakit' ? (
                     <div>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
@@ -419,7 +453,7 @@ export default function PerizinanPage() {
                           )}
 
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', flexWrap: 'wrap', gap: '6px' }}>
-                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>Dibuat: {new Date(item.created_at).toLocaleDateString('id-ID')}[cite: 11]</span>
+                            <span style={{ fontSize: '11px', color: '#94a3b8' }}>Dibuat: {item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : 'Tanggal tidak tersedia'}[cite: 11]</span>
                             <span style={{ fontSize: '11px', fontWeight: '700', padding: '3px 8px', borderRadius: '6px', backgroundColor: item.status === 'DISETUJUI PIKET' || item.status === 'DISETUJUI' ? 'rgba(5, 150, 105, 0.2)' : 'rgba(217, 119, 6, 0.2)', color: item.status === 'DISETUJUI PIKET' || item.status === 'DISETUJUI' ? '#34d399' : '#fcd34d', border: item.status === 'DISETUJUI PIKET' || item.status === 'DISETUJUI' ? '1px solid rgba(52, 211, 153, 0.3)' : '1px solid rgba(252, 211, 77, 0.3)' }}>
                               {item.status || 'MENUNGGU ACC'}
                             </span>

@@ -44,6 +44,53 @@ export default function AdminDashboardPage() {
   const [monthlyData, setMonthlyData] = useState(() => MONTHS.map((month) => ({ month, val: 0 })));
   const [chartStatus, setChartStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [chartError, setChartError] = useState('');
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [studentCountStatus, setStudentCountStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [studentCountError, setStudentCountError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadStudentCount = async () => {
+      try {
+        const pageSize = 500;
+        const allRows: { role: string | null }[] = [];
+
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await supabase
+            .from('users')
+            .select('role')
+            .order('id', { ascending: true })
+            .range(offset, offset + pageSize - 1);
+          if (error) throw error;
+
+          allRows.push(...(data || []));
+          if (!data || data.length < pageSize) break;
+        }
+
+        const count = allRows.filter((student) => {
+          const role = (student.role || '').trim().toLowerCase();
+          return !role || role.includes('siswa');
+        }).length;
+
+        if (isMounted) {
+          setTotalStudents(count);
+          setStudentCountStatus('ready');
+        }
+      } catch (error) {
+        console.error('Gagal memuat total siswa:', error);
+        if (isMounted) {
+          setStudentCountError(error instanceof Error ? error.message : 'Terjadi kesalahan saat membaca data.');
+          setStudentCountStatus('error');
+        }
+      }
+    };
+
+    void loadStudentCount();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -91,7 +138,7 @@ export default function AdminDashboardPage() {
   const hasMonthlyData = monthlyData.some((item) => item.val > 0);
 
   return (
-    <div className="text-white font-sans antialiased">
+    <div className="admin-dashboard text-white font-sans antialiased">
       <div className="flex flex-col justify-between overflow-y-auto">
         <div>
           {/* HEADER DASHBOARD BANNER */}
@@ -107,7 +154,7 @@ export default function AdminDashboardPage() {
           {/* 4 CARDS KARTU UTAMA (SESUAI UI DESAIN) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {[
-              { label: 'TOTAL SISWA', val: '0', link: '/admin1/siswa' },
+              { label: 'TOTAL SISWA', val: studentCountStatus === 'loading' ? '…' : studentCountStatus === 'error' ? '—' : totalStudents.toLocaleString('id-ID'), link: '/admin1/siswa' },
               { label: 'TOTAL GURU BK', val: '1', link: '/admin1/guru' },
               { label: 'SESI KONSELING', val: '0', link: '/admin1/konseling' },
               { label: 'PELANGGARAN', val: '2', link: '/admin1/pelanggaran' },
@@ -117,11 +164,16 @@ export default function AdminDashboardPage() {
                 className="bg-[#032318] border border-[#09422e] rounded-xl overflow-hidden flex flex-col justify-between shadow-md hover:border-[#34d399]/40 transition-all"
               >
                 {/* HEAD CARD WITH BRIGHT TEAL GRADIENT */}
-                <div className="bg-linear-to-r from-[#6ee7b7] to-[#34d399] p-4 text-[#021811]">
+                <div className="admin-dashboard-stat-header bg-linear-to-r from-[#6ee7b7] to-[#34d399] p-4 text-[#021811]">
                   <h2 className="text-3xl font-black">{card.val}</h2>
                   <p className="text-[11px] font-extrabold uppercase tracking-wider mt-1 opacity-90">
                     {card.label}
                   </p>
+                  {idx === 0 && studentCountStatus === 'error' && (
+                    <p className="admin-dashboard-muted mt-1 text-[10px]" role="status" title={studentCountError}>
+                      Gagal memuat jumlah siswa
+                    </p>
+                  )}
                 </div>
                 {/* FOOTER CARD */}
                 <a
@@ -162,9 +214,9 @@ export default function AdminDashboardPage() {
                       </span>
                       <div
                         style={{ height: `${heightPercent}%` }}
-                        className="w-full max-w-6 bg-linear-to-t from-[#064e3b] to-[#34d399] rounded-t-sm group-hover:brightness-125 transition-all"
+                        className="admin-dashboard-chart-bar w-full max-w-6 bg-linear-to-t from-[#064e3b] to-[#34d399] rounded-t-sm group-hover:brightness-125 transition-all"
                       />
-                      <span className="text-[10px] text-gray-400 mt-2 font-semibold">
+                      <span className="admin-dashboard-muted text-[10px] mt-2 font-semibold">
                         {item.month}
                       </span>
                     </div>
@@ -203,7 +255,7 @@ export default function AdminDashboardPage() {
                     <p className="text-[10px] text-[#34d399] font-bold uppercase tracking-wider">
                       ALAMAT
                     </p>
-                    <p className="text-gray-300 mt-1 leading-relaxed">
+                    <p className="admin-dashboard-muted mt-1 leading-relaxed">
                       Jl. Babakantiga No. 82, Ciwidey, Kab. Bandung, Jawa Barat 40973
                     </p>
                   </div>

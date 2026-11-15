@@ -3,8 +3,47 @@
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
 import { isHighPriorityMessage, markPriorityTitle } from '@/lib/counseling-priority';
-import { useState } from 'react';
-import { MessageSquareHeart, ShieldCheck, PenTool, Send, Lock, Lightbulb, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  AlertTriangle,
+  CalendarDays,
+  Clock3,
+  Lightbulb,
+  Loader2,
+  Lock,
+  MessageSquareHeart,
+  PenTool,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+} from 'lucide-react';
+import styles from './curhat.module.css';
+
+type CurhatHistoryRecord = {
+  id: string | number;
+  nama_siswa?: string | null;
+  judul_pesan?: string | null;
+  topik?: string | null;
+  deskripsi?: string | null;
+  pesan?: string | null;
+  status?: string | null;
+  balasan?: string | null;
+  created_at?: string | null;
+};
+
+const formatCurhatDate = (dateValue?: string | null) => {
+  if (!dateValue) return 'Tanggal tidak tersedia';
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return dateValue;
+  return new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+};
 
 export default function CurhatPage() {
   const [kategori, setKategori] = useState('Pribadi / Emosional');
@@ -14,6 +53,58 @@ export default function CurhatPage() {
   const [needsFastSupport, setNeedsFastSupport] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [studentName, setStudentName] = useState('Siswa');
+  const [curhatHistory, setCurhatHistory] = useState<CurhatHistoryRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState('');
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError('');
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw new Error(`Gagal memeriksa sesi akun: ${userError.message}`);
+      if (!user?.email) throw new Error('Sesi login tidak valid. Silakan masuk kembali.');
+
+      const { data, error } = await supabase
+        .from('layanan_siswa')
+        .select('*')
+        .eq('email_siswa', user.email)
+        .eq('layanan', 'CURHAT')
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw new Error(`Gagal memuat riwayat curhat: ${error.message}`);
+      setCurhatHistory((data || []) as CurhatHistoryRecord[]);
+    } catch (error) {
+      console.error('Gagal memuat riwayat curhat siswa:', error);
+      setHistoryError(error instanceof Error ? error.message : 'Riwayat curhat belum dapat dimuat.');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    Promise.resolve().then(() => {
+      if (!isMounted) return;
+      try {
+        const sessionValue = localStorage.getItem('user_session');
+        if (sessionValue) {
+          const session: unknown = JSON.parse(sessionValue);
+          if (session && typeof session === 'object' && 'nama' in session && typeof session.nama === 'string') {
+            setStudentName(session.nama);
+          }
+        }
+      } catch (error) {
+        console.error('Gagal membaca nama siswa dari sesi:', error);
+      }
+      void loadHistory();
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [loadHistory]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,6 +114,8 @@ export default function CurhatPage() {
     try {
       const sessionData = localStorage.getItem('user_session');
       const session = sessionData ? JSON.parse(sessionData) : {};
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user?.email) throw new Error('Sesi login tidak valid. Silakan masuk kembali.');
 
       const namaPengirim = isAnonim ? 'Anonim' : (session.nama || session.email || 'Siswa');
       const isPriority = needsFastSupport || isHighPriorityMessage(judul, pesan);
@@ -30,6 +123,7 @@ export default function CurhatPage() {
 
       const payload: Record<string, string> = {
         nama_siswa: namaPengirim,
+        email_siswa: user.email,
         layanan: 'CURHAT',
         judul_pesan: isPriority ? markPriorityTitle(messageTitle) : messageTitle,
         deskripsi: pesan,
@@ -69,6 +163,7 @@ export default function CurhatPage() {
       setJudul('');
       setPesan('');
       setNeedsFastSupport(false);
+      void loadHistory();
     } catch (err: unknown) {
       console.error('Error submit:', err);
       setStatus({
@@ -94,38 +189,33 @@ export default function CurhatPage() {
           overflow-x: hidden !important;
         }
       ` }} />
-      {/* DIPERBAIKI: Menggunakan width 100% agar simetris dan seimbang di tengah */}
-      <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
-        
-        {/* SIDEBAR */}
+      <div className="student-panel-page student-feature-refresh student-curhat-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
           <Sidebar />
         </div>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
-          
-          {/* TOP BAR GRADASI */}
-          <div style={{ 
-            background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', 
-            color: '#ffffff', 
-            padding: '18px 30px', 
-            borderBottom: '1px solid rgba(52, 211, 153, 0.2)', 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '10px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-            width: '100%',
-            boxSizing: 'border-box'
-          }}>
-            <MessageSquareHeart size={22} color="#34d399" />
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#ffffff', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
-              Layanan Curhat Anonim
-            </h2>
+        <div className="student-feature-scroll" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
+          <div className={styles.topbar}>
+            <div className={styles.topbarTitle}>
+              <span className={styles.topbarIcon}><MessageSquareHeart size={18} /></span>
+              <strong>Curhat ke Guru BK</strong>
+              <code>/curhat</code>
+            </div>
+            <div className={styles.welcome}>
+              <Sparkles size={14} />
+              <span>Selamat Datang, <strong>{studentName.toLocaleUpperCase('id-ID')}!</strong></span>
+            </div>
           </div>
 
-          {/* CONTENT - DISIMETRISKAN KE TENGAH */}
-          <div style={{ padding: '30px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
-            
+          <div className="student-feature-content student-curhat-content" style={{ padding: '30px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+            <header className={styles.pageHeading}>
+              <span className={styles.pageHeadingIcon}><MessageSquareHeart size={22} /></span>
+              <div>
+                <h1>Layanan Curhat Anonim</h1>
+                <p>Ruang aman untuk bercerita tanpa rasa khawatir atau dihakimi.</p>
+              </div>
+            </header>
+
             <div
               style={{
                 backgroundColor: 'rgba(2, 31, 24, 0.85)',
@@ -204,7 +294,7 @@ export default function CurhatPage() {
                   )}
                   {(messageNeedsReview || needsFastSupport) && isAnonim && (
                     <p style={{ margin: '-8px 0 0', color: '#fecaca', fontSize: '11px', lineHeight: 1.5 }}>
-                      Karena kamu memilih anonim, Guru BK mungkin tidak dapat menghubungi atau menemukanmu kembali. Kamu bisa mematikan pilihan anonim jika ingin dihubungi.
+                      Nama pesan akan disamarkan, tetapi akunmu tetap tertaut dan email akun dapat digunakan Guru BK untuk menghubungimu.
                     </p>
                   )}
 
@@ -223,10 +313,12 @@ export default function CurhatPage() {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
-                      Isi Cerita / Curhatan
+                    <label htmlFor="curhat-message" style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', fontSize: '12px', fontWeight: '700', color: '#cbd5e1', marginBottom: '6px' }}>
+                      <span>Isi Cerita / Curhatan</span>
+                      <span className={styles.characterCount}>{pesan.length} karakter</span>
                     </label>
                     <textarea
+                      id="curhat-message"
                       rows={6}
                       required
                       placeholder="Tuliskan semua yang ingin kamu luapkan secara bebas di sini..."
@@ -258,7 +350,9 @@ export default function CurhatPage() {
                       Kirim sebagai Anonim (Sembunyikan Namaku)
                     </label>
                     <p style={{ margin: '4px 0 0 26px', fontSize: '11px', color: '#94a3b8' }}>
-                      {isAnonim ? 'Identitasmu tidak akan terlihat oleh Guru BK.' : 'Nama dan kelasmu akan terlihat oleh Guru BK.'}
+                      {isAnonim
+                        ? 'Nama pesan ditampilkan sebagai Anonim; email akun tetap tertaut dan dapat diakses Guru BK.'
+                        : 'Nama dan kelasmu akan terlihat oleh Guru BK; email akun tetap tertaut.'}
                     </p>
                   </div>
 
@@ -309,9 +403,73 @@ export default function CurhatPage() {
                   <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12.5px', color: '#cbd5e1', lineHeight: '1.7' }}>
                     <li>Tuliskan apa adanya yang sedang kamu rasakan.</li>
                     <li>Sebutkan situasi yang membuatmu merasa tidak nyaman.</li>
-                    <li>Jika butuh bantuan tatap muka, gunakan fitur <strong>Booking BK</strong>.</li>
+                    <li>Jika butuh bantuan tatap muka, gunakan fitur <Link href="/booking" className={styles.inlineLink}>Booking BK</Link>.</li>
                   </ul>
                 </div>
+
+                <section className={styles.historyCard} aria-labelledby="curhat-history-title">
+                  <div className={styles.historyHeader}>
+                    <div>
+                      <h3 id="curhat-history-title">Riwayat Curhat Terkirim</h3>
+                      <p>Pesan terbaru yang dikirim dari akunmu.</p>
+                    </div>
+                    <span className={styles.historyCount}>{curhatHistory.length} pesan</span>
+                  </div>
+
+                  {historyLoading ? (
+                    <div className={styles.historyState} role="status">
+                      <Loader2 size={17} className="animate-spin" /> Memuat riwayat...
+                    </div>
+                  ) : historyError ? (
+                    <div className={`${styles.historyState} ${styles.historyError}`} role="alert">
+                      <span>{historyError}</span>
+                      <button type="button" onClick={() => void loadHistory()} aria-label="Muat ulang riwayat curhat">
+                        <RefreshCw size={15} /> Coba lagi
+                      </button>
+                    </div>
+                  ) : curhatHistory.length === 0 ? (
+                    <div className={styles.historyEmpty}>
+                      <span className={styles.historyEmptyIcon}><MessageSquareHeart size={18} /></span>
+                      <strong>Belum ada curhatan terkirim</strong>
+                      <span>Pesan yang kamu kirim akan tampil di sini.</span>
+                    </div>
+                  ) : (
+                    <div className={styles.historyList}>
+                      {curhatHistory.map((item) => {
+                        const hasReply = Boolean(item.balasan?.trim());
+                        const messageBody = item.topik || item.deskripsi || item.pesan;
+                        const displayStatus = hasReply
+                          ? 'Sudah dibalas'
+                          : item.status?.toLocaleUpperCase('id-ID') === 'TERKIRIM'
+                            ? 'Menunggu balasan'
+                            : item.status || 'Terkirim';
+                        return (
+                          <article className={styles.historyItem} key={item.id}>
+                            <div className={styles.historyItemTop}>
+                              <span className={styles.anonymousBadge}>
+                                {item.nama_siswa === 'Anonim' ? <Lock size={10} /> : <UserRound size={10} />}
+                                {item.nama_siswa === 'Anonim' ? 'Anonim' : item.nama_siswa || 'Pengirim'}
+                              </span>
+                              <span className={styles.historyDate}><CalendarDays size={12} />{formatCurhatDate(item.created_at)}</span>
+                            </div>
+                            <h4>{item.judul_pesan || 'Curhat tanpa judul'}</h4>
+                            <p className={styles.historyMessage}>{messageBody || 'Isi pesan belum tersedia.'}</p>
+                            <div className={`${styles.historyStatus} ${hasReply ? styles.historyStatusReplied : ''}`}>
+                              <span>{displayStatus}</span>
+                              {!hasReply && <Clock3 size={12} />}
+                            </div>
+                            {hasReply && (
+                              <div className={styles.replyBox}>
+                                <strong>Balasan Guru BK:</strong>
+                                <p>{item.balasan}</p>
+                              </div>
+                            )}
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
               </div>
 
             </div>

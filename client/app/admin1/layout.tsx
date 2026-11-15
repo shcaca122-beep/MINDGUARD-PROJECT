@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import MindGuardMark from '@/components/MindGuardMark';
+import PanelCompanion from '@/components/PanelCompanion';
 import { 
   UserCheck, 
   Calendar, 
@@ -18,6 +20,7 @@ import {
 export default function Admin1Layout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const isLightTheme = false;
   
   const [adminName, setAdminName] = useState('STAF IT & TATA USAHA');
   const [adminRole, setAdminRole] = useState('TU');
@@ -57,7 +60,8 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
     }
   }, [router]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     localStorage.removeItem('user_session');
     localStorage.removeItem('user_role');
     localStorage.removeItem('admin_role');
@@ -67,14 +71,19 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
 
   const navItemStyle = (path: string, id: string) => {
     const active = pathname === path;
+    const hovered = hoveredIndex === id;
     return {
       display: 'flex',
       alignItems: 'center',
       gap: '8px',
       padding: '8px 10px',
       borderRadius: '6px',
-      color: active ? '#34d399' : hoveredIndex === id ? '#34d399' : '#cbd5e1',
-      backgroundColor: active ? 'rgba(52, 211, 153, 0.1)' : hoveredIndex === id ? '#13261f' : 'transparent',
+      color: isLightTheme
+        ? active || hovered ? '#334155' : '#475569'
+        : active || hovered ? '#34d399' : '#cbd5e1',
+      backgroundColor: isLightTheme
+        ? active ? '#e9eef3' : hovered ? '#f3f6f8' : 'transparent'
+        : active ? 'rgba(52, 211, 153, 0.1)' : hovered ? '#13261f' : 'transparent',
       textDecoration: 'none',
       fontSize: '12px',
       fontWeight: active ? '700' : '500',
@@ -117,16 +126,8 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
         <div>
           {/* Logo Brand */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-            <div style={{ width: '38px', height: '38px', borderRadius: '8px', backgroundColor: 'rgba(52, 211, 153, 0.12)', border: '1px solid rgba(52, 211, 153, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3px', boxSizing: 'border-box' }}>
-              <Image
-                src="/logo-mindguard.jpeg"
-                alt="Logo MindGuard"
-                width={32}
-                height={32}
-                priority
-                unoptimized
-                style={{ width: '100%', height: '100%', objectFit: 'contain', mixBlendMode: 'screen' }}
-              />
+            <div className="admin-panel-brand-mark" style={{ width: '38px', height: '38px', borderRadius: '8px', backgroundColor: isLightTheme ? '#174d3a' : 'rgba(52, 211, 153, 0.12)', border: `1px solid ${isLightTheme ? '#3b8a69' : 'rgba(52, 211, 153, 0.3)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3px', boxSizing: 'border-box', overflow: 'hidden' }}>
+              <MindGuardMark size={38} />
             </div>
             <div>
               <span style={{ fontSize: '18px', fontWeight: '800', color: '#ffffff', letterSpacing: '0.5px', display: 'block' }}>MindGuard</span>
@@ -135,10 +136,10 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
           </div>
 
           {/* User Info Box */}
-          <div style={{ backgroundColor: '#13261f', border: '1px solid #1d3d30', borderRadius: '8px', padding: '12px', marginBottom: '20px' }}>
-            <div style={{ fontSize: '9px', color: '#688c7d', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>AKTIF SEBAGAI</div>
-            <div style={{ fontSize: '12px', fontWeight: '800', color: '#ffffff', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{adminName}</div>
-            <div style={{ fontSize: '10px', color: '#34d399', fontWeight: '600', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className="admin-panel-user-card" style={{ background: isLightTheme ? 'linear-gradient(145deg, #f2f8f5 0%, #eaf3ef 100%)' : '#13261f', border: `1px solid ${isLightTheme ? '#d4e4dc' : '#1d3d30'}`, borderRadius: '8px', padding: '12px', marginBottom: '20px', boxShadow: isLightTheme ? 'inset 0 1px 0 rgba(255,255,255,0.8), 0 4px 12px rgba(42,73,80,0.05)' : undefined }}>
+            <div style={{ fontSize: '9px', color: isLightTheme ? '#648074' : '#688c7d', fontWeight: '700', letterSpacing: '0.5px', textTransform: 'uppercase' }}>AKTIF SEBAGAI</div>
+            <div style={{ fontSize: '12px', fontWeight: '800', color: isLightTheme ? '#243b32' : '#ffffff', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{adminName}</div>
+            <div style={{ fontSize: '10px', color: isLightTheme ? '#47745f' : '#34d399', fontWeight: '600', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#34d399', display: 'inline-block' }}></span>
               Role: {adminRole}
             </div>
@@ -211,6 +212,13 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
           >
             <LogOut size={14} /> <span>Keluar (Logout)</span>
           </button>
+          <div className="sidebar-mindy">
+            <div className="sidebar-mindy-copy">
+              <strong>Teman Mindy</strong>
+              <span>Ketuk untuk bantuan</span>
+            </div>
+            <PanelCompanion audience="admin" placement="sidebar" />
+          </div>
           <div style={{ textAlign: 'center', fontSize: '10px', color: '#567568' }}>SMK Budi Bakti Ciwidey</div>
         </div>
       </aside>

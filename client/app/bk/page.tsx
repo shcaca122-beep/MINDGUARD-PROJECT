@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import BKUtilityBar from './BKUtilityBar';
 import { supabase } from '@/lib/supabase';
 import { isHighPriorityMessage } from '@/lib/counseling-priority';
-import { ShieldCheck, RefreshCw, AlertTriangle, ArrowRight, UserCheck, X, Calendar } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, ArrowRight, UserCheck, X, Calendar, MessageSquareText } from 'lucide-react';
 
 type StudentServiceRecord = {
   id?: string | number;
@@ -27,6 +28,7 @@ type ViolationRecord = {
   nama_siswa?: string;
   kelas?: string;
   jenis_pelanggaran?: string;
+  kategori?: string;
   jenis?: string;
   poin?: number;
   tanggal?: string;
@@ -46,9 +48,11 @@ export default function BKPage() {
   const [dataCurhat, setDataCurhat] = useState<StudentServiceRecord[]>([]);
   const [dataKonseling, setDataKonseling] = useState<StudentServiceRecord[]>([]);
   const [dataPelanggaran, setDataPelanggaran] = useState<ViolationRecord[]>([]);
+  const [dashboardSearch, setDashboardSearch] = useState('');
   const [tabAktif, setTabAktif] = useState<'curhat' | 'konseling'>('curhat');
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const permohonanKonselingRef = useRef<HTMLDivElement>(null);
 
   // State untuk Input Nama Guru BK Manual & Notifikasi Modern (Default "Umum")
   const [namaGuruBK, setNamaGuruBK] = useState('Umum');
@@ -57,6 +61,8 @@ export default function BKPage() {
   const [serviceNotification, setServiceNotification] = useState<ServiceNotification | null>(null);
   const seenServiceIds = useRef(new Set<string>());
   const hasInitialServiceData = useRef(false);
+  const [dismissedUrgentCurhatIds, setDismissedUrgentCurhatIds] = useState<string[]>([]);
+  const [dismissedUrgentCounselingIds, setDismissedUrgentCounselingIds] = useState<string[]>([]);
 
   const announceNewService = useCallback((record: StudentServiceRecord) => {
     const id = String(record.id || '');
@@ -201,13 +207,74 @@ export default function BKPage() {
     }, 1200);
   };
 
-  const urgentCurhatCount = dataCurhat.filter((item) =>
+  const urgentCurhatItems = dataCurhat.filter((item) =>
     isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi)
     && !['DIBALAS', 'SELESAI'].includes((item.status || '').toUpperCase())
-  ).length;
+  );
+  const urgentCurhatCount = urgentCurhatItems.length;
   const pendingCounselingCount = dataKonseling.filter((item) =>
     !['DISETUJUI', 'DIBALAS', 'SELESAI', 'DITOLAK', 'DIBATALKAN'].includes((item.status || 'MENUNGGU ACC').toUpperCase())
   ).length;
+  const urgentCounselingItems = dataKonseling.filter((item) =>
+    isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi)
+    && !['DISETUJUI', 'DIBALAS', 'SELESAI', 'DITOLAK', 'DIBATALKAN'].includes((item.status || 'MENUNGGU ACC').toUpperCase())
+  );
+  const urgentCounselingCount = urgentCounselingItems.length;
+  const normalizedSearch = dashboardSearch.trim().toLowerCase();
+  const matchesDashboardSearch = (...values: (string | number | undefined)[]) =>
+    !normalizedSearch || values.some((value) => String(value || '').toLowerCase().includes(normalizedSearch));
+  const filteredCurhat = dataCurhat.filter((item) =>
+    matchesDashboardSearch(item.nama_siswa, item.kelas, item.judul_pesan, item.topik, item.status)
+  );
+  const filteredKonseling = dataKonseling.filter((item) =>
+    matchesDashboardSearch(item.nama_siswa, item.kelas, item.judul_pesan, item.topik, item.status, item.tanggal)
+  );
+  const filteredPelanggaran = dataPelanggaran.filter((item) =>
+    matchesDashboardSearch(item.nama_siswa, item.kelas, item.jenis_pelanggaran, item.kategori, item.jenis, item.pencatat)
+  );
+  const categoryCounts = dataPelanggaran.reduce<Record<string, number>>((counts, item) => {
+    const category = (item.kategori || item.jenis_pelanggaran || item.jenis || 'Lainnya').trim() || 'Lainnya';
+    counts[category] = (counts[category] || 0) + 1;
+    return counts;
+  }, {});
+  const categoryStats = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const maxCategoryCount = categoryStats[0]?.[1] || 1;
+  const followUpCount = urgentCurhatCount + pendingCounselingCount;
+  const isUrgentCurhatPopupOpen = urgentCurhatItems.some(
+    (item) => !dismissedUrgentCurhatIds.includes(String(item.id))
+  );
+  const dismissUrgentCurhatPopup = () => {
+    setDismissedUrgentCurhatIds((dismissedIds) => [
+      ...new Set([
+        ...dismissedIds,
+        ...urgentCurhatItems.map((item) => String(item.id)),
+      ]),
+    ]);
+  };
+  const isUrgentCounselingPopupOpen = urgentCounselingItems.some(
+    (item) => !dismissedUrgentCounselingIds.includes(String(item.id))
+  );
+  const dismissUrgentCounselingPopup = () => {
+    setDismissedUrgentCounselingIds((dismissedIds) => [
+      ...new Set([
+        ...dismissedIds,
+        ...urgentCounselingItems.map((item) => String(item.id)),
+      ]),
+    ]);
+  };
+
+  const bukaPermohonanKonseling = () => {
+    dismissUrgentCounselingPopup();
+    setTabAktif('konseling');
+    window.requestAnimationFrame(() => {
+      permohonanKonselingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  const bukaCurhatPrioritas = () => {
+    dismissUrgentCurhatPopup();
+    setTabAktif('curhat');
+  };
 
 
   if (!isAuthorized) {
@@ -222,7 +289,6 @@ export default function BKPage() {
     <>
       <style dangerouslySetInnerHTML={{ __html: `
         body, html {
-          background-color: #021f18 !important;
           margin: 0 !important;
           padding: 0 !important;
           width: 100% !important;
@@ -231,17 +297,25 @@ export default function BKPage() {
         }
       ` }} />
       {/* STRUKTUR UTAMA: Menggunakan width 100% agar simetris dan seimbang di tengah */}
-      <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
+      <div className="bk-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         
         {/* SIDEBAR */}
-        <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
+        <div className="bk-panel-sidebar" style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
           <Sidebar />
         </div>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
-          
+        <div className="bk-panel-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
+          <BKUtilityBar
+            currentRoute="Beranda"
+            searchValue={dashboardSearch}
+            searchPlaceholder="Cari siswa, topik, kelas, atau status..."
+            onSearchChange={setDashboardSearch}
+            onRefresh={() => fetchDataBK(true)}
+            isRefreshing={isLoading}
+          />
+
           {/* TOP BAR BK */}
-          <div style={{ 
+          <div className="bk-route-heading" style={{
             background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', 
             color: '#ffffff', 
             padding: '18px 30px', 
@@ -264,17 +338,10 @@ export default function BKPage() {
                 <span style={{ fontSize: '11px', color: '#a7f3d0', fontWeight: '500' }}>Aktif Sebagai: <strong style={{ color: '#ffffff' }}>{namaGuruBK}</strong></span>
               </div>
             </div>
-            <button
-              onClick={() => void fetchDataBK(true)}
-              style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '9px 16px', borderRadius: '8px', color: '#ffffff', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <RefreshCw size={14} color="#34d399" />
-              <span>{isLoading ? 'Refreshing...' : 'Refresh Data'}</span>
-            </button>
           </div>
 
           {/* KONTEN UTAMA BK - SIMETRIS DI TENGAH */}
-          <div style={{ padding: '30px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+          <div className="bk-panel-content" style={{ padding: '30px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
             
             {/* NOTIFIKASI MODERN BANNER */}
             {statusMsg && (
@@ -303,7 +370,7 @@ export default function BKPage() {
                   <Calendar size={18} color="#34d399" />
                   <strong style={{ fontSize: '12px' }}>{pendingCounselingCount} permohonan konseling menunggu verifikasi.</strong>
                 </div>
-                <button type="button" onClick={() => setTabAktif('konseling')} style={{ padding: '7px 11px', border: '1px solid rgba(52, 211, 153, 0.3)', borderRadius: '6px', background: 'rgba(52, 211, 153, 0.1)', color: '#a7f3d0', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>Lihat permohonan</button>
+                <button type="button" onClick={bukaPermohonanKonseling} style={{ padding: '7px 11px', border: '1px solid rgba(52, 211, 153, 0.3)', borderRadius: '6px', background: 'rgba(52, 211, 153, 0.1)', color: '#a7f3d0', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>Lihat permohonan</button>
               </div>
             )}
 
@@ -317,28 +384,29 @@ export default function BKPage() {
             )}
 
             {/* KOTAK INPUT NAMA GURU BK MANUAL */}
-            <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.9)', backdropFilter: 'blur(12px)', borderRadius: '16px', padding: '22px 24px', marginBottom: '25px', border: '1.5px solid rgba(52, 211, 153, 0.4)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+            <div className="bk-counselor-card" style={{ backgroundColor: 'rgba(2, 31, 24, 0.9)', backdropFilter: 'blur(12px)', borderRadius: '16px', padding: '20px 24px', marginBottom: '18px', border: '1.5px solid rgba(52, 211, 153, 0.4)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
+              <div className="bk-counselor-profile">
                 <div style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
                   <UserCheck size={22} color="#34d399" />
                 </div>
-                <div>
-                  <h3 style={{ margin: '0 0 3px 0', fontSize: '15px', color: '#ecfdf5', fontWeight: '700' }}>Pengaturan Nama Guru BK Aktif</h3>
-                  <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>Ketik nama dan gelar lengkap Anda di bawah ini agar langsung tampil di sistem.</p>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ marginBottom: '3px', fontSize: '10px', color: '#6ee7b7', fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Konselor Aktif</div>
+                  <h3 style={{ margin: 0, fontSize: '16px', color: '#ecfdf5', fontWeight: '800' }}>{namaGuruBK}</h3>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+              <div className="bk-counselor-preset">
                 <input
                   type="text"
                   value={inputNama}
                   onChange={(e) => setInputNama(e.target.value)}
-                  placeholder="Contoh: Umum"
-                  style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid rgba(52, 211, 153, 0.4)', backgroundColor: '#021f18', color: '#ffffff', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                  aria-label="Nama Guru BK aktif"
+                  placeholder="Nama Guru BK aktif"
+                  style={{ flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: '9px', border: '1px solid rgba(52, 211, 153, 0.4)', backgroundColor: '#021f18', color: '#ffffff', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
                 />
                 <button
                   onClick={handleSimpanNamaManual}
-                  style={{ width: '100%', background: 'linear-gradient(135deg, #059669 0%, #047857 50%, #064e3b 100%)', color: '#ffffff', border: 'none', padding: '11px 18px', borderRadius: '10px', fontWeight: '700', fontSize: '12.5px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)', boxSizing: 'border-box' }}
+                  style={{ background: 'linear-gradient(135deg, #059669 0%, #047857 50%, #064e3b 100%)', color: '#ffffff', border: 'none', padding: '10px 16px', borderRadius: '9px', fontWeight: '700', fontSize: '12.5px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.3)', whiteSpace: 'nowrap' }}
                 >
                   Simpan Nama
                 </button>
@@ -346,23 +414,28 @@ export default function BKPage() {
             </div>
 
             {/* STATS */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '25px', width: '100%', boxSizing: 'border-box' }}>
-              <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '20px', borderRadius: '16px', borderLeft: '4px solid #38bdf8', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', boxSizing: 'border-box' }}>
-                <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '700' }}>PESAN CURHAT</div>
-                <div style={{ fontSize: '24px', fontWeight: '800', color: '#e0f2fe', marginTop: '4px' }}>{dataCurhat.length} Pesan</div>
+            <div className="bk-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '14px', marginBottom: '18px', width: '100%', boxSizing: 'border-box' }}>
+              <div className="bk-summary-card" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', padding: '17px', borderRadius: '16px', borderTop: '3px solid #6ee7b7', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', boxSizing: 'border-box' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8fd8b6', fontSize: '11px', fontWeight: 800 }}><MessageSquareText size={15} /> PESAN CURHAT</div>
+                <div style={{ fontSize: '24px', fontWeight: '800', color: '#ecfdf5', marginTop: '8px' }}>{dataCurhat.length}</div>
               </div>
-              <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '20px', borderRadius: '16px', borderLeft: '4px solid #34d399', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', boxSizing: 'border-box' }}>
-                <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '700' }}>JADWAL KONSELING</div>
-                <div style={{ fontSize: '24px', fontWeight: '800', color: '#ecfdf5', marginTop: '4px' }}>{dataKonseling.length} Sesi</div>
+              <div className="bk-summary-card" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', padding: '17px', borderRadius: '16px', borderTop: '3px solid #34d399', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', boxSizing: 'border-box' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8fd8b6', fontSize: '11px', fontWeight: 800 }}><Calendar size={15} /> JADWAL KONSELING</div>
+                <div style={{ fontSize: '24px', fontWeight: '800', color: '#ecfdf5', marginTop: '8px' }}>{dataKonseling.length}</div>
               </div>
-              <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', padding: '20px', borderRadius: '16px', borderLeft: '4px solid #f87171', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', boxSizing: 'border-box' }}>
-                <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '700' }}>PELANGGARAN MASUK</div>
-                <div style={{ fontSize: '24px', fontWeight: '800', color: '#fee2e2', marginTop: '4px' }}>{dataPelanggaran.length} Catatan</div>
+              <div className="bk-summary-card" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', padding: '17px', borderRadius: '16px', borderTop: '3px solid #f87171', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', boxSizing: 'border-box' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8fd8b6', fontSize: '11px', fontWeight: 800 }}><AlertTriangle size={15} /> PELANGGARAN OSIS</div>
+                <div style={{ fontSize: '24px', fontWeight: '800', color: '#ecfdf5', marginTop: '8px' }}>{dataPelanggaran.length}</div>
+              </div>
+              <div className="bk-summary-card" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', padding: '17px', borderRadius: '16px', borderTop: '3px solid #fbbf24', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', boxSizing: 'border-box' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8fd8b6', fontSize: '11px', fontWeight: 800 }}><UserCheck size={15} /> PERLU TINDAK LANJUT</div>
+                <div style={{ fontSize: '24px', fontWeight: '800', color: '#fde68a', marginTop: '8px' }}>{followUpCount}</div>
               </div>
             </div>
 
             {/* PELANGGARAN MASUK DARI OSIS */}
-            <div style={{ marginBottom: '25px', backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', borderRadius: '16px', padding: '24px', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
+            <div className="bk-dashboard-overview">
+            <section className="bk-dashboard-panel">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '16px', color: '#ecfdf5', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -377,11 +450,11 @@ export default function BKPage() {
                 </Link>
               </div>
 
-              {dataPelanggaran.length === 0 ? (
-                <p style={{ margin: 0, color: '#94a3b8', fontSize: '13px' }}>Belum ada pelanggaran yang masuk dari OSIS.</p>
+              {filteredPelanggaran.length === 0 ? (
+                <p style={{ margin: 0, color: '#94a3b8', fontSize: '13px' }}>{dataPelanggaran.length > 0 ? 'Tidak ada catatan pelanggaran yang cocok dengan pencarian.' : 'Belum ada pelanggaran yang masuk dari OSIS.'}</p>
               ) : (
                 <div style={{ display: 'grid', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
-                  {dataPelanggaran.slice(0, 5).map((item) => (
+                  {filteredPelanggaran.slice(0, 5).map((item) => (
                     <div key={item.id || `${item.nama_siswa}-${item.created_at}`} style={{ border: '1px solid rgba(52, 211, 153, 0.2)', borderRadius: '12px', padding: '14px', backgroundColor: '#021f18', boxSizing: 'border-box' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                         <div>
@@ -397,10 +470,32 @@ export default function BKPage() {
                   ))}
                 </div>
               )}
+            </section>
+            <section className="bk-dashboard-panel">
+              <div>
+                <h3 style={{ margin: 0, fontSize: '16px', color: '#ecfdf5', fontWeight: '700' }}>Statistik Kategori</h3>
+                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>Jenis pelanggaran yang tercatat</p>
+              </div>
+              {categoryStats.length === 0 ? (
+                <p style={{ margin: '18px 0 0', color: '#94a3b8', fontSize: '13px' }}>Belum ada data kategori untuk diringkas.</p>
+              ) : (
+                <div className="bk-category-stat">
+                  {categoryStats.map(([category, count]) => (
+                    <div className="bk-category-stat-row" key={category}>
+                      <span>{category}</span>
+                      <strong>{count}</strong>
+                      <div className="bk-category-stat-track" aria-label={`${count} catatan`}>
+                        <span style={{ width: `${(count / maxCategoryCount) * 100}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
             </div>
 
             {/* TAB INTERNAL */}
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', width: '100%', boxSizing: 'border-box' }}>
+            <div ref={permohonanKonselingRef} style={{ display: 'flex', gap: '10px', marginBottom: '16px', width: '100%', boxSizing: 'border-box', scrollMarginTop: '20px' }}>
               <button
                 onClick={() => setTabAktif('curhat')}
                 style={{ 
@@ -449,10 +544,10 @@ export default function BKPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dataCurhat.length === 0 ? (
-                        <tr><td colSpan={4} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>Belum ada curhatan masuk.</td></tr>
+                      {filteredCurhat.length === 0 ? (
+                        <tr><td colSpan={4} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>{dataCurhat.length > 0 ? 'Tidak ada curhat yang cocok dengan pencarian.' : 'Belum ada curhatan masuk.'}</td></tr>
                       ) : (
-                        dataCurhat.map((item) => (
+                        filteredCurhat.map((item) => (
                           <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <td style={{ padding: '14px', fontWeight: '700' }}>🔒 {item.nama_siswa || 'Anonim'}</td>
                             <td style={{ padding: '14px' }}>
@@ -481,10 +576,10 @@ export default function BKPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dataKonseling.length === 0 ? (
-                        <tr><td colSpan={4} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>Belum ada permohonan konseling.</td></tr>
+                      {filteredKonseling.length === 0 ? (
+                        <tr><td colSpan={4} style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>{dataKonseling.length > 0 ? 'Tidak ada permohonan yang cocok dengan pencarian.' : 'Belum ada permohonan konseling.'}</td></tr>
                       ) : (
-                        dataKonseling.map((item) => (
+                        filteredKonseling.map((item) => (
                           <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                             <td style={{ padding: '14px', fontWeight: '700' }}>{item.nama_siswa} ({item.kelas})</td>
                             <td style={{ padding: '14px', color: '#94a3b8' }}>{item.tanggal}</td>
@@ -512,6 +607,138 @@ export default function BKPage() {
 
         </div>
       </div>
+
+      {/* POP-UP KONSELING PRIORITAS (Disamakan dengan desain pop-up Curhat Prioritas) */}
+      {isUrgentCounselingPopupOpen && urgentCounselingCount > 0 && (
+        <div
+          className="bk-priority-overlay"
+          onClick={dismissUrgentCounselingPopup}
+        >
+          <section
+            className="bk-priority-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="urgent-counseling-title"
+            aria-describedby="urgent-counseling-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="bk-priority-dialog-topline">
+              <span><AlertTriangle size={14} /> PERHATIAN GURU BK</span>
+              <button type="button" aria-label="Tutup notifikasi" onClick={dismissUrgentCounselingPopup}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="bk-priority-mindy-message">
+              <span className="bk-priority-mindy-avatar" aria-hidden="true">
+                <i />
+                <i />
+                <b />
+              </span>
+              <div>
+                <span className="bk-priority-mindy-name">Mindy mengingatkan</span>
+                <p id="urgent-counseling-title">SEGERA TANGANI SISWA INI!</p>
+              </div>
+            </div>
+
+            <div className="bk-priority-dialog-copy">
+              <h2>Konseling prioritas perlu ditindaklanjuti</h2>
+              <p id="urgent-counseling-description">
+                Ada {urgentCounselingCount} permohonan konseling prioritas yang belum ditangani. Mohon segera tinjau dan jadwalkan pendampingan bagi siswa.
+              </p>
+            </div>
+
+            <div className="bk-priority-student-list">
+              {urgentCounselingItems.slice(0, 4).map((item, index) => (
+                <div className="bk-priority-student" key={String(item.id ?? `${item.created_at}-${index}`)}>
+                  <span className="bk-priority-student-icon"><AlertTriangle size={15} /></span>
+                  <span>
+                    <strong>{item.nama_siswa || 'Siswa'}{item.kelas ? ` · ${item.kelas}` : ''}</strong>
+                    <small>{item.judul_pesan || item.topik || 'Permohonan konseling prioritas'}</small>
+                  </span>
+                  <span className="bk-priority-badge">PRIORITAS</span>
+                </div>
+              ))}
+              {urgentCounselingCount > 4 && (
+                <span className="bk-priority-more">Dan {urgentCounselingCount - 4} permohonan prioritas lainnya.</span>
+              )}
+            </div>
+
+            <div className="bk-priority-dialog-actions">
+              <button type="button" className="bk-priority-later" onClick={dismissUrgentCounselingPopup}>Nanti</button>
+              <button type="button" className="bk-priority-review" onClick={bukaPermohonanKonseling}>
+                Tinjau konseling <ArrowRight size={16} />
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* POP-UP CURHAT PRIORITAS */}
+      {isUrgentCurhatPopupOpen && urgentCurhatCount > 0 && (
+        <div
+          className="bk-priority-overlay"
+          onClick={dismissUrgentCurhatPopup}
+        >
+          <section
+            className="bk-priority-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="urgent-curhat-title"
+            aria-describedby="urgent-curhat-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="bk-priority-dialog-topline">
+              <span><AlertTriangle size={14} /> PERHATIAN GURU BK</span>
+              <button type="button" aria-label="Tutup notifikasi" onClick={dismissUrgentCurhatPopup}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="bk-priority-mindy-message">
+              <span className="bk-priority-mindy-avatar" aria-hidden="true">
+                <i />
+                <i />
+                <b />
+              </span>
+              <div>
+                <span className="bk-priority-mindy-name">Mindy mengingatkan</span>
+                <p id="urgent-curhat-title">SEGERA TANGANI SISWA INI!</p>
+              </div>
+            </div>
+
+            <div className="bk-priority-dialog-copy">
+              <h2>Curhat prioritas perlu ditindaklanjuti</h2>
+              <p id="urgent-curhat-description">
+                Ada {urgentCurhatCount} curhat prioritas yang belum ditangani. Mohon tinjau dengan empati dan jaga kerahasiaan siswa.
+              </p>
+            </div>
+
+            <div className="bk-priority-student-list">
+              {urgentCurhatItems.slice(0, 4).map((item, index) => (
+                <div className="bk-priority-student" key={String(item.id ?? `${item.created_at}-${index}`)}>
+                  <span className="bk-priority-student-icon"><AlertTriangle size={15} /></span>
+                  <span>
+                    <strong>{item.nama_siswa || 'Siswa'}{item.kelas ? ` · ${item.kelas}` : ''}</strong>
+                    <small>{item.judul_pesan || item.topik || 'Curhat prioritas'}</small>
+                  </span>
+                  <span className="bk-priority-badge">PRIORITAS</span>
+                </div>
+              ))}
+              {urgentCurhatCount > 4 && (
+                <span className="bk-priority-more">Dan {urgentCurhatCount - 4} curhat prioritas lainnya.</span>
+              )}
+            </div>
+
+            <div className="bk-priority-dialog-actions">
+              <button type="button" className="bk-priority-later" onClick={dismissUrgentCurhatPopup}>Nanti</button>
+              <button type="button" className="bk-priority-review" onClick={bukaCurhatPrioritas}>
+                Tinjau curhat <ArrowRight size={16} />
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </>
   );
 }

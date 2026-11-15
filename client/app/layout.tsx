@@ -1,8 +1,13 @@
 import './globals.css';
+import ConnectionStatus from '@/components/ConnectionStatus';
 
 export const metadata = {
   title: 'MindGuard - SMK Budi Bakti Ciwidey',
   description: 'Sistem Informasi Bimbingan Konseling',
+  icons: {
+    icon: '/logo-mindguard.jpeg',
+    apple: '/logo-mindguard.jpeg',
+  },
 };
 
 export default function RootLayout({
@@ -11,8 +16,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="id">
-      <body className="antialiased bg-[#07241B]">
+    <html lang="id" data-theme="dark">
+      <body className="antialiased">
+        <ConnectionStatus />
         {children}
       </body>
     </html>

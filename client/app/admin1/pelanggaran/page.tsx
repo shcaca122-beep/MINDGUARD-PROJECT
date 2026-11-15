@@ -16,14 +16,21 @@ type ViolationRecord = {
   foto_bukti_path?: string | null;
 };
 
+type StudentOption = {
+  id: string;
+  nama: string;
+  kelas: string;
+};
+
 export default function PelanggaranSiswaPage() {
   const [pelanggaranList, setPelanggaranList] = useState<ViolationRecord[]>([]);
+  const [studentOptions, setStudentOptions] = useState<StudentOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   // State Modal Tambah Pelanggaran
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [namaSiswa, setNamaSiswa] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState('');
   const [jenisPelanggaran, setJenisPelanggaran] = useState('');
   const [poin, setPoin] = useState<number>(5);
   const [keterangan, setKeterangan] = useState('');
@@ -63,11 +70,37 @@ export default function PelanggaranSiswaPage() {
     return () => { isMounted = false; };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    const loadStudents = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id,nama,kelas')
+        .order('nama', { ascending: true });
+      if (error) {
+        console.error('Gagal memuat pilihan siswa untuk pelanggaran:', error.message);
+        if (isMounted) alert(`Gagal memuat data siswa: ${error.message}`);
+        return;
+      }
+      if (isMounted) {
+        setStudentOptions((data || []).map((student) => ({
+          id: String(student.id),
+          nama: String(student.nama || '').trim(),
+          kelas: String(student.kelas || '').trim(),
+        })).filter((student) => student.id && student.nama));
+      }
+    };
+    void loadStudents();
+    return () => { isMounted = false; };
+  }, []);
+
+  const selectedStudent = studentOptions.find((student) => student.id === selectedStudentId);
+
   // Submit Data Pelanggaran + File Foto Bukti
   const handleSubmitPelanggaran = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!namaSiswa || !jenisPelanggaran) {
-      alert('Nama siswa dan jenis pelanggaran wajib diisi!');
+    if (!selectedStudent || !jenisPelanggaran) {
+      alert('Pilih siswa dan isi jenis pelanggaran!');
       return;
     }
 
@@ -98,7 +131,9 @@ export default function PelanggaranSiswaPage() {
       // 2. Simpan Catatan ke Database SQL
       const { error: insertError } = await supabase.from('pelanggaran').insert([
         {
-          nama_siswa: namaSiswa,
+          student_record_id: selectedStudent.id,
+          nama_siswa: selectedStudent.nama,
+          kelas: selectedStudent.kelas || null,
           jenis_pelanggaran: jenisPelanggaran,
           poin: Number(poin),
           keterangan: keterangan || null,
@@ -126,7 +161,7 @@ export default function PelanggaranSiswaPage() {
   };
 
   const resetForm = () => {
-    setNamaSiswa('');
+    setSelectedStudentId('');
     setJenisPelanggaran('');
     setPoin(5);
     setKeterangan('');
@@ -251,14 +286,19 @@ export default function PelanggaranSiswaPage() {
             <form onSubmit={handleSubmitPelanggaran} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', color: '#a7f3d0', marginBottom: '6px', fontWeight: '600' }}>Nama Siswa</label>
-                <input
-                  type="text"
+                <select
                   required
-                  placeholder="Contoh: Budi Santoso"
-                  value={namaSiswa}
-                  onChange={(e) => setNamaSiswa(e.target.value)}
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
                   style={{ width: '100%', padding: '10px 12px', backgroundColor: '#0a1410', border: '1px solid #193328', borderRadius: '8px', color: '#fff', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
-                />
+                >
+                  <option value="">Pilih siswa...</option>
+                  {studentOptions.map((student) => (
+                    <option key={student.id} value={student.id}>
+                      {student.nama}{student.kelas ? ` (${student.kelas})` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

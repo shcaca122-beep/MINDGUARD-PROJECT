@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
 import type { DatabaseRow } from '@/lib/database-row';
-import { Home, Plus, Calendar, MapPin, RefreshCw, ClipboardList } from 'lucide-react';
+import { formatErrorMessage } from '@/lib/error-utils';
+import { showError, showSuccess } from '@/lib/swal';
+import BKUtilityBar from '../BKUtilityBar';
+import { Home, Plus, Calendar, MapPin, ClipboardList } from 'lucide-react';
 
 export default function HomeVisitPage() {
   const router = useRouter();
@@ -17,6 +20,7 @@ export default function HomeVisitPage() {
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
   const [catatan, setCatatan] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [searchText, setSearchText] = useState('');
 
   const fetchHomeVisit = async () => {
     try {
@@ -25,7 +29,22 @@ export default function HomeVisitPage() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data) setDataHomeVisit(data);
+      if (!error && data) {
+        const normalized = data.map((row: Record<string, unknown>) => ({
+          ...row,
+          nama_siswa: typeof row.nama_siswa === 'string'
+            ? row.nama_siswa
+            : typeof row.nama === 'string'
+              ? row.nama
+              : '',
+          catatan: typeof row.catatan === 'string'
+            ? row.catatan
+            : typeof row.alasan === 'string'
+              ? row.alasan
+              : '',
+        }));
+        setDataHomeVisit(normalized as DatabaseRow[]);
+      }
     } catch (err) {
       console.error('Gagal memuat data home visit:', err);
     } finally {
@@ -48,44 +67,70 @@ export default function HomeVisitPage() {
     setIsLoading(true);
     void fetchHomeVisit();
   };
+  const normalizedSearch = searchText.trim().toLowerCase();
+  const filteredHomeVisit = dataHomeVisit.filter((item) =>
+    [item.nama_siswa, item.kelas, item.alamat, item.catatan, item.tanggal]
+      .some((value) => String(value || '').toLowerCase().includes(normalizedSearch))
+  );
 
   const handleSimpanJadwal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!namaSiswa || !kelas || !alamat) {
-      alert('Mohon isi nama siswa, kelas, dan alamat tujuan!');
+      showError('Data belum lengkap', 'Mohon isi nama siswa, kelas, dan alamat tujuan.');
       return;
     }
 
     try {
-      const { error } = await supabase.from('home_visit').insert([
-        { nama_siswa: namaSiswa, kelas, alamat, tanggal, catatan: catatan || 'Kunjungan rutin pendampingan BK' }
-      ]);
+      const catatanValue = catatan.trim() || 'Kunjungan rutin pendampingan BK';
+      const payloads = [
+        { nama_siswa: namaSiswa.trim(), kelas: kelas.trim(), alamat: alamat.trim(), tanggal, catatan: catatanValue },
+        { nama_siswa: namaSiswa.trim(), kelas: kelas.trim(), alamat: alamat.trim(), tanggal, alasan: catatanValue },
+        { nama: namaSiswa.trim(), kelas: kelas.trim(), alamat: alamat.trim(), tanggal, catatan: catatanValue },
+        { nama: namaSiswa.trim(), kelas: kelas.trim(), alamat: alamat.trim(), tanggal, alasan: catatanValue },
+      ];
 
-      if (error) throw error;
-      alert('✅ Jadwal Home Visit berhasil ditambahkan ke database!');
-      setShowModal(false);
-      setNamaSiswa('');
-      setKelas('');
-      setAlamat('');
-      setCatatan('');
-      fetchHomeVisit();
+      let lastError: unknown = null;
+      for (const payload of payloads) {
+        const { error } = await supabase.from('home_visit').insert([payload]);
+        if (!error) {
+          showSuccess('Jadwal berhasil disimpan', 'Data home visit berhasil ditambahkan.');
+          setShowModal(false);
+          setNamaSiswa('');
+          setKelas('');
+          setAlamat('');
+          setCatatan('');
+          void fetchHomeVisit();
+          return;
+        }
+        lastError = error;
+      }
+
+      throw lastError ?? new Error('Gagal menyimpan jadwal home visit.');
     } catch (error: unknown) {
-      alert('Gagal menyimpan ke database: ' + (error instanceof Error ? error.message : String(error)));
+      console.error('Gagal menyimpan home visit:', error);
+      showError('Gagal menyimpan home visit', formatErrorMessage(error));
     }
   };
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `body, html { background-color: #021f18 !important; margin: 0; padding: 0; width: 100%; height: 100%; overflow-x: hidden; }` }} />
       {/* DIPERBAIKI: Menggunakan width 100% agar simetris dan seimbang di tengah */}
-      <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, sans-serif', boxSizing: 'border-box' }}>
-        <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
+      <div className="bk-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, sans-serif', boxSizing: 'border-box' }}>
+        <div className="bk-panel-sidebar" style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
           <Sidebar />
         </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
-          
+        <div className="bk-panel-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
+          <BKUtilityBar
+            currentRoute="Home Visit"
+            searchValue={searchText}
+            searchPlaceholder="Cari siswa, kelas, alamat, atau catatan..."
+            onSearchChange={setSearchText}
+            onRefresh={refreshHomeVisit}
+            isRefreshing={isLoading}
+          />
+
           {/* TOP BAR */}
-          <div style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#ffffff', padding: '18px 30px', borderBottom: '1px solid rgba(52, 211, 153, 0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
+          <div className="bk-route-heading" style={{ background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', color: '#ffffff', padding: '18px 30px', borderBottom: '1px solid rgba(52, 211, 153, 0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', padding: 8, borderRadius: 10, border: '1px solid rgba(52,211,153,0.3)' }}>
                 <Home size={24} color="#34d399" />
@@ -95,13 +140,10 @@ export default function HomeVisitPage() {
                 <span style={{ fontSize: '12px', color: '#a7f3d0' }}>SMK Budi Bakti Ciwidey • Sinkronisasi Database Real-time</span>
               </div>
             </div>
-            <button onClick={refreshHomeVisit} style={{ backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '9px 16px', borderRadius: '10px', color: '#fff', fontWeight: '700', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <RefreshCw size={14} color="#34d399" /> {isLoading ? 'Memuat...' : 'Perbarui Data'}
-            </button>
           </div>
 
           {/* KONTEN UTAMA - DISIMETRISKAN KE TENGAH */}
-          <div style={{ padding: '30px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
+          <div className="bk-panel-content" style={{ padding: '30px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
             
             {/* INFO & TOMBOL AKSI */}
             <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.92)', backdropFilter: 'blur(16px)', borderRadius: '18px', padding: '26px 30px', marginBottom: '28px', border: '1.5px solid rgba(52, 211, 153, 0.35)', boxShadow: '0 10px 35px rgba(0,0,0,0.4)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
@@ -115,14 +157,14 @@ export default function HomeVisitPage() {
             </div>
 
             {/* GRID DATA */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
-              {dataHomeVisit.length === 0 ? (
+            <div className="bk-record-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
+              {filteredHomeVisit.length === 0 ? (
                 <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#94a3b8', background: 'rgba(2,31,24,0.6)', borderRadius: '16px', border: '1px solid rgba(52,211,153,0.2)' }}>
                   <ClipboardList size={38} color="#34d399" style={{ marginBottom: '10px', opacity: 0.8 }} />
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>Belum ada data jadwal home visit yang tersimpan di database.</p>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>{dataHomeVisit.length > 0 ? 'Tidak ada home visit yang cocok dengan pencarian.' : 'Belum ada data jadwal home visit yang tersimpan di database.'}</p>
                 </div>
               ) : (
-                dataHomeVisit.map((item) => (
+                filteredHomeVisit.map((item) => (
                   <div key={item.id} style={{ backgroundColor: 'rgba(2, 31, 24, 0.88)', padding: '22px', borderRadius: '16px', border: '1px solid rgba(52, 211, 153, 0.25)', borderLeft: '4px solid #34d399', boxShadow: '0 8px 25px rgba(0,0,0,0.3)', boxSizing: 'border-box' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                       <strong style={{ color: '#f8fafc', fontSize: '15.5px', fontWeight: '800' }}>{item.nama_siswa}</strong>

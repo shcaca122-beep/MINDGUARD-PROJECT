@@ -1,19 +1,20 @@
 'use client';
 
 import Sidebar from '@/components/Sidebar';
+import BKUtilityBar from '../BKUtilityBar';
 import { supabase } from '@/lib/supabase';
 import { isHighPriorityMessage } from '@/lib/counseling-priority';
 import { useState, useEffect, useCallback } from 'react';
 import { 
   CalendarCheck, 
-  RefreshCw, 
   User, 
   Calendar, 
   Tag, 
   CheckCircle, 
   CheckCheck, 
   Inbox, 
-  Sparkles
+  Sparkles,
+  AlertTriangle
 } from 'lucide-react';
 
 type CounselingRecord = {
@@ -22,6 +23,7 @@ type CounselingRecord = {
   nama_siswa?: string;
   kelas?: string;
   judul_pesan?: string;
+  pesan?: string;
   topik?: string;
   deskripsi?: string;
   status?: string;
@@ -30,6 +32,16 @@ type CounselingRecord = {
 export default function KonselingBKPage() {
   const [konselingList, setKonselingList] = useState<CounselingRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const urgentPendingCount = konselingList.filter((item) =>
+    isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi)
+    && !['DISETUJUI', 'DIBALAS', 'SELESAI', 'DITOLAK', 'DIBATALKAN'].includes((item.status || 'MENUNGGU ACC').toUpperCase())
+  ).length;
+  const normalizedSearch = searchText.trim().toLowerCase();
+  const filteredKonseling = konselingList.filter((item) =>
+    [item.nama_siswa, item.kelas, item.judul_pesan, item.pesan, item.topik, item.deskripsi, item.status, item.tanggal]
+      .some((value) => (value || '').toLowerCase().includes(normalizedSearch))
+  );
 
   const fetchKonseling = useCallback(async () => {
     setIsLoading(true);
@@ -66,7 +78,6 @@ export default function KonselingBKPage() {
     <>
       <style dangerouslySetInnerHTML={{ __html: `
         body, html {
-          background-color: #021f18 !important;
           margin: 0 !important;
           padding: 0 !important;
           width: 100% !important;
@@ -75,17 +86,25 @@ export default function KonselingBKPage() {
         }
       ` }} />
       {/* DIPERBAIKI: Menggunakan width 100% agar simetris dan seimbang di tengah */}
-      <div style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
+      <div className="bk-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         
         {/* SIDEBAR */}
-        <div style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
+        <div className="bk-panel-sidebar" style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
           <Sidebar />
         </div>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
-          
+        <div className="bk-panel-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh', overflowY: 'auto', width: '100%', boxSizing: 'border-box' }}>
+          <BKUtilityBar
+            currentRoute="Konseling Individual"
+            searchValue={searchText}
+            searchPlaceholder="Cari nama, kelas, topik, atau jadwal..."
+            onSearchChange={setSearchText}
+            onRefresh={fetchKonseling}
+            isRefreshing={isLoading}
+          />
+
           {/* TOP BAR HEADER */}
-          <div style={{
+          <div className="bk-route-heading" style={{
             background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)',
             color: '#ffffff',
             padding: '18px 30px',
@@ -119,32 +138,23 @@ export default function KonselingBKPage() {
               </div>
             </div>
 
-            <button
-              onClick={fetchKonseling}
-              disabled={isLoading}
-              style={{
-                backgroundColor: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(52, 211, 153, 0.3)',
-                color: '#ffffff',
-                padding: '9px 16px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                cursor: isLoading ? 'not-allowed' : 'pointer',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} color="#34d399" />
-              <span>{isLoading ? 'Memperbarui...' : 'Refresh Data'}</span>
-            </button>
           </div>
 
           {/* KONTEN UTAMA - DISIMETRISKAN KE TENGAH */}
-          <div style={{ padding: '30px', maxWidth: '1400px', width: '100%', margin: '0 auto', flex: 1, boxSizing: 'border-box' }}>
+          <div className="bk-panel-content" style={{ padding: '30px', maxWidth: '1400px', width: '100%', margin: '0 auto', flex: 1, boxSizing: 'border-box' }}>
             
+            {urgentPendingCount > 0 && (
+              <div role="alert" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap', padding: '14px 18px', marginBottom: '18px', borderRadius: '12px', border: '1px solid rgba(248, 113, 113, 0.55)', background: 'rgba(127, 29, 29, 0.28)', color: '#fee2e2', boxShadow: '0 8px 24px rgba(0,0,0,.2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <AlertTriangle size={20} color="#f87171" />
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '13px' }}>Permohonan konseling perlu ditinjau segera</strong>
+                    <span style={{ fontSize: '12px' }}>{urgentPendingCount} permohonan prioritas siswa masih menunggu tindak lanjut.</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* BANNER INFORMASI RINGKAS */}
             <div style={{
               backgroundColor: 'rgba(2, 31, 24, 0.85)',
@@ -208,8 +218,8 @@ export default function KonselingBKPage() {
                 </span>
               </div>
 
-              <div style={{ overflowX: 'auto', width: '100%' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', color: '#f8fafc', minWidth: '650px' }}>
+              <div className="bk-counseling-table-scroll" style={{ overflowX: 'auto', width: '100%' }}>
+                <table className="bk-counseling-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', color: '#f8fafc', minWidth: '650px' }}>
                   <thead>
                     <tr style={{ backgroundColor: '#021f18', color: '#94a3b8', borderBottom: '1px solid rgba(52, 211, 153, 0.15)' }}>
                       <th style={{ padding: '14px 20px', fontWeight: '700', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nama Siswa</th>
@@ -220,21 +230,21 @@ export default function KonselingBKPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {konselingList.length === 0 ? (
-                      <tr>
+                    {filteredKonseling.length === 0 ? (
+                      <tr className="bk-counseling-empty-row">
                         <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
                           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
                             <Inbox size={28} />
                           </div>
-                          <span>Belum ada permohonan konseling individual dari siswa.</span>
+                          <span>{konselingList.length > 0 ? 'Tidak ada permohonan yang cocok dengan pencarian.' : 'Belum ada permohonan konseling individual dari siswa.'}</span>
                         </td>
                       </tr>
                     ) : (
-                      konselingList.map((item) => (
+                      filteredKonseling.map((item) => (
                         <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background-color 0.15s ease' }}>
                           
                           {/* Nama Siswa */}
-                          <td style={{ padding: '16px 20px' }}>
+                          <td data-label="Nama Siswa" style={{ padding: '16px 20px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                               <User size={16} color="#34d399" />
                               <div>
@@ -247,7 +257,7 @@ export default function KonselingBKPage() {
                           </td>
 
                           {/* Jadwal / Sesi */}
-                          <td style={{ padding: '16px 20px', color: '#cbd5e1', fontSize: '12.5px' }}>
+                          <td data-label="Jadwal / Sesi" style={{ padding: '16px 20px', color: '#cbd5e1', fontSize: '12.5px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <Calendar size={13} color="#94a3b8" />
                               <span style={{ fontWeight: '600', color: '#e2e8f0' }}>{item.tanggal || 'Menyesuaikan'}</span>
@@ -255,16 +265,16 @@ export default function KonselingBKPage() {
                           </td>
 
                           {/* Topik Masalah */}
-                          <td style={{ padding: '16px 20px', color: '#e2e8f0' }}>
+                          <td data-label="Topik Masalah" style={{ padding: '16px 20px', color: '#e2e8f0' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <Tag size={13} color="#34d399" />
-                              {isHighPriorityMessage(item.judul_pesan, item.topik, item.deskripsi) && <span style={{ padding: '3px 7px', borderRadius: '5px', border: '1px solid rgba(248, 113, 113, 0.45)', background: 'rgba(127, 29, 29, 0.3)', color: '#fecaca', fontSize: '10px', fontWeight: 800 }}>SEGERA</span>}
+                              {isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi) && <span style={{ padding: '3px 7px', borderRadius: '5px', border: '1px solid rgba(248, 113, 113, 0.45)', background: 'rgba(127, 29, 29, 0.3)', color: '#fecaca', fontSize: '10px', fontWeight: 800 }}>SEGERA</span>}
                               <span>{item.judul_pesan || item.topik || 'Konseling Umum'}</span>
                             </div>
                           </td>
 
                           {/* Status Badge */}
-                          <td style={{ padding: '16px 20px', textAlign: 'center' }}>
+                          <td data-label="Status" style={{ padding: '16px 20px', textAlign: 'center' }}>
                             <span style={{
                               backgroundColor: item.status === 'DISETUJUI' 
                                 ? 'rgba(5, 150, 105, 0.2)' 
@@ -288,7 +298,7 @@ export default function KonselingBKPage() {
                           </td>
 
                           {/* Aksi Tombol */}
-                          <td style={{ padding: '16px 20px', textAlign: 'center' }}>
+                          <td data-label="Aksi BK" style={{ padding: '16px 20px', textAlign: 'center' }}>
                             <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
                               <button 
                                 onClick={() => updateStatus(item.id, 'DISETUJUI')} 
