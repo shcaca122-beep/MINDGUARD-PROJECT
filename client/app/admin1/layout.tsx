@@ -352,6 +352,8 @@ export default function Admin1Layout({ children }: { children: React.ReactNode }
             width: 270px !important;
             max-width: 82vw !important;
             height: 100dvh !important;
+            min-height: 100dvh !important;
+            max-height: 100dvh !important;
             border-radius: 0 14px 14px 0 !important;
             z-index: 50 !important;
             overflow-y: auto !important;
