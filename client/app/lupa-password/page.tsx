@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { ArrowLeft, KeyRound, Mail } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
+const PRODUCTION_SITE_URL = 'https://mindguard-healty.vercel.app';
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -29,15 +31,34 @@ export default function ForgotPasswordPage() {
 
     setIsSending(true);
     try {
+      const isLocalhost =
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1';
+      const appOrigin = (
+        isLocalhost
+          ? window.location.origin
+          : process.env.NEXT_PUBLIC_SITE_URL || PRODUCTION_SITE_URL
+      ).replace(/\/+$/, '');
+
       const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${appOrigin}/reset-password`,
       });
       if (error) throw error;
 
-      setInfoMessage('Jika email tersebut terdaftar dan dapat menerima pesan, tautan pemulihan akan dikirim. Periksa juga folder spam. Akun siswa yang hanya menggunakan NISN atau email sementara perlu meminta bantuan administrator.');
+      setInfoMessage(
+        'Jika email tersebut terdaftar dan dapat menerima pesan, tautan pemulihan akan dikirim. Periksa juga folder spam, lalu buka tautan terbaru di browser utama (Chrome). Akun siswa yang hanya menggunakan NISN atau email sementara perlu meminta bantuan administrator.'
+      );
     } catch (error: unknown) {
       console.error('Permintaan reset kata sandi gagal:', error);
-      setErrorMessage(error instanceof Error ? error.message : 'Tautan pemulihan gagal dikirim. Silakan coba lagi.');
+      const rawMessage = error instanceof Error ? error.message : '';
+      if (
+        rawMessage.toLowerCase().includes('rate limit') ||
+        rawMessage.toLowerCase().includes('security purposes')
+      ) {
+        setErrorMessage('Terlalu banyak permintaan dalam waktu singkat. Tunggu sekitar 1 menit sebelum meminta tautan baru.');
+      } else {
+        setErrorMessage(rawMessage || 'Tautan pemulihan gagal dikirim. Silakan coba lagi.');
+      }
     } finally {
       setIsSending(false);
     }
