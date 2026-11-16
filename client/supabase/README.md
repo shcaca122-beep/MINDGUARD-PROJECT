@@ -23,6 +23,8 @@ completed before users can sign in with the new flow.
    Also run `migrations/20261116000000_atomic_counseling_booking.sql` to enable
    the server-side, concurrency-safe check that prevents active counseling
    bookings from using the same date and session.
+   Run `migrations/20261116000001_curhat_aggregation.sql` to enable the BK
+   Curhat page's database-side count grouped by category, class, or status.
 3. In `client/.env.local`, set `SUPABASE_SERVICE_ROLE_KEY` to the project's
    service-role key. Keep it server-only; never use a `NEXT_PUBLIC_` prefix or
    commit the value.

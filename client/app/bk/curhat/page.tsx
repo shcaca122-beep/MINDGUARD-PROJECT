@@ -27,10 +27,21 @@ type CurhatRecord = {
   created_at?: string;
 };
 
+type CurhatGroupBy = 'kategori' | 'kelas' | 'status';
+
+type CurhatAggregate = {
+  group_key: string;
+  total_data: number;
+};
+
 export default function CurhatBKPage() {
   const [curhatList, setCurhatList] = useState<CurhatRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [groupBy, setGroupBy] = useState<CurhatGroupBy>('kategori');
+  const [aggregates, setAggregates] = useState<CurhatAggregate[]>([]);
+  const [isAggregateLoading, setIsAggregateLoading] = useState(false);
+  const [aggregateError, setAggregateError] = useState('');
 
   const fetchCurhat = useCallback(async () => {
     setIsLoading(true);
@@ -49,10 +60,36 @@ export default function CurhatBKPage() {
     }
   }, []);
 
+  const fetchAggregates = useCallback(async () => {
+    setIsAggregateLoading(true);
+    setAggregateError('');
+    try {
+      const { data, error } = await supabase.rpc('get_curhat_aggregates', {
+        p_group_by: groupBy,
+      });
+      if (error) throw error;
+      setAggregates((data || []) as CurhatAggregate[]);
+    } catch (error) {
+      console.error('Gagal mengambil rekap curhat:', error);
+      setAggregateError('Rekap belum dapat dimuat. Pastikan migrasi agregasi curhat sudah diterapkan.');
+    } finally {
+      setIsAggregateLoading(false);
+    }
+  }, [groupBy]);
+
   useEffect(() => {
     const initialLoad = window.setTimeout(() => void fetchCurhat(), 0);
     return () => window.clearTimeout(initialLoad);
   }, [fetchCurhat]);
+
+  useEffect(() => {
+    const aggregateLoad = window.setTimeout(() => void fetchAggregates(), 0);
+    return () => window.clearTimeout(aggregateLoad);
+  }, [fetchAggregates]);
+
+  const refreshCurhat = useCallback(async () => {
+    await Promise.all([fetchCurhat(), fetchAggregates()]);
+  }, [fetchAggregates, fetchCurhat]);
 
   const urgentCurhatCount = curhatList.filter((item) =>
     isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi)
@@ -89,7 +126,7 @@ export default function CurhatBKPage() {
             searchValue={searchText}
             searchPlaceholder="Cari nama, kelas, topik, atau isi pesan..."
             onSearchChange={setSearchText}
-            onRefresh={fetchCurhat}
+            onRefresh={refreshCurhat}
             isRefreshing={isLoading}
           />
 
@@ -176,6 +213,74 @@ export default function CurhatBKPage() {
                 Kerahasiaan Terjamin
               </span>
             </div>
+
+            <section
+              aria-labelledby="curhat-aggregate-title"
+              style={{
+                backgroundColor: 'rgba(2, 31, 24, 0.85)',
+                border: '1px solid rgba(52, 211, 153, 0.2)',
+                borderRadius: '16px',
+                padding: '20px',
+                marginBottom: '20px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                <div>
+                  <h3 id="curhat-aggregate-title" style={{ margin: 0, color: '#ecfdf5', fontSize: '14px', fontWeight: 700 }}>
+                    Rekap Jumlah Curhat
+                  </h3>
+                  <p style={{ margin: '4px 0 0', color: '#a7f3d0', fontSize: '11px' }}>
+                    Pengelompokan dihitung langsung di database Supabase.
+                  </p>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#cbd5e1', fontSize: '12px', fontWeight: 700 }}>
+                  Kelompokkan berdasarkan
+                  <select
+                    value={groupBy}
+                    onChange={(event) => setGroupBy(event.target.value as CurhatGroupBy)}
+                    style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', background: '#021f18', color: '#fff' }}
+                  >
+                    <option value="kategori">Kategori</option>
+                    <option value="kelas">Kelas</option>
+                    <option value="status">Status</option>
+                  </select>
+                </label>
+              </div>
+
+              {aggregateError ? (
+                <p role="alert" style={{ margin: 0, color: '#fca5a5', fontSize: '12px' }}>{aggregateError}</p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                    <thead>
+                      <tr style={{ color: '#a7f3d0', textAlign: 'left' }}>
+                        <th scope="col" style={{ padding: '9px', borderBottom: '1px solid rgba(52, 211, 153, 0.2)' }}>
+                          {groupBy === 'kategori' ? 'Kategori' : groupBy === 'kelas' ? 'Kelas' : 'Status'}
+                        </th>
+                        <th scope="col" style={{ padding: '9px', borderBottom: '1px solid rgba(52, 211, 153, 0.2)', textAlign: 'right' }}>
+                          Jumlah Curhat
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {isAggregateLoading ? (
+                        <tr><td colSpan={2} style={{ padding: '12px 9px', color: '#94a3b8' }}>Menghitung rekap...</td></tr>
+                      ) : aggregates.length === 0 ? (
+                        <tr><td colSpan={2} style={{ padding: '12px 9px', color: '#94a3b8' }}>Belum ada data untuk direkap.</td></tr>
+                      ) : aggregates.map((aggregate) => (
+                        <tr key={aggregate.group_key} style={{ color: '#e2e8f0' }}>
+                          <td style={{ padding: '9px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>{aggregate.group_key}</td>
+                          <td style={{ padding: '9px', borderBottom: '1px solid rgba(255,255,255,0.06)', textAlign: 'right', fontWeight: 700, color: '#34d399' }}>
+                            {aggregate.total_data}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
 
             {urgentCurhatCount > 0 && (
               <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '13px 16px', marginBottom: '18px', borderRadius: '10px', border: '1px solid rgba(248, 113, 113, 0.5)', background: 'rgba(127, 29, 29, 0.22)', color: '#fee2e2' }}>
