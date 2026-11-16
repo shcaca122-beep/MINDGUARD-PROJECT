@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   Sparkles,
   UserRound,
+  X,
 } from 'lucide-react';
 import styles from './curhat.module.css';
 
@@ -45,6 +46,22 @@ const formatCurhatDate = (dateValue?: string | null) => {
   }).format(date);
 };
 
+function isDuplicateCurhatError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const err = error as { code?: string; message?: string; details?: string };
+  const combined = `${err.message || ''} ${err.details || ''}`.toLowerCase();
+
+  return (
+    err.code === '23505' ||
+    combined.includes('duplicate') ||
+    combined.includes('duplikat') ||
+    combined.includes('unique') ||
+    combined.includes('sudah ada') ||
+    combined.includes('sudah tercatat') ||
+    combined.includes('sudah dikirim')
+  );
+}
+
 export default function CurhatPage() {
   const [kategori, setKategori] = useState('Pribadi / Emosional');
   const [judul, setJudul] = useState('');
@@ -52,7 +69,7 @@ export default function CurhatPage() {
   const [isAnonim, setIsAnonim] = useState(true);
   const [needsFastSupport, setNeedsFastSupport] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [status, setStatus] = useState<{ type: 'success' | 'warning' | 'error'; message: string } | null>(null);
   const [studentName, setStudentName] = useState('Siswa');
   const [curhatHistory, setCurhatHistory] = useState<CurhatHistoryRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -72,7 +89,7 @@ export default function CurhatPage() {
         .eq('email_siswa', user.email)
         .eq('layanan', 'CURHAT')
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (error) throw new Error(`Gagal memuat riwayat curhat: ${error.message}`);
       setCurhatHistory((data || []) as CurhatHistoryRecord[]);
@@ -108,8 +125,37 @@ export default function CurhatPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setStatus(null);
+
+    const cleanJudul = judul.trim();
+    const cleanPesan = pesan.trim();
+
+    if (!cleanJudul || !cleanPesan) {
+      setStatus({
+        type: 'warning',
+        message: 'Judul dan isi curhatan tidak boleh kosong atau hanya berisi spasi.',
+      });
+      return;
+    }
+
+    // Cek duplikasi cepat terhadap riwayat curhat yang sudah tercatat
+    const normalizedTitle = `[${kategori}] ${cleanJudul}`.toLowerCase();
+    const isAlreadySent = curhatHistory.some((item) => {
+      const existingTitle = (item.judul_pesan || '').replace(/^\[PRIORITAS\]\s*/i, '').trim().toLowerCase();
+      const existingBody = (item.topik || item.deskripsi || item.pesan || '').trim().toLowerCase();
+      return existingTitle === normalizedTitle && existingBody === cleanPesan.toLowerCase();
+    });
+
+    if (isAlreadySent) {
+      setStatus({
+        type: 'warning',
+        message:
+          'Curhatan dengan judul dan isi yang sama sudah tercatat di riwayatmu. Sistem mencegah pengiriman ganda agar pesanmu tidak menumpuk di panel Guru BK.',
+      });
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const sessionData = localStorage.getItem('user_session');
@@ -118,16 +164,16 @@ export default function CurhatPage() {
       if (userError || !user?.email) throw new Error('Sesi login tidak valid. Silakan masuk kembali.');
 
       const namaPengirim = isAnonim ? 'Anonim' : (session.nama || session.email || 'Siswa');
-      const isPriority = needsFastSupport || isHighPriorityMessage(judul, pesan);
-      const messageTitle = `[${kategori}] ${judul.trim()}`;
+      const isPriority = needsFastSupport || isHighPriorityMessage(cleanJudul, cleanPesan);
+      const messageTitle = `[${kategori}] ${cleanJudul}`;
 
       const payload: Record<string, string> = {
         nama_siswa: namaPengirim,
         email_siswa: user.email,
         layanan: 'CURHAT',
         judul_pesan: isPriority ? markPriorityTitle(messageTitle) : messageTitle,
-        deskripsi: pesan,
-        topik: pesan,
+        deskripsi: cleanPesan,
+        topik: cleanPesan,
         status: 'TERKIRIM',
       };
 
@@ -137,20 +183,28 @@ export default function CurhatPage() {
 
       let { error } = await supabase.from('layanan_siswa').insert([payload]);
 
-      if (error && error.message?.includes('topik')) {
+      if (error && !isDuplicateCurhatError(error) && error.message?.includes('topik')) {
         delete payload.topik;
         const retry = await supabase.from('layanan_siswa').insert([payload]);
         error = retry.error;
       }
 
-      if (error && error.message?.includes('deskripsi')) {
+      if (error && !isDuplicateCurhatError(error) && error.message?.includes('deskripsi')) {
         delete payload.deskripsi;
-        payload.judul_pesan = `[${kategori}] ${judul}: ${pesan}`;
+        payload.judul_pesan = `[${kategori}] ${cleanJudul}: ${cleanPesan}`;
         const retry2 = await supabase.from('layanan_siswa').insert([payload]);
         error = retry2.error;
       }
 
       if (error) {
+        if (isDuplicateCurhatError(error)) {
+          setStatus({
+            type: 'warning',
+            message:
+              'Curhatan serupa sudah tercatat sebelumnya di sistem. Untuk menghindari duplikasi data, kamu tidak perlu mengirimkannya dua kali—silakan cek daftar Riwayat Curhat Terkirim di samping.',
+          });
+          return;
+        }
         throw new Error(error.message);
       }
 
@@ -166,16 +220,26 @@ export default function CurhatPage() {
       void loadHistory();
     } catch (err: unknown) {
       console.error('Error submit:', err);
-      setStatus({
-        type: 'error',
-        message: err instanceof Error ? err.message : 'Gagal mengirim curhatan.',
-      });
+      if (isDuplicateCurhatError(err)) {
+        setStatus({
+          type: 'warning',
+          message:
+            'Curhatan serupa sudah tercatat sebelumnya di sistem. Sistem mencegah penyimpanan ganda agar riwayatmu tetap rapi.',
+        });
+      } else {
+        setStatus({
+          type: 'error',
+          message: err instanceof Error ? err.message : 'Gagal mengirim curhatan.',
+        });
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   const messageNeedsReview = isHighPriorityMessage(judul, pesan);
+  const repliedCount = curhatHistory.filter((item) => Boolean(item.balasan?.trim())).length;
+  const waitingCount = curhatHistory.length - repliedCount;
 
   return (
     <>
@@ -241,21 +305,67 @@ export default function CurhatPage() {
 
             {status && (
               <div
+                role="alert"
                 style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: '12px',
                   padding: '14px 18px',
                   borderRadius: '12px',
                   marginBottom: '20px',
                   fontSize: '13.5px',
-                  fontWeight: '700',
-                  backgroundColor: status.type === 'success' ? '#064e3b' : '#7f1d1d',
-                  color: status.type === 'success' ? '#dcfce7' : '#fee2e2',
-                  border: `1px solid ${status.type === 'success' ? '#10b981' : '#f87171'}`,
+                  lineHeight: 1.55,
+                  backgroundColor:
+                    status.type === 'success'
+                      ? '#064e3b'
+                      : status.type === 'warning'
+                      ? 'rgba(120, 53, 15, 0.85)'
+                      : '#7f1d1d',
+                  color:
+                    status.type === 'success'
+                      ? '#dcfce7'
+                      : status.type === 'warning'
+                      ? '#fef3c7'
+                      : '#fee2e2',
+                  border: `1px solid ${
+                    status.type === 'success'
+                      ? '#10b981'
+                      : status.type === 'warning'
+                      ? '#fbbf24'
+                      : '#f87171'
+                  }`,
                   boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
                   width: '100%',
                   boxSizing: 'border-box'
                 }}
               >
-                {status.type === 'success' ? '✅ ' : '⚠️ '} {status.message}
+                <div>
+                  {status.type === 'warning' && (
+                    <strong style={{ display: 'block', color: '#fde68a', marginBottom: '2px' }}>
+                      ⚠️ Duplikasi Pesan Dicegah
+                    </strong>
+                  )}
+                  <span style={{ fontWeight: status.type === 'warning' ? 500 : 700 }}>
+                    {status.type === 'success' ? '✅ ' : status.type === 'error' ? '❌ ' : ''}
+                    {status.message}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStatus(null)}
+                  aria-label="Tutup pemberitahuan"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    flexShrink: 0,
+                  }}
+                >
+                  <X size={16} />
+                </button>
               </div>
             )}
 
@@ -356,6 +466,23 @@ export default function CurhatPage() {
                     </p>
                   </div>
 
+                  {/* PERINGATAN RAMAH DUPLIKASI DI ATAS TOMBOL KIRIM */}
+                  {status?.type === 'warning' && (
+                    <div
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(251, 191, 36, 0.45)',
+                        backgroundColor: 'rgba(120, 53, 15, 0.35)',
+                        color: '#fef3c7',
+                        fontSize: '12px',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      ⚠️ {status.message}
+                    </div>
+                  )}
+
                   <button
                     type="submit"
                     disabled={isLoading}
@@ -415,6 +542,31 @@ export default function CurhatPage() {
                     </div>
                     <span className={styles.historyCount}>{curhatHistory.length} pesan</span>
                   </div>
+
+                  {/* RINGKASAN AGREGAT DINAMIS & RESPONSIF */}
+                  {!historyLoading && !historyError && (
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+                        gap: '8px',
+                        marginBottom: '14px',
+                      }}
+                    >
+                      <div style={{ padding: '8px 10px', borderRadius: '10px', background: 'rgba(8, 24, 16, 0.75)', border: '1px solid rgba(52, 211, 153, 0.2)' }}>
+                        <span style={{ display: 'block', fontSize: '11px', color: '#a7f3d0' }}>Total Curhat</span>
+                        <strong style={{ fontSize: '15px', color: '#34d399', fontFamily: 'monospace' }}>{curhatHistory.length}</strong>
+                      </div>
+                      <div style={{ padding: '8px 10px', borderRadius: '10px', background: 'rgba(8, 24, 16, 0.75)', border: '1px solid rgba(251, 191, 36, 0.25)' }}>
+                        <span style={{ display: 'block', fontSize: '11px', color: '#fde68a' }}>Menunggu</span>
+                        <strong style={{ fontSize: '15px', color: '#fbbf24', fontFamily: 'monospace' }}>{waitingCount}</strong>
+                      </div>
+                      <div style={{ padding: '8px 10px', borderRadius: '10px', background: 'rgba(8, 24, 16, 0.75)', border: '1px solid rgba(96, 165, 250, 0.25)' }}>
+                        <span style={{ display: 'block', fontSize: '11px', color: '#bfdbfe' }}>Sudah Dibalas</span>
+                        <strong style={{ fontSize: '15px', color: '#60a5fa', fontFamily: 'monospace' }}>{repliedCount}</strong>
+                      </div>
+                    </div>
+                  )}
 
                   {historyLoading ? (
                     <div className={styles.historyState} role="status">

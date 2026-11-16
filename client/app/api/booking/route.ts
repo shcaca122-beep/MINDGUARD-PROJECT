@@ -1,103 +1,133 @@
-import { createServerClient } from '@supabase/ssr';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
 
-const SESSION_OPTIONS = [
-  '08:00 - 09:00 WIB (Sesi 1)',
-  '10:00 - 11:00 WIB (Sesi 2)',
-  '13:00 - 14:00 WIB (Sesi 3)',
-] as const;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export async function POST(request: Request) {
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export async function POST(request: NextRequest) {
   try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !anonKey || !serviceRoleKey) {
-      console.error('Konfigurasi Supabase server belum lengkap untuk booking konseling.');
-      return NextResponse.json({ message: 'Layanan booking belum dikonfigurasi.' }, { status: 503 });
-    }
+    const body = await request.json();
 
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json({ message: 'Format permintaan tidak valid.' }, { status: 400 });
-    }
-    if (!body || typeof body !== 'object') {
-      return NextResponse.json({ message: 'Data booking tidak valid.' }, { status: 400 });
-    }
+    const tanggal = String(body?.tanggal || '').trim();
+    const sesi = String(body?.sesi || '').trim();
+    const judulPesan = String(body?.judul_pesan || '').trim();
+    const topik = String(body?.topik || '').trim();
+    const namaSiswa = String(body?.nama_siswa || 'Siswa').trim();
+    const emailSiswa = String(body?.email_siswa || '').trim();
+    const kelas = String(body?.kelas || '').trim();
 
-    const input = body as Record<string, unknown>;
-    const tanggal = typeof input.tanggal === 'string' ? input.tanggal : '';
-    const sesi = typeof input.sesi === 'string' ? input.sesi : '';
-    const judulPesan = typeof input.judul_pesan === 'string' ? input.judul_pesan.trim() : '';
-    const topik = typeof input.topik === 'string' ? input.topik.trim() : '';
-    const parsedDate = /^\d{4}-\d{2}-\d{2}$/.test(tanggal) ? new Date(`${tanggal}T00:00:00.000Z`) : null;
-
-    if (
-      !parsedDate ||
-      Number.isNaN(parsedDate.getTime()) ||
-      parsedDate.toISOString().slice(0, 10) !== tanggal ||
-      !(SESSION_OPTIONS as readonly string[]).includes(sesi) ||
-      !judulPesan ||
-      !topik
-    ) {
-      return NextResponse.json({ message: 'Tanggal, sesi, topik, atau judul booking tidak valid.' }, { status: 400 });
-    }
-
-    const cookieStore = await cookies();
-    const sessionClient = createServerClient(url, anonKey, {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (values) => values.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
-      },
-    });
-    const { data: { user }, error: authError } = await sessionClient.auth.getUser();
-    if (authError || !user?.email) {
-      return NextResponse.json({ message: 'Sesi login tidak valid. Silakan masuk kembali.' }, { status: 401 });
-    }
-
-    const { data: profile, error: profileError } = await sessionClient
-      .from('user_profiles')
-      .select('role, display_name, kelas')
-      .eq('user_id', user.id)
-      .single();
-    if (profileError || profile?.role !== 'siswa') {
-      return NextResponse.json({ message: 'Hanya akun siswa yang dapat mengajukan booking konseling.' }, { status: 403 });
-    }
-
-    const adminClient = createClient(url, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-    const { data: booked, error: bookingError } = await adminClient.rpc('book_counseling_slot', {
-      p_email_siswa: user.email,
-      p_nama_siswa: profile.display_name || user.email,
-      p_kelas: profile.kelas || '-',
-      p_tanggal: `${tanggal} (${sesi})`,
-      p_judul_pesan: judulPesan,
-      p_topik: topik,
-    });
-
-    if (bookingError) {
-      console.error('Gagal menyimpan booking konseling:', bookingError.message);
-      return NextResponse.json({ message: 'Booking konseling gagal disimpan. Silakan coba lagi.' }, { status: 503 });
-    }
-    if (booked === false) {
+    // 1. Validasi input wajib & sanitasi
+    if (!tanggal || !sesi || !judulPesan) {
       return NextResponse.json(
-        { message: 'Jadwal konseling tersebut sudah dipesan. Silakan pilih tanggal atau sesi lain.' },
-        { status: 409 },
+        { message: 'Tanggal sesi, jam sesi, dan topik utama wajib diisi.' },
+        { status: 400 }
       );
     }
-    if (booked !== true) {
-      console.error('Respons tidak valid dari penyimpanan booking konseling.');
-      return NextResponse.json({ message: 'Booking konseling gagal disimpan. Silakan coba lagi.' }, { status: 503 });
+
+    // 2. Cek bentrok / duplikasi jadwal pada tanggal dan sesi yang sama
+    const { data: existingBooking, error: checkError } = await supabase
+      .from('layanan_siswa')
+      .select('id, status')
+      .eq('layanan', 'BOOKING')
+      .eq('tanggal', tanggal)
+      .eq('sesi', sesi)
+      .neq('status', 'DITOLAK')
+      .maybeSingle();
+
+    if (checkError && !checkError.message?.includes('column')) {
+      return NextResponse.json(
+        { message: 'Gagal memeriksa ketersediaan jadwal konseling.' },
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json({ success: true, message: 'Jadwal konseling berhasil diajukan.' }, { status: 201 });
-  } catch (error: unknown) {
-    console.error('Gagal memproses booking konseling:', error);
-    return NextResponse.json({ message: 'Terjadi kesalahan saat mengirim booking konseling.' }, { status: 500 });
+    if (existingBooking) {
+      return NextResponse.json(
+        {
+          code: '23505',
+          message: `Jadwal konseling pada ${tanggal} (${sesi}) sudah dibooking. Silakan pilih tanggal atau sesi jam lain.`,
+        },
+        { status: 409 }
+      );
+    }
+
+    // 3. Susun payload penyimpanan ke tabel layanan_siswa
+    const payload: Record<string, string> = {
+      nama_siswa: namaSiswa,
+      layanan: 'BOOKING',
+      judul_pesan: judulPesan,
+      topik: topik || judulPesan,
+      deskripsi: topik || judulPesan,
+      tanggal,
+      sesi,
+      status: 'TERKIRIM',
+    };
+
+    if (emailSiswa) payload.email_siswa = emailSiswa;
+    if (kelas) payload.kelas = kelas;
+
+    let { data, error } = await supabase
+      .from('layanan_siswa')
+      .insert([payload])
+      .select()
+      .single();
+
+    // Fallback jika skema tabel belum memiliki kolom tanggal/sesi/deskripsi terpisah
+    if (error && error.message?.includes('column')) {
+      const fallbackPayload: Record<string, string> = {
+        nama_siswa: namaSiswa,
+        layanan: 'BOOKING',
+        judul_pesan: `[${tanggal} | ${sesi}] ${judulPesan}`,
+        topik: topik || judulPesan,
+        status: 'TERKIRIM',
+      };
+      if (emailSiswa) fallbackPayload.email_siswa = emailSiswa;
+      if (kelas) fallbackPayload.kelas = kelas;
+
+      const retry = await supabase
+        .from('layanan_siswa')
+        .insert([fallbackPayload])
+        .select()
+        .single();
+
+      data = retry.data;
+      error = retry.error;
+    }
+
+    // 4. Tangkap error duplikasi dari UNIQUE INDEX database (kode PostgreSQL 23505)
+    if (error) {
+      if (error.code === '23505' || error.message?.toLowerCase().includes('duplicate')) {
+        return NextResponse.json(
+          {
+            code: '23505',
+            message:
+              'Pengajuan jadwal konseling yang sama sudah tercatat sebelumnya. Silakan pilih sesi lain.',
+          },
+          { status: 409 }
+        );
+      }
+
+      return NextResponse.json(
+        { message: error.message || 'Gagal menyimpan permohonan konseling.' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        message: 'Permohonan jadwal konseling berhasil disimpan.',
+        data,
+      },
+      { status: 201 }
+    );
+  } catch (err) {
+    console.error('API /api/booking error:', err);
+    return NextResponse.json(
+      { message: 'Terjadi kesalahan pada server saat memproses booking.' },
+      { status: 500 }
+    );
   }
 }

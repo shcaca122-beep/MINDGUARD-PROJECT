@@ -3,7 +3,24 @@
 import Sidebar from '@/components/Sidebar';
 import { isHighPriorityMessage, markPriorityTitle } from '@/lib/counseling-priority';
 import { useState } from 'react';
-import { Calendar, ShieldCheck, Sparkles, Send, Building2, HelpCircle, AlertTriangle } from 'lucide-react';
+import { Calendar, ShieldCheck, Sparkles, Send, Building2, HelpCircle, AlertTriangle, X } from 'lucide-react';
+
+function isDuplicateSubmission(httpStatus: number, payload: Record<string, unknown>): boolean {
+  if (httpStatus === 409) return true;
+  const code = String(payload?.code || '');
+  const message = String(payload?.message || payload?.error || '').toLowerCase();
+
+  return (
+    code === '23505' ||
+    message.includes('duplicate') ||
+    message.includes('duplikat') ||
+    message.includes('unique') ||
+    message.includes('sudah ada') ||
+    message.includes('sudah tercatat') ||
+    message.includes('bentrok') ||
+    message.includes('sudah dibooking')
+  );
+}
 
 export default function BookingPage() {
   const [tanggal, setTanggal] = useState('');
@@ -12,18 +29,30 @@ export default function BookingPage() {
   const [deskripsi, setDeskripsi] = useState('');
   const [needsFastSupport, setNeedsFastSupport] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [status, setStatus] = useState<{ type: 'success' | 'warning' | 'error'; message: string } | null>(null);
 
   const today = new Date().toISOString().split('T')[0];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setStatus(null);
 
+    const cleanTopik = topik.trim();
+    const cleanDeskripsi = deskripsi.trim();
+
+    if (!cleanTopik) {
+      setStatus({
+        type: 'warning',
+        message: 'Topik utama konseling tidak boleh kosong atau hanya berisi spasi.',
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
-      const isPriority = needsFastSupport || isHighPriorityMessage(topik, deskripsi);
-      const requestTitle = isPriority ? markPriorityTitle(topik.trim()) : topik.trim();
+      const isPriority = needsFastSupport || isHighPriorityMessage(cleanTopik, cleanDeskripsi);
+      const requestTitle = isPriority ? markPriorityTitle(cleanTopik) : cleanTopik;
 
       const response = await fetch('/api/booking', {
         method: 'POST',
@@ -32,11 +61,28 @@ export default function BookingPage() {
           tanggal,
           sesi,
           judul_pesan: requestTitle,
-          topik: deskripsi || topik,
+          topik: cleanDeskripsi || cleanTopik,
         }),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'Gagal mengirim pengajuan. Silakan coba lagi.');
+
+      const result = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+
+      if (!response.ok) {
+        if (isDuplicateSubmission(response.status, result)) {
+          setStatus({
+            type: 'warning',
+            message:
+              'Jadwal konseling pada tanggal dan sesi yang sama sudah tercatat sebelumnya. Sistem mencegah pengajuan ganda agar jadwalmu tidak bertumpuk—silakan pilih sesi lain atau cek riwayat pengajuanmu.',
+          });
+          return;
+        }
+
+        throw new Error(
+          typeof result.message === 'string' && result.message
+            ? result.message
+            : 'Gagal mengirim pengajuan. Silakan coba lagi.'
+        );
+      }
 
       setStatus({
         type: 'success',
@@ -50,10 +96,19 @@ export default function BookingPage() {
       setNeedsFastSupport(false);
     } catch (err: unknown) {
       console.error(err);
-      setStatus({
-        type: 'error',
-        message: err instanceof Error ? err.message : 'Gagal mengirim pengajuan. Silakan coba lagi.',
-      });
+      const rawMessage = err instanceof Error ? err.message : '';
+      if (isDuplicateSubmission(0, { message: rawMessage })) {
+        setStatus({
+          type: 'warning',
+          message:
+            'Jadwal konseling pada tanggal dan sesi yang sama sudah tercatat sebelumnya. Sistem mencegah pengajuan ganda—silakan pilih tanggal atau sesi jam lain.',
+        });
+      } else {
+        setStatus({
+          type: 'error',
+          message: rawMessage || 'Gagal mengirim pengajuan. Silakan coba lagi.',
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -134,22 +189,68 @@ export default function BookingPage() {
               </p>
             </div>
 
-            {/* ALERT STATUS */}
+            {/* ALERT STATUS (SUKSES / PERINGATAN RAMAH DUPLIKASI / ERROR) */}
             {status && (
               <div
+                role="alert"
                 style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: '12px',
                   padding: '14px 18px',
                   borderRadius: '12px',
                   marginBottom: '20px',
                   fontSize: '13.5px',
-                  fontWeight: '700',
-                  backgroundColor: status.type === 'success' ? '#064e3b' : '#7f1d1d',
-                  color: status.type === 'success' ? '#dcfce7' : '#fee2e2',
-                  border: `1px solid ${status.type === 'success' ? '#10b981' : '#f87171'}`,
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                  lineHeight: 1.55,
+                  backgroundColor:
+                    status.type === 'success'
+                      ? '#064e3b'
+                      : status.type === 'warning'
+                      ? 'rgba(120, 53, 15, 0.85)'
+                      : '#7f1d1d',
+                  color:
+                    status.type === 'success'
+                      ? '#dcfce7'
+                      : status.type === 'warning'
+                      ? '#fef3c7'
+                      : '#fee2e2',
+                  border: `1px solid ${
+                    status.type === 'success'
+                      ? '#10b981'
+                      : status.type === 'warning'
+                      ? '#fbbf24'
+                      : '#f87171'
+                  }`,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
                 }}
               >
-                {status.type === 'success' ? '✅ ' : '⚠️ '} {status.message}
+                <div>
+                  {status.type === 'warning' && (
+                    <strong style={{ display: 'block', color: '#fde68a', marginBottom: '2px' }}>
+                      ⚠️ Pengajuan Ganda Dicegah
+                    </strong>
+                  )}
+                  <span style={{ fontWeight: status.type === 'warning' ? 500 : 700 }}>
+                    {status.type === 'success' ? '✅ ' : status.type === 'error' ? '❌ ' : ''}
+                    {status.message}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStatus(null)}
+                  aria-label="Tutup pemberitahuan"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    flexShrink: 0,
+                  }}
+                >
+                  <X size={16} />
+                </button>
               </div>
             )}
 
@@ -234,6 +335,23 @@ export default function BookingPage() {
                       style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(52, 211, 153, 0.3)', fontSize: '13px', boxSizing: 'border-box', fontFamily: 'inherit', resize: 'vertical', outline: 'none', backgroundColor: '#021f18', color: '#fff' }}
                     />
                   </div>
+
+                  {/* PERINGATAN RAMAH DUPLIKASI DI ATAS TOMBOL KIRIM */}
+                  {status?.type === 'warning' && (
+                    <div
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(251, 191, 36, 0.45)',
+                        backgroundColor: 'rgba(120, 53, 15, 0.35)',
+                        color: '#fef3c7',
+                        fontSize: '12px',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      ⚠️ {status.message}
+                    </div>
+                  )}
 
                   <button
                     type="submit"
