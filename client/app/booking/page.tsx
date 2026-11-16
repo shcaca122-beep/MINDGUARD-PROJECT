@@ -1,6 +1,7 @@
 'use client';
 
 import Sidebar from '@/components/Sidebar';
+import { supabase } from '@/lib/supabase';
 import { isHighPriorityMessage, markPriorityTitle } from '@/lib/counseling-priority';
 import { useState } from 'react';
 import { Calendar, ShieldCheck, Sparkles, Send, Building2, HelpCircle, AlertTriangle, X } from 'lucide-react';
@@ -51,16 +52,40 @@ export default function BookingPage() {
     setIsLoading(true);
 
     try {
+      // Ambil identitas siswa dari localStorage dan sesi Supabase Auth
+      const sessionRaw = localStorage.getItem('user_session');
+      const localSession = sessionRaw ? (JSON.parse(sessionRaw) as Record<string, string>) : {};
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+
+      const emailSiswa = authSession?.user?.email || localSession.email || '';
+      const namaSiswa =
+        localSession.nama ||
+        (authSession?.user?.user_metadata?.nama as string | undefined) ||
+        emailSiswa ||
+        'Siswa';
+      const kelasSiswa = localSession.kelas || '';
+
       const isPriority = needsFastSupport || isHighPriorityMessage(cleanTopik, cleanDeskripsi);
       const requestTitle = isPriority ? markPriorityTitle(cleanTopik) : cleanTopik;
 
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (authSession?.access_token) {
+        headers.Authorization = `Bearer ${authSession.access_token}`;
+      }
+
       const response = await fetch('/api/booking', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
+          nama_siswa: namaSiswa,
+          email_siswa: emailSiswa,
+          kelas: kelasSiswa,
           tanggal,
           sesi,
           judul_pesan: requestTitle,
+          deskripsi: cleanDeskripsi || cleanTopik,
           topik: cleanDeskripsi || cleanTopik,
         }),
       });

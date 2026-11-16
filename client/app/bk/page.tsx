@@ -7,14 +7,16 @@ import Sidebar from '@/components/Sidebar';
 import BKUtilityBar from './BKUtilityBar';
 import { supabase } from '@/lib/supabase';
 import { isHighPriorityMessage } from '@/lib/counseling-priority';
-import { ShieldCheck, AlertTriangle, ArrowRight, UserCheck, X, Calendar, MessageSquareText } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, ArrowRight, UserCheck, X, Calendar, MessageSquareText, BarChart3 } from 'lucide-react';
 
 type StudentServiceRecord = {
   id?: string | number;
   layanan?: string;
   nama_siswa?: string;
+  email_siswa?: string;
   kelas?: string;
   tanggal?: string;
+  sesi?: string;
   judul_pesan?: string;
   pesan?: string;
   deskripsi?: string;
@@ -43,6 +45,11 @@ type ServiceNotification = {
   tab: 'curhat' | 'konseling';
 };
 
+function isCounselingService(layanan?: string): boolean {
+  const normalized = (layanan || '').toUpperCase();
+  return normalized === 'KONSELING' || normalized === 'BOOKING';
+}
+
 export default function BKPage() {
   const router = useRouter();
   const [dataCurhat, setDataCurhat] = useState<StudentServiceRecord[]>([]);
@@ -52,9 +59,9 @@ export default function BKPage() {
   const [tabAktif, setTabAktif] = useState<'curhat' | 'konseling'>('curhat');
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const permohonanKonselingRef = useRef<HTMLDivElement>(null);
 
-  // State untuk Input Nama Guru BK Manual & Notifikasi Modern (Default "Umum")
   const [namaGuruBK, setNamaGuruBK] = useState('Umum');
   const [inputNama, setInputNama] = useState('Umum');
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -69,7 +76,7 @@ export default function BKPage() {
     if (!id || seenServiceIds.current.has(id)) return;
     seenServiceIds.current.add(id);
     const urgent = isHighPriorityMessage(record.judul_pesan, record.pesan, record.topik, record.deskripsi);
-    const isCounseling = record.layanan === 'KONSELING';
+    const isCounseling = isCounselingService(record.layanan);
     setServiceNotification({
       id,
       urgent,
@@ -84,12 +91,30 @@ export default function BKPage() {
 
   const fetchDataBK = useCallback(async (notifyNew = false) => {
     setIsLoading(true);
+    setFetchError(null);
     try {
       const [curhatResult, counselingResult, violationResult] = await Promise.all([
-        supabase.from('layanan_siswa').select('*').eq('layanan', 'CURHAT').order('created_at', { ascending: false }),
-        supabase.from('layanan_siswa').select('*').eq('layanan', 'KONSELING').order('created_at', { ascending: false }),
-        supabase.from('pelanggaran_siswa').select('*').order('created_at', { ascending: false }),
+        supabase
+          .from('layanan_siswa')
+          .select('*')
+          .eq('layanan', 'CURHAT')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('layanan_siswa')
+          .select('*')
+          .in('layanan', ['KONSELING', 'BOOKING'])
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('pelanggaran_siswa')
+          .select('*')
+          .order('created_at', { ascending: false }),
       ]);
+
+      if (curhatResult.error || counselingResult.error) {
+        const msg = curhatResult.error?.message || counselingResult.error?.message || '';
+        setFetchError(`Gagal membaca tabel layanan_siswa (${msg}). Pastikan policy RLS mengizinkan akses baca untuk Guru BK.`);
+      }
+
       const curhat = (curhatResult.data || []) as StudentServiceRecord[];
       const counseling = (counselingResult.data || []) as StudentServiceRecord[];
       const records = [...curhat, ...counseling]
@@ -108,12 +133,12 @@ export default function BKPage() {
       if (!violationResult.error) setDataPelanggaran(violationResult.data || []);
     } catch (err) {
       console.error('Gagal mengambil data BK:', err);
+      setFetchError('Terjadi kendala jaringan saat memuat data layanan siswa.');
     } finally {
       setIsLoading(false);
     }
   }, [announceNewService]);
 
-  // 1. Cek Hak Akses & Load Nama Tersimpan
   useEffect(() => {
     let isMounted = true;
     Promise.resolve().then(() => {
@@ -160,9 +185,12 @@ export default function BKPage() {
       .channel('bk-student-service-notifications')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'layanan_siswa' }, (payload) => {
         const record = payload.new as StudentServiceRecord;
-        if (record.layanan !== 'CURHAT' && record.layanan !== 'KONSELING') return;
+        const isCurhat = (record.layanan || '').toUpperCase() === 'CURHAT';
+        const isCounseling = isCounselingService(record.layanan);
+        if (!isCurhat && !isCounseling) return;
+
         announceNewService(record);
-        if (record.layanan === 'CURHAT') {
+        if (isCurhat) {
           setDataCurhat((current) => [record, ...current.filter((item) => item.id !== record.id)]);
         } else {
           setDataKonseling((current) => [record, ...current.filter((item) => item.id !== record.id)]);
@@ -220,6 +248,8 @@ export default function BKPage() {
     && !['DISETUJUI', 'DIBALAS', 'SELESAI', 'DITOLAK', 'DIBATALKAN'].includes((item.status || 'MENUNGGU ACC').toUpperCase())
   );
   const urgentCounselingCount = urgentCounselingItems.length;
+  const totalPoinPelanggaran = dataPelanggaran.reduce((sum, item) => sum + (Number(item.poin) || 0), 0);
+
   const normalizedSearch = dashboardSearch.trim().toLowerCase();
   const matchesDashboardSearch = (...values: (string | number | undefined)[]) =>
     !normalizedSearch || values.some((value) => String(value || '').toLowerCase().includes(normalizedSearch));
@@ -240,6 +270,7 @@ export default function BKPage() {
   const categoryStats = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const maxCategoryCount = categoryStats[0]?.[1] || 1;
   const followUpCount = urgentCurhatCount + pendingCounselingCount;
+
   const isUrgentCurhatPopupOpen = urgentCurhatItems.some(
     (item) => !dismissedUrgentCurhatIds.includes(String(item.id))
   );
@@ -276,7 +307,6 @@ export default function BKPage() {
     setTabAktif('curhat');
   };
 
-
   if (!isAuthorized) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#021f18', fontWeight: 'bold', color: '#34d399', fontFamily: 'system-ui' }}>
@@ -296,10 +326,8 @@ export default function BKPage() {
           overflow-x: hidden !important;
         }
       ` }} />
-      {/* STRUKTUR UTAMA: Menggunakan width 100% agar simetris dan seimbang di tengah */}
       <div className="bk-panel-page" style={{ display: 'flex', minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #021f18 0%, #032c22 35%, #054233 70%, #064e3b 100%)', fontFamily: 'system-ui, -apple-system, sans-serif', boxSizing: 'border-box' }}>
         
-        {/* SIDEBAR */}
         <div className="bk-panel-sidebar" style={{ background: '#021f18', borderRight: '1px solid rgba(52, 211, 153, 0.15)', flexShrink: 0 }}>
           <Sidebar />
         </div>
@@ -314,7 +342,6 @@ export default function BKPage() {
             isRefreshing={isLoading}
           />
 
-          {/* TOP BAR BK */}
           <div className="bk-route-heading" style={{
             background: 'linear-gradient(135deg, #021f18 0%, #064e3b 100%)', 
             color: '#ffffff', 
@@ -340,10 +367,14 @@ export default function BKPage() {
             </div>
           </div>
 
-          {/* KONTEN UTAMA BK - SIMETRIS DI TENGAH */}
           <div className="bk-panel-content" style={{ padding: '30px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', boxSizing: 'border-box' }}>
             
-            {/* NOTIFIKASI MODERN BANNER */}
+            {fetchError && (
+              <div role="alert" style={{ padding: '14px 18px', borderRadius: '12px', marginBottom: '18px', fontSize: '13px', backgroundColor: 'rgba(120, 53, 15, 0.45)', color: '#fef3c7', border: '1px solid rgba(251, 191, 36, 0.5)' }}>
+                ⚠️ {fetchError}
+              </div>
+            )}
+
             {statusMsg && (
               <div style={{ padding: '14px 18px', borderRadius: '12px', marginBottom: '20px', fontWeight: '700', fontSize: '13.5px', backgroundColor: statusMsg.type === 'success' ? '#064e3b' : '#7f1d1d', color: statusMsg.type === 'success' ? '#dcfce7' : '#fee2e2', border: `1px solid ${statusMsg.type === 'success' ? '#10b981' : '#f87171'}`, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
                 <span>{statusMsg.type === 'success' ? '✅' : '⚠️'}</span>
@@ -383,7 +414,6 @@ export default function BKPage() {
               </div>
             )}
 
-            {/* KOTAK INPUT NAMA GURU BK MANUAL */}
             <div className="bk-counselor-card" style={{ backgroundColor: 'rgba(2, 31, 24, 0.9)', backdropFilter: 'blur(12px)', borderRadius: '16px', padding: '20px 24px', marginBottom: '18px', border: '1.5px solid rgba(52, 211, 153, 0.4)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
               <div className="bk-counselor-profile">
                 <div style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
@@ -413,88 +443,90 @@ export default function BKPage() {
               </div>
             </div>
 
-            {/* STATS */}
-            <div className="bk-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '14px', marginBottom: '18px', width: '100%', boxSizing: 'border-box' }}>
+            {/* RINGKASAN AGREGAT DINAMIS & RESPONSIF */}
+            <div className="bk-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '14px', marginBottom: '18px', width: '100%', boxSizing: 'border-box' }}>
               <div className="bk-summary-card" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', padding: '17px', borderRadius: '16px', borderTop: '3px solid #6ee7b7', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', boxSizing: 'border-box' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8fd8b6', fontSize: '11px', fontWeight: 800 }}><MessageSquareText size={15} /> PESAN CURHAT</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8fd8b6', fontSize: '11px', fontWeight: 800 }}><MessageSquareText size={15} /> TOTAL PESAN CURHAT</div>
                 <div style={{ fontSize: '24px', fontWeight: '800', color: '#ecfdf5', marginTop: '8px' }}>{dataCurhat.length}</div>
+                <small style={{ color: '#94a3b8', fontSize: '11px' }}>{urgentCurhatCount} prioritas perlu segera ditinjau</small>
               </div>
               <div className="bk-summary-card" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', padding: '17px', borderRadius: '16px', borderTop: '3px solid #34d399', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', boxSizing: 'border-box' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8fd8b6', fontSize: '11px', fontWeight: 800 }}><Calendar size={15} /> JADWAL KONSELING</div>
                 <div style={{ fontSize: '24px', fontWeight: '800', color: '#ecfdf5', marginTop: '8px' }}>{dataKonseling.length}</div>
+                <small style={{ color: '#94a3b8', fontSize: '11px' }}>{pendingCounselingCount} menunggu verifikasi BK</small>
               </div>
               <div className="bk-summary-card" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', padding: '17px', borderRadius: '16px', borderTop: '3px solid #f87171', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', boxSizing: 'border-box' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8fd8b6', fontSize: '11px', fontWeight: 800 }}><AlertTriangle size={15} /> PELANGGARAN OSIS</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8fd8b6', fontSize: '11px', fontWeight: 800 }}><BarChart3 size={15} /> AGREGAT PELANGGARAN</div>
                 <div style={{ fontSize: '24px', fontWeight: '800', color: '#ecfdf5', marginTop: '8px' }}>{dataPelanggaran.length}</div>
+                <small style={{ color: '#94a3b8', fontSize: '11px' }}>Akumulasi {totalPoinPelanggaran} poin tercatat</small>
               </div>
               <div className="bk-summary-card" style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', padding: '17px', borderRadius: '16px', borderTop: '3px solid #fbbf24', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', boxSizing: 'border-box' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8fd8b6', fontSize: '11px', fontWeight: 800 }}><UserCheck size={15} /> PERLU TINDAK LANJUT</div>
                 <div style={{ fontSize: '24px', fontWeight: '800', color: '#fde68a', marginTop: '8px' }}>{followUpCount}</div>
+                <small style={{ color: '#94a3b8', fontSize: '11px' }}>Gabungan curhat urgensi & booking baru</small>
               </div>
             </div>
 
-            {/* PELANGGARAN MASUK DARI OSIS */}
             <div className="bk-dashboard-overview">
-            <section className="bk-dashboard-panel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '16px', color: '#ecfdf5', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <AlertTriangle size={18} color="#f87171" />
-                    Pelanggaran Masuk dari OSIS
-                  </h3>
-                  <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>Catatan pelanggaran terbaru yang diinput oleh pengurus OSIS di gerbang</p>
+              <section className="bk-dashboard-panel">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '16px', color: '#ecfdf5', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <AlertTriangle size={18} color="#f87171" />
+                      Pelanggaran Masuk dari OSIS
+                    </h3>
+                    <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>Catatan pelanggaran terbaru yang diinput oleh pengurus OSIS di gerbang</p>
+                  </div>
+                  <Link href="/bk/pelanggaran" style={{ textDecoration: 'none', color: '#34d399', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span>Lihat Semua</span>
+                    <ArrowRight size={14} />
+                  </Link>
                 </div>
-                <Link href="/bk/pelanggaran" style={{ textDecoration: 'none', color: '#34d399', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span>Lihat Semua</span>
-                  <ArrowRight size={14} />
-                </Link>
-              </div>
 
-              {filteredPelanggaran.length === 0 ? (
-                <p style={{ margin: 0, color: '#94a3b8', fontSize: '13px' }}>{dataPelanggaran.length > 0 ? 'Tidak ada catatan pelanggaran yang cocok dengan pencarian.' : 'Belum ada pelanggaran yang masuk dari OSIS.'}</p>
-              ) : (
-                <div style={{ display: 'grid', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
-                  {filteredPelanggaran.slice(0, 5).map((item) => (
-                    <div key={item.id || `${item.nama_siswa}-${item.created_at}`} style={{ border: '1px solid rgba(52, 211, 153, 0.2)', borderRadius: '12px', padding: '14px', backgroundColor: '#021f18', boxSizing: 'border-box' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <div>
-                          <strong style={{ color: '#f8fafc', fontSize: '14px' }}>{item.nama_siswa || 'Siswa'}</strong>
-                          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>{item.kelas || '-'} • <span style={{ color: '#fca5a5' }}>{item.jenis_pelanggaran || item.jenis || 'Pelanggaran'}</span></div>
+                {filteredPelanggaran.length === 0 ? (
+                  <p style={{ margin: 0, color: '#94a3b8', fontSize: '13px' }}>{dataPelanggaran.length > 0 ? 'Tidak ada catatan pelanggaran yang cocok dengan pencarian.' : 'Belum ada pelanggaran yang masuk dari OSIS.'}</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+                    {filteredPelanggaran.slice(0, 5).map((item) => (
+                      <div key={item.id || `${item.nama_siswa}-${item.created_at}`} style={{ border: '1px solid rgba(52, 211, 153, 0.2)', borderRadius: '12px', padding: '14px', backgroundColor: '#021f18', boxSizing: 'border-box' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <div>
+                            <strong style={{ color: '#f8fafc', fontSize: '14px' }}>{item.nama_siswa || 'Siswa'}</strong>
+                            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>{item.kelas || '-'} • <span style={{ color: '#fca5a5' }}>{item.jenis_pelanggaran || item.jenis || 'Pelanggaran'}</span></div>
+                          </div>
+                          <span style={{ backgroundColor: '#451a03', color: '#f87171', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', border: '1px solid rgba(248, 113, 113, 0.3)' }}>+{item.poin ?? 0} Poin</span>
                         </div>
-                        <span style={{ backgroundColor: '#451a03', color: '#f87171', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 'bold', border: '1px solid rgba(248, 113, 113, 0.3)' }}>+{item.poin ?? 0} Poin</span>
+                        <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
+                          📅 {item.tanggal || (item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-')} • Petugas: {item.pencatat || 'OSIS'}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '11.5px', color: '#94a3b8', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
-                        📅 {item.tanggal || (item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-')} • Petugas: {item.pencatat || 'OSIS'}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+              </section>
+              <section className="bk-dashboard-panel">
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', color: '#ecfdf5', fontWeight: '700' }}>Statistik Kategori</h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>Jenis pelanggaran yang tercatat</p>
                 </div>
-              )}
-            </section>
-            <section className="bk-dashboard-panel">
-              <div>
-                <h3 style={{ margin: 0, fontSize: '16px', color: '#ecfdf5', fontWeight: '700' }}>Statistik Kategori</h3>
-                <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>Jenis pelanggaran yang tercatat</p>
-              </div>
-              {categoryStats.length === 0 ? (
-                <p style={{ margin: '18px 0 0', color: '#94a3b8', fontSize: '13px' }}>Belum ada data kategori untuk diringkas.</p>
-              ) : (
-                <div className="bk-category-stat">
-                  {categoryStats.map(([category, count]) => (
-                    <div className="bk-category-stat-row" key={category}>
-                      <span>{category}</span>
-                      <strong>{count}</strong>
-                      <div className="bk-category-stat-track" aria-label={`${count} catatan`}>
-                        <span style={{ width: `${(count / maxCategoryCount) * 100}%` }} />
+                {categoryStats.length === 0 ? (
+                  <p style={{ margin: '18px 0 0', color: '#94a3b8', fontSize: '13px' }}>Belum ada data kategori untuk diringkas.</p>
+                ) : (
+                  <div className="bk-category-stat">
+                    {categoryStats.map(([category, count]) => (
+                      <div className="bk-category-stat-row" key={category}>
+                        <span>{category}</span>
+                        <strong>{count}</strong>
+                        <div className="bk-category-stat-track" aria-label={`${count} catatan`}>
+                          <span style={{ width: `${(count / maxCategoryCount) * 100}%` }} />
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+                    ))}
+                  </div>
+                )}
+              </section>
             </div>
 
-            {/* TAB INTERNAL */}
             <div ref={permohonanKonselingRef} style={{ display: 'flex', gap: '10px', marginBottom: '16px', width: '100%', boxSizing: 'border-box', scrollMarginTop: '20px' }}>
               <button
                 onClick={() => setTabAktif('curhat')}
@@ -530,7 +562,6 @@ export default function BKPage() {
               </button>
             </div>
 
-            {/* TABEL DATA */}
             <div style={{ backgroundColor: 'rgba(2, 31, 24, 0.85)', backdropFilter: 'blur(12px)', borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(52, 211, 153, 0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)', width: '100%', boxSizing: 'border-box' }}>
               {tabAktif === 'curhat' ? (
                 <div style={{ overflowX: 'auto', width: '100%' }}>
@@ -549,7 +580,10 @@ export default function BKPage() {
                       ) : (
                         filteredCurhat.map((item) => (
                           <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <td style={{ padding: '14px', fontWeight: '700' }}>🔒 {item.nama_siswa || 'Anonim'}</td>
+                            <td style={{ padding: '14px', fontWeight: '700' }}>
+                              🔒 {item.nama_siswa || 'Anonim'}
+                              {item.kelas ? ` (${item.kelas})` : ''}
+                            </td>
                             <td style={{ padding: '14px' }}>
                               {isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi) && <span style={{ display: 'inline-flex', marginRight: '7px', padding: '3px 7px', borderRadius: '5px', border: '1px solid rgba(248, 113, 113, 0.45)', background: 'rgba(127, 29, 29, 0.35)', color: '#fecaca', fontSize: '10px', fontWeight: 800 }}>SEGERA</span>}
                               {item.judul_pesan || item.topik}
@@ -581,14 +615,23 @@ export default function BKPage() {
                       ) : (
                         filteredKonseling.map((item) => (
                           <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <td style={{ padding: '14px', fontWeight: '700' }}>{item.nama_siswa} ({item.kelas})</td>
-                            <td style={{ padding: '14px', color: '#94a3b8' }}>{item.tanggal}</td>
-                            <td style={{ padding: '14px' }}>
-                              {isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi) && <span style={{ display: 'inline-flex', marginRight: '7px', padding: '3px 7px', borderRadius: '5px', border: '1px solid rgba(248, 113, 113, 0.45)', background: 'rgba(127, 29, 29, 0.35)', color: '#fecaca', fontSize: '10px', fontWeight: 800 }}>SEGERA</span>}
-                              {item.topik || item.judul_pesan}
+                            <td style={{ padding: '14px', fontWeight: '700' }}>
+                              {item.nama_siswa || 'Siswa'}
+                              {item.kelas ? ` (${item.kelas})` : ''}
+                            </td>
+                            <td style={{ padding: '14px', color: '#94a3b8' }}>
+                              {item.tanggal
+                                ? `${item.tanggal}${item.sesi ? ` • ${item.sesi}` : ''}`
+                                : item.created_at
+                                  ? new Date(item.created_at).toLocaleDateString('id-ID')
+                                  : '-'}
                             </td>
                             <td style={{ padding: '14px' }}>
-                              <span style={{ backgroundColor: 'rgba(5, 150, 105, 0.2)', color: '#34d399', padding: '4px 10px', borderRadius: '6px', fontWeight: '700', fontSize: '11px', border: '1px solid rgba(52, 211, 153, 0.3)' }}>{item.status || 'TERJADWAL'}</span>
+                              {isHighPriorityMessage(item.judul_pesan, item.pesan, item.topik, item.deskripsi) && <span style={{ display: 'inline-flex', marginRight: '7px', padding: '3px 7px', borderRadius: '5px', border: '1px solid rgba(248, 113, 113, 0.45)', background: 'rgba(127, 29, 29, 0.35)', color: '#fecaca', fontSize: '10px', fontWeight: 800 }}>SEGERA</span>}
+                              {item.judul_pesan || item.topik}
+                            </td>
+                            <td style={{ padding: '14px' }}>
+                              <span style={{ backgroundColor: 'rgba(5, 150, 105, 0.2)', color: '#34d399', padding: '4px 10px', borderRadius: '6px', fontWeight: '700', fontSize: '11px', border: '1px solid rgba(52, 211, 153, 0.3)' }}>{item.status || 'TERKIRIM'}</span>
                             </td>
                           </tr>
                         ))
@@ -608,7 +651,6 @@ export default function BKPage() {
         </div>
       </div>
 
-      {/* POP-UP KONSELING PRIORITAS (Disamakan dengan desain pop-up Curhat Prioritas) */}
       {isUrgentCounselingPopupOpen && urgentCounselingCount > 0 && (
         <div
           className="bk-priority-overlay"
@@ -674,7 +716,6 @@ export default function BKPage() {
         </div>
       )}
 
-      {/* POP-UP CURHAT PRIORITAS */}
       {isUrgentCurhatPopupOpen && urgentCurhatCount > 0 && (
         <div
           className="bk-priority-overlay"

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey =
+const supabaseKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,11 +15,11 @@ export async function POST(request: NextRequest) {
     const sesi = String(body?.sesi || '').trim();
     const judulPesan = String(body?.judul_pesan || '').trim();
     const topik = String(body?.topik || '').trim();
+    const deskripsi = String(body?.deskripsi || topik || judulPesan).trim();
     const namaSiswa = String(body?.nama_siswa || 'Siswa').trim();
     const emailSiswa = String(body?.email_siswa || '').trim();
     const kelas = String(body?.kelas || '').trim();
 
-    // 1. Validasi input wajib & sanitasi
     if (!tanggal || !sesi || !judulPesan) {
       return NextResponse.json(
         { message: 'Tanggal sesi, jam sesi, dan topik utama wajib diisi.' },
@@ -27,40 +27,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 2. Cek bentrok / duplikasi jadwal pada tanggal dan sesi yang sama
-    const { data: existingBooking, error: checkError } = await supabase
+    const slotPrefix = `[${tanggal} | ${sesi}]`;
+
+    // 1. Cek bentrok jadwal berdasarkan format judul_pesan "[tanggal | sesi]%"
+    const { data: existingBySlot, error: checkSlotError } = await supabase
       .from('layanan_siswa')
       .select('id, status')
-      .eq('layanan', 'BOOKING')
-      .eq('tanggal', tanggal)
-      .eq('sesi', sesi)
+      .in('layanan', ['KONSELING', 'BOOKING'])
+      .ilike('judul_pesan', `${slotPrefix}%`)
       .neq('status', 'DITOLAK')
-      .maybeSingle();
+      .limit(1);
 
-    if (checkError && !checkError.message?.includes('column')) {
-      return NextResponse.json(
-        { message: 'Gagal memeriksa ketersediaan jadwal konseling.' },
-        { status: 500 }
-      );
-    }
-
-    if (existingBooking) {
+    if (!checkSlotError && existingBySlot && existingBySlot.length > 0) {
       return NextResponse.json(
         {
           code: '23505',
-          message: `Jadwal konseling pada ${tanggal} (${sesi}) sudah dibooking. Silakan pilih tanggal atau sesi jam lain.`,
+          message: `Jadwal konseling pada ${tanggal} (${sesi}) sudah tercatat sebelumnya. Silakan pilih tanggal atau sesi jam lain.`,
         },
         { status: 409 }
       );
     }
 
-    // 3. Susun payload penyimpanan ke tabel layanan_siswa
+    // 2. Cek bentrok jadwal jika tabel memiliki kolom tanggal & sesi terpisah
+    const { data: existingByCol, error: checkColError } = await supabase
+      .from('layanan_siswa')
+      .select('id, status')
+      .in('layanan', ['KONSELING', 'BOOKING'])
+      .eq('tanggal', tanggal)
+      .eq('sesi', sesi)
+      .neq('status', 'DITOLAK')
+      .limit(1);
+
+    if (!checkColError && existingByCol && existingByCol.length > 0) {
+      return NextResponse.json(
+        {
+          code: '23505',
+          message: `Jadwal konseling pada ${tanggal} (${sesi}) sudah tercatat sebelumnya. Silakan pilih tanggal atau sesi jam lain.`,
+        },
+        { status: 409 }
+      );
+    }
+
+    // 3. Simpan ke tabel layanan_siswa dengan layanan = 'KONSELING'
     const payload: Record<string, string> = {
       nama_siswa: namaSiswa,
-      layanan: 'BOOKING',
-      judul_pesan: judulPesan,
+      layanan: 'KONSELING',
+      judul_pesan: `${slotPrefix} ${judulPesan}`,
       topik: topik || judulPesan,
-      deskripsi: topik || judulPesan,
+      deskripsi,
       tanggal,
       sesi,
       status: 'TERKIRIM',
@@ -75,12 +89,12 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    // Fallback jika skema tabel belum memiliki kolom tanggal/sesi/deskripsi terpisah
+    // Fallback jika tabel layanan_siswa belum memiliki kolom tanggal/sesi/deskripsi terpisah
     if (error && error.message?.includes('column')) {
       const fallbackPayload: Record<string, string> = {
         nama_siswa: namaSiswa,
-        layanan: 'BOOKING',
-        judul_pesan: `[${tanggal} | ${sesi}] ${judulPesan}`,
+        layanan: 'KONSELING',
+        judul_pesan: `${slotPrefix} ${judulPesan}`,
         topik: topik || judulPesan,
         status: 'TERKIRIM',
       };
@@ -97,9 +111,16 @@ export async function POST(request: NextRequest) {
       error = retry.error;
     }
 
-    // 4. Tangkap error duplikasi dari UNIQUE INDEX database (kode PostgreSQL 23505)
+    // 4. Tangkap error duplikasi dari UNIQUE INDEX (23505) atau Trigger SQL (P0001)
     if (error) {
-      if (error.code === '23505' || error.message?.toLowerCase().includes('duplicate')) {
+      const errMsg = (error.message || '').toLowerCase();
+      if (
+        error.code === '23505' ||
+        error.code === 'P0001' ||
+        errMsg.includes('duplicate') ||
+        errMsg.includes('duplikat') ||
+        errMsg.includes('sudah')
+      ) {
         return NextResponse.json(
           {
             code: '23505',
@@ -117,10 +138,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      {
-        message: 'Permohonan jadwal konseling berhasil disimpan.',
-        data,
-      },
+      { message: 'Permohonan jadwal konseling berhasil disimpan.', data },
       { status: 201 }
     );
   } catch (err) {
