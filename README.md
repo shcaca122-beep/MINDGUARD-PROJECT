@@ -84,6 +84,7 @@ Saat live coding, letakkan kode khusus satu halaman di folder halamannya. Pindah
 
    - [`20261020000000_role_based_privacy.sql`](client/supabase/migrations/20261020000000_role_based_privacy.sql)
    - [`20261025000000_link_student_violations.sql`](client/supabase/migrations/20261025000000_link_student_violations.sql)
+   - [`20261116000000_atomic_counseling_booking.sql`](client/supabase/migrations/20261116000000_atomic_counseling_booking.sql)
 
    Untuk migrasi akun lama ke Supabase Auth, pastikan tabel sumber tersedia dan
    `SUPABASE_SERVICE_ROLE_KEY` sudah terisi, lalu jalankan:

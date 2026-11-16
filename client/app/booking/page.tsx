@@ -1,7 +1,6 @@
 'use client';
 
 import Sidebar from '@/components/Sidebar';
-import { supabase } from '@/lib/supabase';
 import { isHighPriorityMessage, markPriorityTitle } from '@/lib/counseling-priority';
 import { useState } from 'react';
 import { Calendar, ShieldCheck, Sparkles, Send, Building2, HelpCircle, AlertTriangle } from 'lucide-react';
@@ -23,28 +22,21 @@ export default function BookingPage() {
     setStatus(null);
 
     try {
-      const sessionData = localStorage.getItem('user_session');
-      const session = sessionData ? JSON.parse(sessionData) : {};
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user?.email) throw new Error('Sesi login tidak valid. Silakan masuk kembali.');
       const isPriority = needsFastSupport || isHighPriorityMessage(topik, deskripsi);
       const requestTitle = isPriority ? markPriorityTitle(topik.trim()) : topik.trim();
 
-      const { error } = await supabase.from('layanan_siswa').insert([
-        {
-          nama_siswa: session.nama || session.email || 'Siswa',
-          email_siswa: user.email,
-          kelas: session.kelas || '-',
-          layanan: 'KONSELING',
-          tanggal: `${tanggal} (${sesi})`,
-          tujuan_konselor: 'Guru BK',
+      const response = await fetch('/api/booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tanggal,
+          sesi,
           judul_pesan: requestTitle,
           topik: deskripsi || topik,
-          status: 'MENUNGGU ACC',
-        },
-      ]);
-
-      if (error) throw error;
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Gagal mengirim pengajuan. Silakan coba lagi.');
 
       setStatus({
         type: 'success',

@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Buku Panduan Pengguna MindGuard</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 17mm 19mm;
+    }
+
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: #17352a;
+      line-height: 1.55;
+      font-size: 10.5pt;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #f3f8f5;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 38px;
+      background: #fff;
+    }
+
+    header {
+      padding: 30px;
+      margin: -38px -38px 28px;
+      color: #fff;
+      background: linear-gradient(135deg, #073b2b, #087754);
+      border-bottom: 5px solid #45d6a0;
+    }
+
+    header p {
+      margin: 6px 0 0;
+      color: #d3f8e8;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 28pt;
+      line-height: 1.15;
+    }
+
+    h2 {
+      margin: 28px 0 10px;
+      padding-bottom: 5px;
+      color: #086344;
+      font-size: 17pt;
+      border-bottom: 1px solid #c8e8d9;
+      break-after: avoid;
+    }
+
+    h3 {
+      margin: 19px 0 6px;
+      color: #174b37;
+      font-size: 12pt;
+      break-after: avoid;
+    }
+
+    p {
+      margin: 7px 0 10px;
+    }
+
+    ul, ol {
+      margin: 5px 0 12px;
+      padding-left: 22px;
+    }
+
+    li {
+      margin: 3px 0;
+    }
+
+    a {
+      color: #087754;
+    }
+
+    code {
+      padding: 1px 4px;
+      background: #edf5f0;
+      border-radius: 3px;
+      font-family: Consolas, monospace;
+    }
+
+    .lead {
+      font-size: 12pt;
+    }
+
+    .callout {
+      margin: 14px 0;
+      padding: 12px 15px;
+      background: #eff8f3;
+      border-left: 4px solid #15966a;
+      break-inside: avoid;
+    }
+
+    .warning {
+      background: #fff7e8;
+      border-left-color: #df9b21;
+    }
+
+    .contents {
+      padding: 14px 18px;
+      background: #f6faf7;
+      border: 1px solid #dcece2;
+      break-inside: avoid;
+    }
+
+    .contents ol {
+      columns: 2;
+      column-gap: 30px;
+      margin-bottom: 0;
+    }
+
+    .contents li {
+      break-inside: avoid;
+    }
+
+    .small {
+      color: #577166;
+      font-size: 9pt;
+    }
+
+    footer {
+      margin-top: 30px;
+      padding-top: 10px;
+      color: #577166;
+      border-top: 1px solid #dcece2;
+      font-size: 9pt;
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      main {
+        max-width: none;
+        padding: 0;
+      }
+
+      header {
+        margin: 0 0 24px;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Buku Panduan Pengguna<br>MindGuard</h1>
+      <p>Sistem layanan Bimbingan dan Konseling · SMK Budi Bakti Ciwidey</p>
+      <p class="small">Edisi 1 · November 2026</p>
+    </header>
+
+    <p class="lead">Panduan ini menjelaskan cara masuk, menggunakan fitur sesuai peran, menjaga kerahasiaan, dan mengatasi kendala umum di MindGuard.</p>
+
+    <nav class="contents" aria-label="Daftar isi">
+      <strong>Daftar isi</strong>
+      <ol>
+        <li><a href="#mulai">Memulai dan masuk</a></li>
+        <li><a href="#siswa">Panduan untuk siswa</a></li>
+        <li><a href="#bk">Panduan Guru BK</a></li>
+        <li><a href="#piket-osis">Panduan Piket dan OSIS/MPK</a></li>
+        <li><a href="#admin">Panduan Administrator/TU</a></li>
+        <li><a href="#akun">Akun dan keluar</a></li>
+        <li><a href="#privasi">Privasi dan keamanan</a></li>
+        <li><a href="#masalah">Pemecahan masalah</a></li>
+      </ol>
+    </nav>
+
+    <section id="mulai">
+      <h2>1. Memulai dan masuk</h2>
+      <p>MindGuard adalah aplikasi web. Buka alamat aplikasi yang diberikan sekolah menggunakan browser terbaru dan koneksi internet. Akun dibuat atau disiapkan oleh pengelola sekolah; tidak ada akun demo bawaan.</p>
+      <ol>
+        <li>Buka halaman masuk MindGuard.</li>
+        <li>Masukkan email atau NISN sesuai jenis akun, lalu ketik kata sandi.</li>
+        <li>Pilih tombol masuk. Setelah berhasil, aplikasi membuka panel sesuai peran akun.</li>
+        <li>Gunakan menu di sisi layar untuk berpindah halaman. Pada ponsel, buka menu navigasi dengan tombol menu.</li>
+      </ol>
+      <div class="callout">
+        <strong>Panel berdasarkan peran:</strong> siswa masuk ke Beranda, Guru BK ke panel BK, Piket ke halaman tugas yang tersedia, OSIS/MPK ke input keterlambatan dan rekap, sedangkan Administrator/TU ke panel administrasi. Jika peran atau menu tidak sesuai, hubungi pengelola akun.
+      </div>
+    </section>
+
+    <section id="siswa">
+      <h2>2. Panduan untuk siswa</h2>
+      <p>Beranda siswa menyediakan akses ke layanan yang ditampilkan untuk akun Anda. Isilah formulir dengan informasi yang benar dan seperlunya.</p>
+
+      <h3>Memohon jadwal konseling</h3>
+      <ol>
+        <li>Pilih <strong>Booking Konseling BK</strong> atau <strong>Permohonan Konseling BK</strong>.</li>
+        <li>Pilih tanggal dan sesi yang diinginkan.</li>
+        <li>Isi topik dan keterangan singkat agar Guru BK memahami kebutuhan Anda.</li>
+        <li>Kirim permohonan dan pastikan muncul pesan bahwa pengajuan berhasil.</li>
+        <li>Permohonan menunggu diproses oleh Guru BK. Pengajuan bukan konfirmasi jadwal otomatis; ikuti informasi lanjutan dari sekolah atau Guru BK.</li>
+      </ol>
+
+      <h3>Mengirim pesan curhat</h3>
+      <ol>
+        <li>Buka <strong>Curhat ke Guru BK</strong> atau <strong>Curhat Anonim</strong>.</li>
+        <li>Pilih kategori, tulis judul dan cerita dengan jelas, lalu tentukan apakah nama ingin disamarkan pada tampilan.</li>
+        <li>Kirim pesan. Penanda bantuan cepat/prioritas dapat membantu Guru BK meninjau pesan.</li>
+      </ol>
+      <div class="callout warning">
+        <strong>Catatan penting:</strong> pilihan Anonim menyamarkan nama yang ditampilkan, tetapi alamat email akun tetap dikirim bersama data layanan dan dapat diketahui petugas berwenang. Fitur prioritas bukan kanal darurat dan tidak menjamin balasan segera. Jika Anda sedang dalam bahaya, segera temui Guru BK atau orang dewasa tepercaya; jangan menunggu aplikasi.
+      </div>
+
+      <h3>Mengajukan surat izin atau sakit</h3>
+      <p>Buka halaman <code>/perizinan</code> jika layanan tersebut tersedia untuk akun Anda. Pilih kategori surat, lengkapi waktu dan alasan/keterangan dengan benar, lalu kirim. Periksa bagian <strong>Status Perizinan Anda</strong> untuk melihat data pengajuan. Jika halaman tidak dapat dibuka, minta bantuan petugas sekolah.</p>
+
+      <h3>Melihat catatan pelanggaran</h3>
+      <p>Pilih <strong>Poin &amp; Pelanggaran Saya</strong> untuk melihat catatan yang ditautkan ke akun siswa Anda. Jika ada data yang keliru atau belum tertaut, sampaikan kepada Guru BK/petugas yang berwenang untuk diperiksa.</p>
+
+      <h3>Jurnal harian</h3>
+      <p>Halaman jurnal menyediakan refleksi, pilihan suasana hati, dan pertanyaan pemantik. Saat ini entri jurnal hanya tersimpan sementara di halaman dan belum tersimpan ke database. Jangan mengandalkan halaman ini sebagai tempat penyimpanan catatan; salin hanya ke tempat pribadi yang aman jika memang diperlukan.</p>
+    </section>
+
+    <section id="bk">
+      <h2>3. Panduan untuk Guru BK</h2>
+      <p>Gunakan panel Guru BK untuk meninjau layanan siswa dan mengelola tindak lanjut sesuai kewenangan serta kebijakan sekolah. Menu yang tampak dapat berbeda menurut konfigurasi akun.</p>
+      <ul>
+        <li><strong>Panel Utama BK:</strong> ringkasan layanan dan akses kerja.</li>
+        <li><strong>Pesan Curhat Siswa:</strong> tinjau pesan, gunakan pencarian/filter yang tersedia, tulis balasan, dan perbarui status tindak lanjut sesuai kondisi sebenarnya.</li>
+        <li><strong>Konseling Individual:</strong> tinjau permohonan konseling dan kelola jadwal atau tindak lanjut.</li>
+        <li><strong>Home Visit</strong> dan <strong>Panggilan Orang Tua:</strong> catat rencana atau hasil tindak lanjut sesuai prosedur sekolah.</li>
+        <li><strong>Perizinan</strong> dan <strong>Pelanggaran:</strong> periksa data, lalu kelola sesuai akses yang diberikan.</li>
+        <li><strong>Rekap Mingguan OSIS:</strong> lihat ringkasan yang relevan untuk pemantauan.</li>
+      </ul>
+      <p>Sebelum menyimpan perubahan, pastikan siswa dan isi catatan sudah benar. Gunakan catatan layanan hanya untuk kebutuhan pembinaan dan pihak yang berwenang.</p>
+    </section>
+
+    <section id="piket-osis">
+      <h2>4. Panduan Piket dan OSIS/MPK</h2>
+      <h3>Input keterlambatan</h3>
+      <ol>
+        <li>Buka menu <strong>Input Keterlambatan</strong>.</li>
+        <li>Isi identitas siswa dan kelas, waktu kejadian, petugas pencatat, serta keterangan dan tindakan bila diminta.</li>
+        <li>Periksa kembali siswa yang dipilih dan detail kejadian sebelum menyimpan.</li>
+        <li>Jika verifikasi foto/kamera tersedia pada perangkat dan halaman, gunakan sesuai arahan sekolah. Jangan memotret atau mengunggah materi yang tidak diperlukan.</li>
+      </ol>
+      <h3>Rekap mingguan</h3>
+      <p>Buka <strong>Rekap Mingguan</strong> untuk melihat rangkuman yang tersedia. Jika catatan tidak ditemukan atau identitas siswa tidak cocok, minta Guru BK/pengelola untuk memeriksa data; jangan membuat catatan pengganti sebelum memastikan catatan awal.</p>
+      <p>Petugas Piket menggunakan halaman tugas yang disediakan akun sekolah. Pada aplikasi saat ini, halaman Piket mengarahkan ke halaman input OSIS; bila menu atau akses berbeda, ikuti pengaturan sekolah.</p>
+    </section>
+
+    <section id="admin">
+      <h2>5. Panduan Administrator/TU</h2>
+      <p>Administrator/TU mengelola data operasional dan akses aplikasi. Masuk dengan akun berwenang, lalu gunakan menu panel Administrator.</p>
+      <ul>
+        <li><strong>Dashboard:</strong> ringkasan jumlah siswa dan statistik layanan yang tersedia.</li>
+        <li><strong>Data Siswa:</strong> cari, tambah, perbarui, impor atau ekspor data jika fitur tersedia; pastikan file yang digunakan benar dan terlindungi.</li>
+        <li><strong>Data Guru BK &amp; Staf:</strong> kelola data staf dan peran akun.</li>
+        <li><strong>Jenis Layanan BK</strong> dan <strong>Profil Sekolah:</strong> periksa atau kelola informasi terkait sesuai kebutuhan.</li>
+        <li><strong>Sesi Konseling</strong> dan <strong>Pelanggaran Siswa:</strong> tinjau catatan dan konsistensi data.</li>
+        <li><strong>Laporan Konseling</strong> dan <strong>Laporan Pelanggaran:</strong> tinjau laporan; gunakan fungsi cetak pada halaman jika tersedia.</li>
+      </ul>
+      <div class="callout warning">
+        <strong>Perhatian:</strong> perubahan data, role, akun, atau kata sandi berdampak pada akses dan kerahasiaan. Pastikan identitas dan kewenangan penerima benar sebelum menyimpan atau mengekspor data. Jangan membagikan ekspor data siswa melalui kanal publik.
+      </div>
+    </section>
+
+    <section id="akun">
+      <h2>6. Akun dan keluar</h2>
+      <ul>
+        <li><strong>Lupa kata sandi:</strong> gunakan halaman lupa kata sandi jika akun memiliki email dan layanan email sekolah sudah dikonfigurasi. Ikuti tautan pemulihan yang dikirim. Siswa yang masuk dengan NISN atau tidak memiliki akses email perlu meminta bantuan administrator.</li>
+        <li><strong>Ganti kata sandi:</strong> gunakan menu ganti kata sandi jika tersedia, lalu simpan kata sandi baru di tempat aman. Jangan gunakan kata sandi bersama.</li>
+        <li><strong>Keluar:</strong> pilih tombol <strong>Keluar (Logout)</strong> pada menu. Selalu keluar setelah memakai perangkat bersama.</li>
+        <li><strong>Akses ditolak:</strong> jangan mencoba menggunakan akun/peran orang lain. Minta administrator memeriksa penetapan peran Anda.</li>
+      </ul>
+    </section>
+
+    <section id="privasi">
+      <h2>7. Privasi dan keamanan</h2>
+      <ul>
+        <li>Data identitas, konseling, curhat, izin, pelanggaran, serta foto merupakan informasi sensitif. Akses hanya untuk tujuan sekolah dan petugas yang berwenang.</li>
+        <li>Jangan mengirim kata sandi, NISN, isi curhat, catatan konseling, atau file siswa ke grup publik, akun media sosial, atau dokumen yang dapat diakses umum.</li>
+        <li>Gunakan fitur Anonim dengan memahami batasannya: nama tampilan dapat disamarkan, tetapi akun tetap dapat dikenali petugas berwenang.</li>
+        <li>Jurnal pada versi ini belum disimpan ke database. Hindari memasukkan informasi sangat sensitif yang Anda harapkan tersimpan atau dapat dipulihkan.</li>
+        <li>MindGuard bukan layanan darurat dan tidak menjamin pemantauan atau respons real-time.</li>
+        <li>Jika menduga akun atau data terbuka kepada pihak yang tidak berwenang, hentikan penggunaan pada perangkat tersebut dan segera laporkan ke pengelola sekolah.</li>
+      </ul>
+    </section>
+
+    <section id="masalah">
+      <h2>8. Pemecahan masalah</h2>
+      <ul>
+        <li><strong>Login gagal:</strong> periksa email/NISN, kata sandi, dan koneksi. Jika masih gagal, minta administrator memastikan akun aktif dan profil peran sudah terhubung.</li>
+        <li><strong>Profil tidak ditemukan atau panel salah:</strong> pengelola akun perlu memeriksa data profil dan peran; jangan mengubah peran sendiri.</li>
+        <li><strong>Halaman menolak akses:</strong> akun mungkin tidak memiliki izin ke halaman tersebut. Hubungi pengelola untuk verifikasi akses.</li>
+        <li><strong>Form gagal dikirim:</strong> periksa kembali kolom wajib dan koneksi, lalu coba sekali lagi. Jika muncul pesan kesalahan, catat teks kesalahannya tanpa menyertakan data pribadi siswa saat melapor.</li>
+        <li><strong>Data tidak muncul:</strong> muat ulang halaman sekali. Jika tetap kosong, minta petugas berwenang memeriksa data dan akses; jangan menghapus atau mengirim ulang data berkali-kali.</li>
+        <li><strong>Email pemulihan tidak diterima:</strong> periksa alamat email dan folder spam. Jika akun tidak memiliki email aktif, hubungi administrator.</li>
+      </ul>
+      <div class="callout">
+        <strong>Untuk bantuan:</strong> hubungi Guru BK atau administrator/TU sekolah. Sertakan halaman yang digunakan dan pesan kesalahan, tetapi jangan mengirim kata sandi, isi curhat, atau data pribadi yang tidak diperlukan.
+      </div>
+    </section>
+
+    <footer>
+      <p>MindGuard · SMK Budi Bakti Ciwidey</p>
+      <p>Panduan ini menjelaskan fitur aplikasi yang tersedia saat edisi diterbitkan. Nama menu atau akses dapat berubah mengikuti pengaturan akun dan pembaruan aplikasi.</p>
+    </footer>
+  </main>
+</body>
+</html>

@@ -20,6 +20,9 @@ completed before users can sign in with the new flow.
    tables. This uses a separate column instead of the existing `siswa_id`
    relation on `pelanggaran`. Rows whose student identity is missing or
    ambiguous are deliberately left unlinked for staff review.
+   Also run `migrations/20261116000000_atomic_counseling_booking.sql` to enable
+   the server-side, concurrency-safe check that prevents active counseling
+   bookings from using the same date and session.
 3. In `client/.env.local`, set `SUPABASE_SERVICE_ROLE_KEY` to the project's
    service-role key. Keep it server-only; never use a `NEXT_PUBLIC_` prefix or
    commit the value.

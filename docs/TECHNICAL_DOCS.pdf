@@ -1,0 +1,213 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [6 0 R 8 0 R 10 0 R 12 0 R] /Count 4 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Length 3505 >>
+stream
+0.04 0.28 0.20 rg 0 0 595 842 re f
+1 1 1 rg 0 0 595 808 re f
+0.04 0.28 0.20 rg 0 808 595 34 re f
+BT 1 1 1 rg /F2 10 Tf 1 0 0 1 42 820 Tm (MINDGUARD | DOKUMENTASI) Tj ET
+0.72 0.82 0.77 RG 42 48 m 553 48 l S
+BT 0.04 0.28 0.20 rg /F2 27 Tf 1 0 0 1 42 684 Tm (TECHNICAL DOCS) Tj ET
+BT 0.10 0.38 0.28 rg /F2 15 Tf 1 0 0 1 42 650 Tm (Dokumentasi Teknis Aplikasi MindGuard) Tj ET
+BT 0.38 0.45 0.41 rg /F1 10 Tf 1 0 0 1 42 615 Tm (SMK Budi Bakti Ciwidey | Edisi 1.0 | 9 November 2026) Tj ET
+0.04 0.55 0.38 rg 42 584 115 4 re f
+BT 0.04 0.28 0.20 rg /F2 14 Tf 1 0 0 1 42 528 Tm (1. Tujuan dan Cakupan) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 503 Tm (Dokumen ini menjelaskan arsitektur, konfigurasi, alur autentikasi, akses data,) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 488 Tm (pengembangan, dan batasan implementasi MindGuard. Cakupan utama aplikasi web berada pada) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 473 Tm (direktori client. Nilai rahasia, data pribadi, dan kredensial produksi tidak disertakan.) Tj ET
+BT 0.04 0.28 0.20 rg /F2 14 Tf 1 0 0 1 42 446 Tm (2. Teknologi dan Arsitektur) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 421 Tm (- Frontend dan web server: Next.js 16 App Router, React 19, TypeScript, dan Tailwind CSS) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 406 Tm (4.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 385 Tm (- Autentikasi dan basis data aktif: Supabase Auth dan Supabase Postgres. Frontend memakai) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 370 Tm (@supabase/ssr dan @supabase/supabase-js.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 349 Tm (- UI: komponen aplikasi di client/app dan client/components; ikon memakai lucide-react.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 328 Tm (- Server routes: Route Handlers Next.js pada client/app/api. Sebagian halaman menggunakan) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 313 Tm (Supabase browser client secara langsung.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 292 Tm (- Direktori server memiliki Prisma schema PostgreSQL berisi model Admin, Siswa, GuruBK,) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 277 Tm (JadwalKonsul, dan MasterPelanggaran, tetapi tidak menjadi server runtime aplikasi web saat) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 262 Tm (ini. server/src/app.js kosong dan server/package.json hanya memiliki skrip test) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 247 Tm (placeholder.) Tj ET
+BT 0.04 0.28 0.20 rg /F2 14 Tf 1 0 0 1 42 220 Tm (3. Struktur Repository) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 195 Tm (- client/app: halaman, layout, error boundary, dan endpoint API.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 174 Tm (- client/components: Sidebar, AppLayout, ThemeSync, ThemeToggle, dan ErrorScreen.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 153 Tm (- client/lib: klien Supabase, helper browser storage, prioritas konseling, tema, tipe) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 138 Tm (baris database, dan SweetAlert.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 117 Tm (- client/supabase/migrations: SQL untuk profil role, kebijakan privasi/RLS, dan tautan) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 102 Tm (catatan pelanggaran siswa.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 81 Tm (- client/scripts/migrate-legacy-auth.mjs: pemindahan akun lama ke Supabase Auth.) Tj ET
+BT 0.30 0.38 0.33 rg /F1 8 Tf 1 0 0 1 455 31 Tm (Halaman 1 dari 4) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Length 4862 >>
+stream
+0.04 0.28 0.20 rg 0 0 595 842 re f
+1 1 1 rg 0 0 595 808 re f
+0.04 0.28 0.20 rg 0 808 595 34 re f
+BT 1 1 1 rg /F2 10 Tf 1 0 0 1 42 820 Tm (MINDGUARD | DOKUMENTASI) Tj ET
+0.72 0.82 0.77 RG 42 48 m 553 48 l S
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 774 Tm (- server/prisma: konfigurasi dan schema Prisma terpisah; jangan menganggap schema ini) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 759 Tm (satu-satunya sumber skema basis data aktif.) Tj ET
+BT 0.04 0.28 0.20 rg /F2 14 Tf 1 0 0 1 42 732 Tm (4. Route Utama) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 707 Tm (- Autentikasi: / \(masuk\), /lupa-password, /reset-password, /ganti-password.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 686 Tm (- Siswa: /dashboard, /booking, /curhat, /perizinan, /jurnal, /pelanggaran-saya.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 665 Tm (- Guru BK: /bk dan subroute curhat, konseling, perizinan, pelanggaran, home-visit,) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 650 Tm (panggilan-ortu.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 629 Tm (- Piket dan OSIS/MPK: /piket, /osis, dan /osis/rekap-mingguan. /piket saat ini mengalihkan) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 614 Tm (ke /osis.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 593 Tm (- Administrator: /admin1, /admin1/guru, /admin1/siswa, /admin1/layanan, /admin1/profil,) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 578 Tm (/admin1/konseling, /admin1/pelanggaran, /admin1/laporan-konseling, dan) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 563 Tm (/admin1/laporan-pelanggaran.) Tj ET
+BT 0.04 0.28 0.20 rg /F2 14 Tf 1 0 0 1 42 536 Tm (5. Autentikasi dan Otorisasi) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 511 Tm (Masuk dengan email menggunakan Supabase Auth signInWithPassword. Siswa dapat masuk memakai) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 496 Tm (NISN melalui POST /api/auth/student-login; route menemukan akun siswa dan profil, lalu) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 481 Tm (membuat sesi Supabase Auth. Profil tepercaya tersimpan di user_profiles dengan role dan) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 466 Tm (referensi student_record_id atau legacy_admin_id.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 445 Tm (Middleware memvalidasi pengguna menggunakan supabase.auth.getUser dan role dari) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 430 Tm (app_metadata. Middleware membatasi route admin, BK, piket, OSIS/MPK, staf yang dapat) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 415 Tm (membuka data siswa, serta route siswa. Akun dengan password_reset_required diarahkan ke) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 400 Tm (/ganti-password.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 379 Tm (- Role aplikasi yang dikenal: admin, bk, piket, osis, mpk, dan siswa.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 358 Tm (- Route administratif accounts membuat/mengubah akun setelah memeriksa profil admin.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 343 Tm (Endpoint reset password siswa membatasi pemanggil menjadi admin.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 322 Tm (- Endpoint complete-password-reset hanya menerima sesi siswa yang diwajibkan mengganti) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 307 Tm (password; password baru minimal 12 karakter.) Tj ET
+BT 0.04 0.28 0.20 rg /F2 14 Tf 1 0 0 1 42 280 Tm (6. Data dan Kebijakan Privasi) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 255 Tm (Data aplikasi aktif dikelola di Supabase. Tabel yang dirujuk kode dan migrasi meliputi) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 240 Tm (auth.users, user_profiles, users, admin_roles, layanan_siswa, perizinan_siswa,) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 225 Tm (pelanggaran_siswa, pelanggaran, konseling, home_visit, panggilan_ortu, laporan_pelanggaran,) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 210 Tm (keterlambatan, master_pelanggaran, master_foto_siswa, jenis_layanan, dan profil_sekolah.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 195 Tm (Kolom dan keberadaan tabel lama dapat bergantung pada lingkungan database.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 174 Tm (- user_profiles menghubungkan Supabase user ke role aplikasi, data siswa, atau data admin) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 159 Tm (lama.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 138 Tm (- Kebijakan SQL menyalakan RLS pada data sensitif dan membatasi akses berdasarkan role) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 123 Tm (serta identitas siswa. Siswa hanya dapat membaca catatan pelanggaran yang terhubung ke) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 108 Tm (student_record_id mereka.) Tj ET
+BT 0.30 0.38 0.33 rg /F1 8 Tf 1 0 0 1 455 31 Tm (Halaman 2 dari 4) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 7 0 R >>
+endobj
+9 0 obj
+<< /Length 4486 >>
+stream
+0.04 0.28 0.20 rg 0 0 595 842 re f
+1 1 1 rg 0 0 595 808 re f
+0.04 0.28 0.20 rg 0 808 595 34 re f
+BT 1 1 1 rg /F2 10 Tf 1 0 0 1 42 820 Tm (MINDGUARD | DOKUMENTASI) Tj ET
+0.72 0.82 0.77 RG 42 48 m 553 48 l S
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 774 Tm (- Catatan pelanggaran lama yang identitasnya tidak unik sengaja tidak ditautkan otomatis.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 759 Tm (Periksa dan selesaikan kasus ambigu dengan proses administrasi sekolah.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 738 Tm (- Halaman pelanggaran siswa membaca pelanggaran_siswa dan pelanggaran; Realtime) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 723 Tm (menyegarkan catatan yang relevan.) Tj ET
+BT 0.04 0.28 0.20 rg /F2 14 Tf 1 0 0 1 42 696 Tm (7. Endpoint API) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 671 Tm (- POST /api/auth/student-login: validasi input NISN/password, temukan profil siswa, dan) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 656 Tm (mulai sesi Auth.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 635 Tm (- POST/PATCH /api/admin/accounts: pembuatan dan perubahan akun dengan pemeriksaan role) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 620 Tm (admin.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 599 Tm (- POST /api/admin/accounts/reset-password dan /bulk-reset-password: reset kata sandi) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 584 Tm (siswa; operasi massal memerlukan password sementara minimal 12 karakter dan konfirmasi) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 569 Tm (GANTI SEMUA.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 548 Tm (- POST /api/auth/complete-password-reset: perubahan password awal oleh siswa setelah) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 533 Tm (login.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 512 Tm (- POST /api/pelanggaran: menerima dan menyimpan catatan pelanggaran pada) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 497 Tm (pelanggaran_siswa.) Tj ET
+BT 0.04 0.28 0.20 rg /F2 14 Tf 1 0 0 1 42 470 Tm (8. Konfigurasi dan Menjalankan Secara Lokal) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 445 Tm (1. Gunakan versi Node.js yang kompatibel dengan Next.js 16 dan npm.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 424 Tm (2. Jalankan cd client lalu npm install.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 403 Tm (3. Buat client/.env.local dengan NEXT_PUBLIC_SUPABASE_URL dan) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 388 Tm (NEXT_PUBLIC_SUPABASE_ANON_KEY \(atau NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY\). Isi) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 373 Tm (SUPABASE_SERVICE_ROLE_KEY hanya di environment server untuk operasi administratif yang) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 358 Tm (memerlukannya.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 337 Tm (4. Jalankan npm run dev dari direktori client dan buka http://localhost:3000.) Tj ET
+BT 0.10 0.28 0.21 rg /F1 9.5 Tf 1 0 0 1 52 316 Tm (cd client\\nnpm install\\nnpm run dev) Tj ET
+BT 0.40 0.24 0.08 rg /F2 10 Tf 1 0 0 1 50 293 Tm (CATATAN: Jangan menaruh service-role key dengan awalan NEXT_PUBLIC_, mengirimkannya ke) Tj ET
+BT 0.40 0.24 0.08 rg /F2 10 Tf 1 0 0 1 50 279 Tm (browser, memasukkannya ke PDF/log, atau melakukan commit berkas environment.) Tj ET
+BT 0.04 0.28 0.20 rg /F2 14 Tf 1 0 0 1 42 253 Tm (9. Database dan Migrasi Akun) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 228 Tm (1. Cadangkan database terlebih dahulu. Tinjau client/supabase/README.md dan pastikan skema) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 213 Tm (sumber sesuai.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 192 Tm (2. Jalankan migrations/20261020000000_role_based_privacy.sql dan) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 177 Tm (migrations/20261025000000_link_student_violations.sql melalui Supabase SQL Editor.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 156 Tm (3. Jika memindahkan akun lama, siapkan SUPABASE_SERVICE_ROLE_KEY pada environment lokal) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 141 Tm (yang aman, lalu jalankan npm run migrate:auth dari client.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 120 Tm (4. Verifikasi login minimal satu akun untuk setiap role dan pastikan siswa tidak dapat) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 105 Tm (membaca catatan pelanggaran siswa lain.) Tj ET
+BT 0.30 0.38 0.33 rg /F1 8 Tf 1 0 0 1 455 31 Tm (Halaman 3 dari 4) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 9 0 R >>
+endobj
+11 0 obj
+<< /Length 3055 >>
+stream
+0.04 0.28 0.20 rg 0 0 595 842 re f
+1 1 1 rg 0 0 595 808 re f
+0.04 0.28 0.20 rg 0 808 595 34 re f
+BT 1 1 1 rg /F2 10 Tf 1 0 0 1 42 820 Tm (MINDGUARD | DOKUMENTASI) Tj ET
+0.72 0.82 0.77 RG 42 48 m 553 48 l S
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 774 Tm (Migrasi akun memindahkan identitas lama ke Supabase Auth dan menghubungkan user_profiles.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 759 Tm (Akun siswa tanpa kredensial yang dapat dipakai harus diberi password sementara melalui) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 42 744 Tm (administrator lalu menggantinya saat masuk.) Tj ET
+BT 0.04 0.28 0.20 rg /F2 14 Tf 1 0 0 1 42 717 Tm (10. Build, Lint, dan Deploy) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 692 Tm (- npm run lint menjalankan ESLint.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 671 Tm (- npm run build memeriksa TypeScript dan membangun aplikasi produksi.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 650 Tm (- npm run start menjalankan hasil build produksi.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 629 Tm (- Pastikan environment Supabase produksi, URL pemulihan Auth \(/reset-password\), SMTP,) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 614 Tm (kebijakan RLS, dan domain situs sudah dikonfigurasi sebelum rilis.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 593 Tm (- Build lokal berhasil diverifikasi saat dokumen dibuat. Next.js memberi peringatan) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 578 Tm (konfigurasi root karena lockfile berada di root dan client, serta peringatan deprecasi) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 563 Tm (middleware; tindak lanjuti saat pemeliharaan.) Tj ET
+BT 0.04 0.28 0.20 rg /F2 14 Tf 1 0 0 1 42 536 Tm (11. Batasan dan Catatan Operasional) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 511 Tm (- Jurnal saat ini menyimpan perubahan hanya di state halaman, bukan secara persisten di) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 496 Tm (Supabase.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 475 Tm (- Pilihan curhat Anonim mengganti nama tampilan, tetapi payload masih menyimpan email) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 460 Tm (akun. Hindari mengiklankan anonimitas penuh.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 439 Tm (- Penanda prioritas membantu triase, tetapi aplikasi bukan kanal layanan darurat dan tidak) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 424 Tm (menjamin respons real-time.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 403 Tm (- server/prisma adalah scaffold skema terpisah; jangan jalankan migrasi Prisma ke produksi) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 388 Tm (tanpa keputusan arsitektur dan rencana migrasi tersendiri.) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 367 Tm (- Perubahan schema Supabase harus disertai migrasi terdokumentasi dan pemeriksaan) Tj ET
+BT 0.16 0.22 0.19 rg /F1 10.5 Tf 1 0 0 1 50 352 Tm (kebijakan RLS sebelum dirilis.) Tj ET
+BT 0.30 0.38 0.33 rg /F1 8 Tf 1 0 0 1 455 31 Tm (Halaman 4 dari 4) Tj ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 11 0 R >>
+endobj
+xref
+0 13
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000135 00000 n 
+0000000232 00000 n 
+0000000334 00000 n 
+0000003890 00000 n 
+0000004026 00000 n 
+0000008939 00000 n 
+0000009075 00000 n 
+0000013612 00000 n 
+0000013749 00000 n 
+0000016856 00000 n 
+trailer
+<< /Size 13 /Root 1 0 R >>
+startxref
+16994
+%%EOF
