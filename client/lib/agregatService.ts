@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'; // Sesuaikan dengan path client supabase proyekmu
+import { supabase } from '@/lib/supabase';
 
 export type UserRole = 'siswa' | 'bk' | 'admin';
 
@@ -18,7 +18,6 @@ export async function fetchDashboardAgregat(
 ): Promise<{ data: AgregatItem[]; error: string | null }> {
   try {
     if (role === 'siswa' && userId) {
-      // Ambil agregat khusus milik siswa yang sedang login (terlindungi RLS)
       const [curhatRes, bookingRes, poinRes] = await Promise.all([
         supabase
           .from('curhat_siswa')
@@ -64,8 +63,6 @@ export async function fetchDashboardAgregat(
     }
 
     if (role === 'bk') {
-      // Ambil agregat dari view/tabel curhat & konseling untuk Guru BK
-      // Catatan: Jika sudah membuat SQL View (misal: v_curhat_aggregation), ganti .from('curhat_siswa') ke nama view tersebut
       const [totalCurhat, prioritasCurhat, bookingPending] = await Promise.all([
         supabase.from('curhat_siswa').select('id', { count: 'exact', head: true }),
         supabase
@@ -134,7 +131,7 @@ export async function fetchDashboardAgregat(
       ],
       error: null,
     };
-  } catch (err) {
+  } catch {
     return {
       data: [],
       error: 'Gagal memuat ringkasan data agregat. Silakan muat ulang halaman.',
@@ -145,11 +142,15 @@ export async function fetchDashboardAgregat(
 /**
  * Mengubah error duplikasi database (PostgreSQL code 23505) menjadi pesan peringatan ramah
  */
-export function formatPesanDuplikasi(error: any, konteks = 'data'): string | null {
+export function formatPesanDuplikasi(error: unknown, konteks = 'data'): string | null {
   if (!error) return null;
 
-  const code = error?.code || '';
-  const msg = (error?.message || '').toLowerCase();
+  const errObj =
+    typeof error === 'object' ? (error as { code?: string; message?: string }) : null;
+  const code = errObj?.code || '';
+  const msg = (
+    errObj?.message || (typeof error === 'string' ? error : '')
+  ).toLowerCase();
 
   if (
     code === '23505' ||
@@ -161,5 +162,5 @@ export function formatPesanDuplikasi(error: any, konteks = 'data'): string | nul
     return `Oops! Pengajuan ${konteks} yang sama sudah tercatat sebelumnya di sistem. Untuk menghindari data ganda, silakan periksa daftar riwayat Anda atau gunakan pilihan yang berbeda.`;
   }
 
-  return error?.message || `Terjadi kendala saat memproses ${konteks}.`;
+  return errObj?.message || `Terjadi kendala saat memproses ${konteks}.`;
 }

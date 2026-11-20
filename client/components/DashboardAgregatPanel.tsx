@@ -35,7 +35,10 @@ export function DashboardAgregatPanel({
   }, [role, userId]);
 
   useEffect(() => {
-    loadData();
+    const timer = window.setTimeout(() => {
+      void loadData();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [loadData]);
 
   return (
@@ -56,7 +59,7 @@ export function DashboardAgregatPanel({
 
         <button
           type="button"
-          onClick={loadData}
+          onClick={() => void loadData()}
           disabled={loading}
           className="self-start sm:self-auto rounded-lg border border-[#52B788]/40 bg-[#081810] px-3 py-1.5 text-xs font-medium text-[#52B788] transition hover:bg-[#52B788]/20 disabled:opacity-50"
         >

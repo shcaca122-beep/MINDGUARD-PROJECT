@@ -43,7 +43,16 @@ export async function middleware(request: NextRequest) {
     return loginResponse;
   }
 
-  const role = String(user.app_metadata?.role || '').trim().toLowerCase();
+  let role = String(user.app_metadata?.role || '').trim().toLowerCase();
+  if (!role) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    role = String(profile?.role || '').trim().toLowerCase();
+  }
+
   const path = request.nextUrl.pathname;
   const isAdmin = ['admin', 'administrator', 'tu', 'tata usaha'].includes(role);
   const mustChangePassword = user.app_metadata?.password_reset_required === true;
@@ -60,7 +69,12 @@ export async function middleware(request: NextRequest) {
   }
 
   if ((path.startsWith('/admin1') || path.startsWith('/admin')) && !isAdmin) return forbidden();
-  if (path.startsWith('/kepala-sekolah') && role !== 'kepala_sekolah') return forbidden();
+  if (
+    path.startsWith('/kepala-sekolah') &&
+    !['kepala_sekolah', 'kepsek', 'admin', 'administrator'].includes(role)
+  ) {
+    return forbidden();
+  }
   if (path.startsWith('/bk') && !['bk', 'admin', 'administrator', 'tu'].includes(role)) return forbidden();
   if (path.startsWith('/piket') && !['piket', 'admin', 'administrator', 'tu'].includes(role)) return forbidden();
 

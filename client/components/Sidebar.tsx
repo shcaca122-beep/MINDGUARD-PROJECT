@@ -70,10 +70,12 @@ export default function Sidebar() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('user_session');
+    localStorage.removeItem('user_role');
     router.push('/');
   };
 
   const roleUpper = user?.role || '';
+  const isKepsek = roleUpper.includes('KEPALA') || roleUpper.includes('KEPSEK');
   const isPiket = roleUpper.includes('PIKET');
   const isBK = roleUpper.includes('BK');
   const isOSIS = roleUpper.includes('OSIS') || roleUpper.includes('MPK');
@@ -126,13 +128,20 @@ export default function Sidebar() {
           {/* LOGO BRAND SIDEBAR */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 6px 16px 6px' }}>
             <div className="sidebar-brand-mark" style={{ backgroundColor: '#2d523e', width: '42px', height: '42px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', overflow: 'hidden', flexShrink: 0 }}>
-              {/* LOGO APLIKASI DESKTOP / SIDEBAR MAIN */}
               <MindGuardMark size={42} />
             </div>
             <div>
               <h1 style={{ margin: 0, fontSize: '17px', fontWeight: 'bold', color: '#ffffff', letterSpacing: '-0.025em' }}>MindGuard</h1>
               <p style={{ margin: 0, fontSize: '11px', color: '#86efac' }}>
-                {isPiket ? 'Panel Guru Piket' : isBK ? 'Panel Guru BK' : isOSIS ? 'Panel OSIS & MPK' : 'Ruang Tenang Siswa'}
+                {isKepsek
+                  ? 'Panel Kepala Sekolah'
+                  : isPiket
+                    ? 'Panel Guru Piket'
+                    : isBK
+                      ? 'Panel Guru BK'
+                      : isOSIS
+                        ? 'Panel OSIS & MPK'
+                        : 'Ruang Tenang Siswa'}
               </p>
             </div>
           </div>
@@ -158,9 +167,20 @@ export default function Sidebar() {
 
           {/* MENU NAVIGASI */}
           <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {/* KHUSUS KEPALA SEKOLAH */}
+            {isKepsek && (
+              <Link
+                href="/kepala-sekolah"
+                className={pathname === '/kepala-sekolah' ? 'sidebar-nav-active' : undefined}
+                style={getLinkStyle('/kepala-sekolah')}
+              >
+                <LayoutDashboard size={18} />
+                <span>Monitoring Sekolah</span>
+              </Link>
+            )}
 
             {/* KHUSUS GURU PIKET */}
-            {isPiket && (
+            {!isKepsek && isPiket && (
               <Link href="/piket" style={getLinkStyle('/piket')}>
                 <ClipboardList size={18} />
                 <span>Panel Utama Piket</span>
@@ -168,7 +188,7 @@ export default function Sidebar() {
             )}
 
             {/* KHUSUS GURU BK */}
-            {isBK && (
+            {!isKepsek && isBK && (
               <>
                 <Link href="/bk" className={pathname === '/bk' ? 'sidebar-nav-active' : undefined} style={getLinkStyle('/bk')}>
                   <LayoutDashboard size={18} />
@@ -182,7 +202,6 @@ export default function Sidebar() {
                   <UserCheck size={18} />
                   <span>Konseling Individual</span>
                 </Link>
-              
                 <Link href="/bk/home-visit" className={pathname === '/bk/home-visit' ? 'sidebar-nav-active' : undefined} style={getLinkStyle('/bk/home-visit')}>
                   <Home size={18} />
                   <span>Home Visit</span>
@@ -203,7 +222,7 @@ export default function Sidebar() {
             )}
 
             {/* KHUSUS OSIS & MPK */}
-            {isOSIS && (
+            {!isKepsek && isOSIS && (
               <>
                 <Link href="/osis" className={pathname === '/osis' ? 'sidebar-nav-active' : undefined} style={getLinkStyle('/osis')}>
                   <Clock size={18} />
@@ -217,7 +236,7 @@ export default function Sidebar() {
             )}
 
             {/* KHUSUS SISWA */}
-            {!isPiket && !isBK && !isOSIS && (
+            {!isKepsek && !isPiket && !isBK && !isOSIS && (
               <>
                 <Link href="/dashboard" className={pathname === '/dashboard' ? 'sidebar-nav-active' : undefined} style={getLinkStyle('/dashboard')}>
                   <Home size={18} />
@@ -249,13 +268,11 @@ export default function Sidebar() {
                 </Link>
               </>
             )}
-
           </nav>
         </div>
 
         {/* FOOTER & LOGOUT */}
         <div style={{ marginTop: '20px' }}>
-          {/* GARIS PEMBATAS SEBELUM LOGOUT */}
           <div className="sidebar-divider" style={{ marginBottom: '14px' }} />
 
           <button
