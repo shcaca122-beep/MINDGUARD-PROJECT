@@ -1,13 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import BKUtilityBar from '../BKUtilityBar';
 import { supabase } from '@/lib/supabase';
-import { Eye, Loader2, Image as ImageIcon, X } from 'lucide-react';
+import { Eye, Loader2, Image as ImageIcon, X, PhoneCall } from 'lucide-react';
 
 type ViolationRow = {
   id?: string | number;
+  siswa_id?: string | null;
   nama_siswa?: string | null;
   kelas?: string | null;
   jenis_pelanggaran?: string | null;
@@ -23,6 +25,7 @@ type ViolationRow = {
 };
 
 export default function BKPelanggaranPage() {
+  const router = useRouter();
   const [data, setData] = useState<ViolationRow[]>([]);
   const [masterData, setMasterData] = useState<ViolationRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +71,7 @@ export default function BKPelanggaranPage() {
     }, 0);
 
     const handlePelanggaranUpdate = () => {
-      fetchData();
+      void fetchData();
     };
 
     if (typeof window !== 'undefined') {
@@ -91,7 +94,7 @@ export default function BKPelanggaranPage() {
     try {
       const { data: signedData, error } = await supabase.storage
         .from('bukti-pelanggaran')
-        .createSignedUrl(path, 3600); // URL aktif selama 1 jam
+        .createSignedUrl(path, 3600);
 
       if (error) throw error;
       setViewBuktiUrl(signedData.signedUrl);
@@ -100,6 +103,26 @@ export default function BKPelanggaranPage() {
     } finally {
       setLoadingBuktiId(null);
     }
+  };
+
+  // Arahkan langsung ke pembuatan Surat Panggilan Ortu dengan data siswa terisi otomatis
+  const handleTindakLanjutiOrtu = (item: ViolationRow) => {
+    const studentName = (item.nama_siswa || '').trim();
+    const studentClass = (item.kelas || '').trim();
+    const violationName = (item.jenis_pelanggaran || item.jenis || '').trim();
+    const pointsText = item.poin == null ? '' : ` (Poin: ${item.poin})`;
+    const reasonText = violationName
+      ? `Pemanggilan terkait: ${violationName}${pointsText}`
+      : 'Konsultasi Pelanggaran & Pembinaan Siswa';
+
+    const params = new URLSearchParams();
+    if (item.id != null) params.set('pelanggaran_id', String(item.id));
+    if (item.siswa_id) params.set('siswa_id', String(item.siswa_id));
+    if (studentName) params.set('nama', studentName);
+    if (studentClass) params.set('kelas', studentClass);
+    params.set('keperluan', reasonText);
+
+    router.push(`/bk/panggilan-ortu?${params.toString()}`);
   };
 
   const filteredData = data.filter((item) => {
@@ -126,7 +149,9 @@ export default function BKPelanggaranPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
             <div>
               <h2 style={{ margin: 0, fontSize: '18px', color: '#1b3b2b' }}>🚨 Data Pelanggaran BK</h2>
-              <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b' }}>Daftar poin pelanggaran yang tersimpan di tabel master_pelanggaran</p>
+              <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748b' }}>
+                Daftar pelanggaran siswa & tombol tindak lanjut langsung ke surat panggilan orang tua
+              </p>
             </div>
           </div>
         </div>
@@ -142,51 +167,128 @@ export default function BKPelanggaranPage() {
               <div style={{ display: 'grid', gap: '12px' }}>
                 {filteredData.map((item, index) => {
                   const itemId = item.id || `${item.nama_siswa}-${item.created_at}-${index}`;
+                  const poinValue = Number(item.poin ?? 0);
+                  const needsFollowUp = poinValue >= 20;
+
                   return (
-                    <div key={itemId} style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '12px 14px', backgroundColor: '#f8fafc' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                    <div
+                      key={itemId}
+                      style={{
+                        border: needsFollowUp ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                        borderLeft: needsFollowUp ? '4px solid #dc2626' : '1px solid #e2e8f0',
+                        borderRadius: '10px',
+                        padding: '12px 14px',
+                        backgroundColor: '#f8fafc',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
                         <div>
-                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#1f2937' }}>{item.nama_siswa || 'Siswa'}</div>
-                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{item.kelas || '-'} • {item.jenis_pelanggaran || item.jenis || 'Pelanggaran'}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#1f2937' }}>
+                              {item.nama_siswa || 'Siswa'}
+                            </span>
+                            {needsFollowUp && (
+                              <span
+                                style={{
+                                  backgroundColor: '#fee2e2',
+                                  color: '#991b1b',
+                                  padding: '2px 8px',
+                                  borderRadius: '999px',
+                                  fontSize: '10.5px',
+                                  fontWeight: '700',
+                                }}
+                              >
+                                Perlu Tindak Lanjut
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                            {item.kelas || '-'} • {item.jenis_pelanggaran || item.jenis || 'Pelanggaran'}
+                          </div>
                         </div>
-                        <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '6px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                          Poin {item.poin ?? 0}
+                        <span
+                          style={{
+                            backgroundColor: needsFollowUp ? '#fee2e2' : '#dcfce7',
+                            color: needsFollowUp ? '#991b1b' : '#166534',
+                            padding: '6px 10px',
+                            borderRadius: '999px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Poin {poinValue}
                         </span>
                       </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed #e2e8f0' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '10px',
+                          marginTop: '10px',
+                          paddingTop: '8px',
+                          borderTop: '1px dashed #e2e8f0',
+                        }}
+                      >
                         <div style={{ fontSize: '12px', color: '#64748b' }}>
                           📅 {item.tanggal || (item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID') : '-')} • 👤 {item.pencatat || 'OSIS/Piket'}
                         </div>
 
-                        {item.foto_bukti_path ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          {item.foto_bukti_path ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenBukti(item.foto_bukti_path!, String(itemId))}
+                              disabled={loadingBuktiId === String(itemId)}
+                              style={{
+                                backgroundColor: '#1b3b2b',
+                                color: '#fff',
+                                border: 'none',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                fontSize: '11.5px',
+                                fontWeight: '600',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {loadingBuktiId === String(itemId) ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <Eye size={12} />
+                              )}
+                              Lihat Foto Bukti
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>Tanpa Foto Bukti</span>
+                          )}
+
                           <button
-                            onClick={() => handleOpenBukti(item.foto_bukti_path!, String(itemId))}
-                            disabled={loadingBuktiId === String(itemId)}
+                            type="button"
+                            onClick={() => handleTindakLanjutiOrtu(item)}
                             style={{
-                              backgroundColor: '#1b3b2b',
-                              color: '#fff',
+                              backgroundColor: '#059669',
+                              color: '#ffffff',
                               border: 'none',
-                              padding: '5px 12px',
+                              padding: '6px 12px',
                               borderRadius: '6px',
-                              fontSize: '11px',
-                              fontWeight: '600',
+                              fontSize: '11.5px',
+                              fontWeight: '700',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '6px',
                               cursor: 'pointer',
                             }}
                           >
-                            {loadingBuktiId === String(itemId) ? (
-                              <Loader2 size={12} className="animate-spin" />
-                            ) : (
-                              <Eye size={12} />
-                            )}
-                            Lihat Foto Bukti
+                            <PhoneCall size={12} />
+                            Tindak Lanjuti & Panggil Ortu
                           </button>
-                        ) : (
-                          <span style={{ fontSize: '11px', color: '#94a3b8', fontStyle: 'italic' }}>Tanpa Foto Bukti</span>
-                        )}
+                        </div>
                       </div>
                     </div>
                   );

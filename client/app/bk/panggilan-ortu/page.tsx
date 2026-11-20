@@ -8,7 +8,17 @@ import { supabase } from '@/lib/supabase';
 import type { DatabaseRow } from '@/lib/database-row';
 import { formatErrorMessage } from '@/lib/error-utils';
 import { showError, showSuccess } from '@/lib/swal';
-import { PhoneCall, Plus, Printer, ClipboardList, Calendar, FileText, MessageCircle, Loader2 } from 'lucide-react';
+import {
+  PhoneCall,
+  Plus,
+  Printer,
+  ClipboardList,
+  Calendar,
+  FileText,
+  MessageCircle,
+  Loader2,
+  UserCheck,
+} from 'lucide-react';
 
 type ViolationRecord = {
   id?: string | number;
@@ -21,6 +31,8 @@ type ViolationRecord = {
   created_at?: string | null;
   siswa_id?: string | null;
 };
+
+const STORAGE_BUCKET = 'surat-panggilan';
 
 function formatTanggalIndonesia(raw: unknown, withWeekday = false): string {
   const str = String(raw || '').trim();
@@ -35,12 +47,289 @@ function formatTanggalIndonesia(raw: unknown, withWeekday = false): string {
   });
 }
 
-function isMissingParentPhoneColumn(error: unknown): boolean {
+function normalizeWhatsAppPhone(rawPhone: string): string {
+  const digits = rawPhone.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('0')) return `62${digits.slice(1)}`;
+  if (digits.startsWith('8')) return `62${digits}`;
+  return digits;
+}
+
+function isMissingColumnError(error: unknown, columnName: string): boolean {
   if (!error || typeof error !== 'object') return false;
   const value = error as { code?: string; message?: string };
   const message = (value.message || '').toLowerCase();
-  return message.includes('parent_phone')
-    && (value.code === 'PGRST204' || message.includes('column') || message.includes('schema cache'));
+  return (
+    message.includes(columnName.toLowerCase()) &&
+    (value.code === 'PGRST204' ||
+      message.includes('column') ||
+      message.includes('schema cache'))
+  );
+}
+
+function sanitizePdfText(input: string): string {
+  return input
+    .replace(/[^\x20-\x7E\xA0-\xFF]/g, ' ')
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)');
+}
+
+function wrapTextLines(text: string, maxChars: number): string[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return ['-'];
+  const lines: string[] = [];
+  let current = '';
+
+  for (const word of words) {
+    if (!current) {
+      current = word;
+    } else if (current.length + 1 + word.length <= maxChars) {
+      current += ` ${word}`;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+function buildOfficialSummonPdfBlob(params: {
+  nomorSurat: string;
+  tanggalSurat: string;
+  namaSiswa: string;
+  kelas: string;
+  hariTanggal: string;
+  pukul: string;
+  keperluan: string;
+  namaGuruBK: string;
+}): Blob {
+  const commands: string[] = [];
+
+  const drawText = (
+    text: string,
+    x: number,
+    y: number,
+    font: 'F1' | 'F2',
+    size: number
+  ) => {
+    commands.push(
+      `BT /${font} ${size} Tf 1 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)} Tm (${sanitizePdfText(text)}) Tj ET`
+    );
+  };
+
+  const drawCenteredText = (
+    text: string,
+    y: number,
+    font: 'F1' | 'F2',
+    size: number
+  ) => {
+    const avgCharWidth = size * (font === 'F2' ? 0.52 : 0.48);
+    const estimatedWidth = text.length * avgCharWidth;
+    const x = Math.max(50, (595 - estimatedWidth) / 2);
+    drawText(text, x, y, font, size);
+  };
+
+  const drawRightText = (
+    text: string,
+    rightX: number,
+    y: number,
+    font: 'F1' | 'F2',
+    size: number
+  ) => {
+    const avgCharWidth = size * 0.48;
+    const estimatedWidth = text.length * avgCharWidth;
+    const x = Math.max(68, rightX - estimatedWidth);
+    drawText(text, x, y, font, size);
+  };
+
+  const drawLine = (
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    width = 1
+  ) => {
+    commands.push(
+      `${width.toFixed(2)} w ${x1.toFixed(1)} ${y1.toFixed(1)} m ${x2.toFixed(1)} ${y2.toFixed(1)} l S`
+    );
+  };
+
+  // Kop Surat Resmi
+  drawCenteredText('PEMERINTAH PROVINSI JAWA BARAT', 785, 'F2', 11.5);
+  drawCenteredText('SMK BUDI BAKTI CIWIDEY', 767, 'F2', 15.5);
+  drawCenteredText(
+    'Jl. Babakantiga No. 82, Ciwidey, Kabupaten Bandung, Jawa Barat 40973',
+    752,
+    'F1',
+    9.5
+  );
+  drawLine(68, 742, 527, 742, 2.0);
+  drawLine(68, 738.5, 527, 738.5, 0.75);
+
+  // Tanggal & Nomor Surat
+  drawRightText(`Ciwidey, ${params.tanggalSurat}`, 527, 716, 'F1', 11.5);
+
+  drawText('Nomor', 68, 692, 'F1', 11.5);
+  drawText(':', 132, 692, 'F1', 11.5);
+  drawText(params.nomorSurat, 144, 692, 'F1', 11.5);
+
+  drawText('Lampiran', 68, 676, 'F1', 11.5);
+  drawText(':', 132, 676, 'F1', 11.5);
+  drawText('-', 144, 676, 'F1', 11.5);
+
+  drawText('Perihal', 68, 660, 'F1', 11.5);
+  drawText(':', 132, 660, 'F1', 11.5);
+  drawText('Panggilan Orang Tua / Wali Siswa', 144, 660, 'F2', 11.5);
+  drawLine(144, 658, 315, 658, 0.8);
+
+  // Tujuan Surat
+  drawText('Kepada Yth.', 68, 628, 'F1', 11.5);
+  drawText('Bapak/Ibu Orang Tua / Wali dari:', 68, 612, 'F2', 11.5);
+
+  drawText('Nama Siswa', 88, 594, 'F1', 11.5);
+  drawText(':', 164, 594, 'F1', 11.5);
+  drawText(params.namaSiswa, 176, 594, 'F2', 11.5);
+
+  drawText('Kelas', 88, 578, 'F1', 11.5);
+  drawText(':', 164, 578, 'F1', 11.5);
+  drawText(params.kelas, 176, 578, 'F1', 11.5);
+
+  drawText('di Tempat', 68, 560, 'F1', 11.5);
+
+  // Isi Surat
+  drawText('Dengan hormat,', 68, 534, 'F1', 11.5);
+
+  const pembukaLines = wrapTextLines(
+    'Sehubungan dengan adanya hal penting yang berkaitan dengan pembinaan dan perkembangan kedisiplinan putra/putri Bapak/Ibu di sekolah, maka dengan ini kami mengharapkan kehadiran Bapak/Ibu Orang Tua/Wali siswa pada:',
+    80
+  );
+  let cursorY = 514;
+  for (const line of pembukaLines) {
+    drawText(line, 68, cursorY, 'F1', 11.5);
+    cursorY -= 17;
+  }
+
+  cursorY -= 6;
+  drawText('Hari / Tanggal', 88, cursorY, 'F1', 11.5);
+  drawText(':', 174, cursorY, 'F1', 11.5);
+  drawText(params.hariTanggal, 186, cursorY, 'F2', 11.5);
+
+  cursorY -= 18;
+  drawText('Pukul', 88, cursorY, 'F1', 11.5);
+  drawText(':', 174, cursorY, 'F1', 11.5);
+  drawText(`${params.pukul} WIB s.d. selesai`, 186, cursorY, 'F1', 11.5);
+
+  cursorY -= 18;
+  drawText('Tempat', 88, cursorY, 'F1', 11.5);
+  drawText(':', 174, cursorY, 'F1', 11.5);
+  drawText(
+    'Ruang Bimbingan Konseling (BK) SMK Budi Bakti Ciwidey',
+    186,
+    cursorY,
+    'F1',
+    11.5
+  );
+
+  cursorY -= 18;
+  drawText('Keperluan', 88, cursorY, 'F1', 11.5);
+  drawText(':', 174, cursorY, 'F1', 11.5);
+  const keperluanLines = wrapTextLines(params.keperluan, 56);
+  for (let i = 0; i < keperluanLines.length; i += 1) {
+    drawText(keperluanLines[i], 186, cursorY, 'F2', 11.5);
+    if (i < keperluanLines.length - 1) cursorY -= 16;
+  }
+
+  cursorY -= 24;
+  const penutup1 = wrapTextLines(
+    'Mengingat pentingnya hal tersebut demi kebaikan dan kelancaran proses pendidikan putra/putri Bapak/Ibu, kami sangat mengharapkan kehadiran Bapak/Ibu tepat pada waktunya.',
+    80
+  );
+  for (const line of penutup1) {
+    drawText(line, 68, cursorY, 'F1', 11.5);
+    cursorY -= 17;
+  }
+
+  cursorY -= 6;
+  const penutup2 = wrapTextLines(
+    'Demikian surat panggilan ini kami sampaikan. Atas perhatian dan kerja sama Bapak/Ibu, kami ucapkan terima kasih.',
+    80
+  );
+  for (const line of penutup2) {
+    drawText(line, 68, cursorY, 'F1', 11.5);
+    cursorY -= 17;
+  }
+
+  // Blok Tanda Tangan
+  cursorY -= 24;
+  drawText('Mengetahui,', 82, cursorY, 'F1', 11.5);
+  cursorY -= 16;
+  drawText('Wakasek Bidang Kesiswaan,', 82, cursorY, 'F1', 11.5);
+  drawText('Guru Bimbingan dan Konseling,', 335, cursorY, 'F1', 11.5);
+
+  cursorY -= 56;
+  drawText('_____________________________', 82, cursorY, 'F1', 11.5);
+  const counselorLabel =
+    params.namaGuruBK.trim() || '_____________________________';
+  drawText(counselorLabel, 335, cursorY, 'F2', 11.5);
+  if (params.namaGuruBK.trim()) {
+    drawLine(
+      335,
+      cursorY - 2,
+      Math.min(527, 335 + counselorLabel.length * 6),
+      cursorY - 2,
+      0.8
+    );
+  }
+
+  cursorY -= 16;
+  drawText('NIP. -', 82, cursorY, 'F1', 11.5);
+  drawText('NIP. -', 335, cursorY, 'F1', 11.5);
+
+  // Catatan kaki resmi
+  drawLine(68, 62, 527, 62, 0.5);
+  drawText(
+    'Dokumen resmi diterbitkan melalui Sistem BK MindGuard - SMK Budi Bakti Ciwidey',
+    68,
+    48,
+    'F1',
+    8.5
+  );
+
+  const streamContent = commands.join('\n');
+  const encoder = new TextEncoder();
+  const streamByteLength = encoder.encode(streamContent).length;
+
+  const objects: string[] = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>\nendobj\n',
+    '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman /Encoding /WinAnsiEncoding >>\nendobj\n',
+    '5 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold /Encoding /WinAnsiEncoding >>\nendobj\n',
+    `6 0 obj\n<< /Length ${streamByteLength} >>\nstream\n${streamContent}\nendstream\nendobj\n`,
+  ];
+
+  const header = '%PDF-1.4\n';
+  const offsets: number[] = [0];
+  let currentOffset = encoder.encode(header).length;
+
+  for (const obj of objects) {
+    offsets.push(currentOffset);
+    currentOffset += encoder.encode(obj).length;
+  }
+
+  const xrefStart = currentOffset;
+  const xrefLines = [
+    'xref',
+    `0 ${objects.length + 1}`,
+    '0000000000 65535 f ',
+    ...offsets.slice(1).map((offset) => `${String(offset).padStart(10, '0')} 00000 n `),
+  ];
+  const trailer = `${xrefLines.join('\n')}\ntrailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+
+  const fullPdfString = header + objects.join('') + trailer;
+  return new Blob([encoder.encode(fullPdfString)], { type: 'application/pdf' });
 }
 
 export default function PanggilanOrtuPage() {
@@ -52,7 +341,9 @@ export default function PanggilanOrtuPage() {
   const [kelas, setKelas] = useState('');
   const [selectedPelanggaran, setSelectedPelanggaran] = useState('');
   const [keperluan, setKeperluan] = useState('Konsultasi Pelanggaran & Pembinaan Siswa');
-  const [tanggalPanggilan, setTanggalPanggilan] = useState(new Date().toISOString().split('T')[0]);
+  const [tanggalPanggilan, setTanggalPanggilan] = useState(
+    new Date().toISOString().split('T')[0]
+  );
   const [pukul, setPukul] = useState('09:00');
   const [isLoading, setIsLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -88,9 +379,10 @@ export default function PanggilanOrtuPage() {
                 : String(row.keperluan ?? row.alasan ?? ''),
           tanggal: typeof row.tanggal === 'string' ? row.tanggal : '',
           pukul: typeof row.pukul === 'string' ? row.pukul : '09:00',
-          parent_phone: typeof row.parent_phone === 'string'
-            ? row.parent_phone
-            : parentPhonesByCallId.current.get(String(row.id)) || '',
+          parent_phone:
+            typeof row.parent_phone === 'string'
+              ? row.parent_phone
+              : parentPhonesByCallId.current.get(String(row.id)) || '',
         })) as DatabaseRow[];
         setDataPanggilan(
           normalized.sort((a, b) =>
@@ -163,6 +455,16 @@ export default function PanggilanOrtuPage() {
     )
   );
 
+  const handleGuruBKChange = (value: string) => {
+    setNamaGuruBK(value);
+    const trimmed = value.trim();
+    if (trimmed) {
+      localStorage.setItem('bk_custom_name', trimmed);
+    } else {
+      localStorage.removeItem('bk_custom_name');
+    }
+  };
+
   const handleSimpanPanggilan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!namaSiswa || !kelas) {
@@ -228,7 +530,7 @@ export default function PanggilanOrtuPage() {
           break;
         }
         lastError = error;
-        if (isMissingParentPhoneColumn(error)) {
+        if (isMissingColumnError(error, 'parent_phone')) {
           savedWithoutParentPhone = true;
           break;
         }
@@ -237,7 +539,7 @@ export default function PanggilanOrtuPage() {
       if (savedWithoutParentPhone) {
         for (const payload of payloadCandidates) {
           const compatiblePayload = Object.fromEntries(
-            Object.entries(payload).filter(([key]) => key !== 'parent_phone'),
+            Object.entries(payload).filter(([key]) => key !== 'parent_phone')
           );
           const { data, error } = await supabase
             .from('panggilan_ortu')
@@ -258,9 +560,7 @@ export default function PanggilanOrtuPage() {
         }
         showSuccess(
           'Surat berhasil dibuat',
-          savedWithoutParentPhone
-            ? 'Surat tersimpan. Nomor WhatsApp hanya tersedia sampai halaman ini ditutup karena kolom nomor wali belum terbaca. Sinkronkan skema Supabase agar nomor tersimpan permanen.'
-            : 'Surat panggilan orang tua berhasil disimpan.',
+          'Surat panggilan orang tua berhasil disimpan dan siap dikirim via WhatsApp.'
         );
         setShowModal(false);
         setNamaSiswa('');
@@ -277,6 +577,19 @@ export default function PanggilanOrtuPage() {
       showError('Gagal menyimpan surat', formatErrorMessage(error));
     }
   };
+
+  const getNomorUrutSurat = useCallback(
+    (targetItem: DatabaseRow | null) => {
+      if (!targetItem) return '001';
+      const chronological = [...dataPanggilan].reverse();
+      const foundIndex = chronological.findIndex(
+        (row) => String(row.id) === String(targetItem.id)
+      );
+      const urutan = foundIndex >= 0 ? foundIndex + 1 : 1;
+      return String(urutan).padStart(3, '0');
+    },
+    [dataPanggilan]
+  );
 
   const handleCetakPDF = (item: DatabaseRow) => {
     setPrintItem(item);
@@ -296,45 +609,132 @@ export default function PanggilanOrtuPage() {
     }, 120);
   };
 
-  const handleSendPdfWhatsApp = async (item: DatabaseRow, phone: string) => {
+  const handleSendPdfWhatsApp = async (item: DatabaseRow, rawPhone: string) => {
     if (item.id == null) {
       showError('Surat belum tersimpan', 'ID surat panggilan tidak tersedia.');
       return;
     }
-    if (!phone.trim()) {
-      showError('Nomor WhatsApp belum diisi', 'Masukkan nomor orang tua/wali terlebih dahulu.');
+
+    const normalizedPhone = normalizeWhatsAppPhone(rawPhone);
+    if (!normalizedPhone || normalizedPhone.length < 10) {
+      showError(
+        'Nomor WhatsApp tidak valid',
+        'Masukkan nomor WhatsApp orang tua/wali yang benar (contoh: 081234567890).'
+      );
       return;
     }
 
-    const confirmed = window.confirm(
-      `Kirim PDF surat panggilan untuk ${String(item.nama_siswa || 'siswa')} ke ${phone}? Pengiriman langsung memerlukan percakapan aktif dengan nomor sekolah.`,
-    );
-    if (!confirmed) return;
-
     const callId = String(item.id);
+    const activeCounselor = namaGuruBK.trim() || 'Guru BK SMK Budi Bakti Ciwidey';
+    const studentName = String(item.nama_siswa || 'Siswa');
+    const studentClass = String(item.kelas || '-');
+    const reasonText = String(item.keperluan || 'Konsultasi Pembinaan Siswa');
+    const scheduleDate = formatTanggalIndonesia(item.tanggal, true);
+    const scheduleTime = String(item.pukul || '09:00');
+    const letterNumber = `421.5 / ${getNomorUrutSurat(item)}-BK / SMK-BBC / ${new Date().getFullYear()}`;
+    const letterDate = formatTanggalIndonesia(new Date().toISOString(), false);
+
     setSendingCallId(callId);
     try {
-      const response = await fetch('/api/bk/panggilan-ortu/send-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ callId, namaGuruBK, parentPhone: phone }),
+      // 1. Simpan nomor telepon wali ke cache lokal & database jika kolom tersedia
+      parentPhonesByCallId.current.set(callId, rawPhone.trim());
+      await supabase
+        .from('panggilan_ortu')
+        .update({ parent_phone: rawPhone.trim() })
+        .eq('id', item.id)
+        .then(({ error }) => {
+          if (error && !isMissingColumnError(error, 'parent_phone')) {
+            console.warn('Pembaruan nomor wali di database dilewati:', error.message);
+          }
+        });
+
+      // 2. Buat file PDF resmi berkop sekolah
+      const pdfBlob = buildOfficialSummonPdfBlob({
+        nomorSurat: letterNumber,
+        tanggalSurat: letterDate,
+        namaSiswa: studentName,
+        kelas: studentClass,
+        hariTanggal: scheduleDate,
+        pukul: scheduleTime,
+        keperluan: reasonText,
+        namaGuruBK: namaGuruBK.trim(),
       });
-      const result = await response.json() as { error?: string; success?: boolean };
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'WhatsApp gagal mengirim PDF surat.');
+
+      const safeFileStudent = studentName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      const filePath = `surat-panggilan-${safeFileStudent || 'siswa'}-${callId}-${Date.now()}.pdf`;
+
+      // 3. Unggah PDF ke bucket Supabase Storage 'surat-panggilan'
+      const { error: uploadError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(filePath, pdfBlob, {
+          contentType: 'application/pdf',
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw new Error(
+          `Gagal mengunggah PDF ke penyimpanan (${uploadError.message}). Pastikan bucket "${STORAGE_BUCKET}" bersifat Public dan memiliki policy INSERT.`
+        );
       }
 
-      showSuccess('PDF berhasil dikirim', 'PDF surat panggilan telah dikirim ke WhatsApp orang tua/wali.');
+      const { data: publicUrlData } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(filePath);
+      const pdfPublicUrl = publicUrlData.publicUrl;
+
+      // 4. Susun pesan resmi dari nomor WhatsApp guru BK yang sedang jaga
+      const whatsappMessage = [
+        "Assalamu'alaikum Wr. Wb.",
+        '',
+        'Yth. Bapak/Ibu Orang Tua/Wali dari:',
+        `• Nama Siswa : *${studentName}*`,
+        `• Kelas : *${studentClass}*`,
+        '',
+        'Dengan hormat, kami dari Bimbingan Konseling (BK) *SMK Budi Bakti Ciwidey* mengundang kehadiran Bapak/Ibu ke sekolah pada:',
+        `• Hari/Tanggal : *${scheduleDate}*`,
+        `• Pukul : *${scheduleTime} WIB s.d. selesai*`,
+        '• Tempat : *Ruang BK SMK Budi Bakti Ciwidey*',
+        `• Keperluan : *${reasonText}*`,
+        '',
+        'Berikut tautan *Surat Panggilan Resmi (PDF)* yang dapat Bapak/Ibu unduh:',
+        pdfPublicUrl,
+        '',
+        'Atas perhatian dan kerja sama Bapak/Ibu, kami ucapkan terima kasih.',
+        '',
+        'Hormat kami,',
+        `*${activeCounselor}*`,
+        'Bimbingan Konseling SMK Budi Bakti Ciwidey',
+      ].join('\n');
+
+      const waUrl = `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(whatsappMessage)}`;
+
+      // 5. Buka WhatsApp di perangkat/browser guru BK yang sedang aktif
+      const openedWindow = window.open(waUrl, '_blank', 'noopener,noreferrer');
+      if (!openedWindow) {
+        window.location.assign(waUrl);
+      }
+
+      showSuccess(
+        'Surat PDF siap dikirim',
+        'PDF surat panggilan telah terunggah dan WhatsApp dibuka dengan pesan & tautan surat resmi.'
+      );
     } catch (error) {
-      console.error('Gagal mengirim PDF surat panggilan:', error);
-      showError('PDF gagal dikirim', error instanceof Error ? error.message : 'Terjadi kesalahan saat mengirim PDF.');
+      console.error('Gagal menyiapkan pengiriman PDF via WhatsApp:', error);
+      showError(
+        'Gagal mengirim via WhatsApp',
+        error instanceof Error ? error.message : 'Terjadi kesalahan saat menyiapkan surat PDF.'
+      );
     } finally {
       setSendingCallId(null);
     }
   };
 
   useEffect(() => {
-    const session = localStorage.getItem('user_session') || localStorage.getItem('admin_session');
+    const session =
+      localStorage.getItem('user_session') || localStorage.getItem('admin_session');
     if (!session) {
       router.push('/');
       return;
@@ -343,6 +743,22 @@ export default function PanggilanOrtuPage() {
     const savedBKName = localStorage.getItem('bk_custom_name') || '';
     if (savedBKName && savedBKName.toLowerCase() !== 'umum') {
       queueMicrotask(() => setNamaGuruBK(savedBKName));
+    } else {
+      try {
+        const parsed = JSON.parse(session) as Record<string, unknown>;
+        const sessionName = String(
+          parsed.nama_guru || parsed.nama || parsed.full_name || parsed.name || ''
+        ).trim();
+        if (
+          sessionName &&
+          sessionName.toLowerCase() !== 'umum' &&
+          sessionName.toLowerCase() !== 'bk'
+        ) {
+          queueMicrotask(() => setNamaGuruBK(sessionName));
+        }
+      } catch {
+        // Abaikan jika session bukan string JSON
+      }
     }
 
     queueMicrotask(() => {
@@ -351,13 +767,47 @@ export default function PanggilanOrtuPage() {
     });
   }, [fetchPanggilan, fetchPelanggaran, router]);
 
-  const nomorUrutSurat = useMemo(() => {
-    if (!printItem) return '001';
-    const chronological = [...dataPanggilan].reverse();
-    const foundIndex = chronological.findIndex((row) => String(row.id) === String(printItem.id));
-    const urutan = foundIndex >= 0 ? foundIndex + 1 : 1;
-    return String(urutan).padStart(3, '0');
-  }, [dataPanggilan, printItem]);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paramNama = params.get('nama');
+    const paramKelas = params.get('kelas');
+    const paramKeperluan = params.get('keperluan');
+    const paramPelanggaranId = params.get('pelanggaran_id');
+    const paramSiswaId = params.get('siswa_id');
+
+    if (!paramNama && !paramPelanggaranId) return;
+
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    queueMicrotask(() => {
+      if (paramPelanggaranId) setSelectedPelanggaran(paramPelanggaranId);
+      if (paramNama) setNamaSiswa(paramNama);
+      if (paramKelas) setKelas(paramKelas);
+      if (paramKeperluan) setKeperluan(paramKeperluan);
+      setShowModal(true);
+
+      if (paramSiswaId) {
+        void (async () => {
+          setLoadingParentPhone(true);
+          try {
+            const { data, error } = await supabase.rpc('get_student_parent_phone', {
+              p_student_id: paramSiswaId,
+            });
+            if (!error && typeof data === 'string') {
+              setParentPhone(data);
+            }
+          } finally {
+            setLoadingParentPhone(false);
+          }
+        })();
+      }
+    });
+  }, []);
+
+  const nomorUrutSurat = useMemo(
+    () => getNomorUrutSurat(printItem),
+    [getNomorUrutSurat, printItem]
+  );
 
   const tanggalSuratHariIni = formatTanggalIndonesia(new Date().toISOString(), false);
   const tahunSurat = new Date().getFullYear();
@@ -400,7 +850,6 @@ export default function PanggilanOrtuPage() {
             print-color-adjust: exact !important;
           }
 
-          /* Sembunyikan seluruh elemen dashboard & widget mengambang */
           .bk-panel-page,
           [class*="mindy"],
           [class*="Mindy"],
@@ -408,7 +857,6 @@ export default function PanggilanOrtuPage() {
             display: none !important;
           }
 
-          /* Ukuran A4 presisi dengan margin standar surat dinas (20mm atas/bawah, 24mm kiri/kanan) */
           html body .official-print-sheet {
             display: block !important;
             width: 210mm !important;
@@ -433,7 +881,6 @@ export default function PanggilanOrtuPage() {
             box-sizing: border-box !important;
           }
 
-          /* Kop Surat Resmi */
           .surat-kop {
             display: grid !important;
             grid-template-columns: 68px 1fr 68px;
@@ -774,7 +1221,7 @@ export default function PanggilanOrtuPage() {
               boxSizing: 'border-box',
             }}
           >
-            {/* INFO & TOMBOL AKSI */}
+            {/* INFO, IDENTITAS GURU BK BERTUGAS & TOMBOL AKSI */}
             <div
               style={{
                 backgroundColor: 'rgba(2, 31, 24, 0.92)',
@@ -793,7 +1240,7 @@ export default function PanggilanOrtuPage() {
                 boxSizing: 'border-box',
               }}
             >
-              <div>
+              <div style={{ flex: '1 1 340px' }}>
                 <h3
                   style={{
                     margin: '0 0 5px 0',
@@ -804,10 +1251,47 @@ export default function PanggilanOrtuPage() {
                 >
                   Penerbitan Surat Resmi Orang Tua / Wali Siswa
                 </h3>
-                <p style={{ margin: 0, color: '#94a3b8', fontSize: '12.5px' }}>
-                  Pilih pelanggaran siswa agar identitas dan alasan terisi otomatis, lalu cetak
-                  surat resmi ber-kop sekolah.
+                <p style={{ margin: '0 0 12px 0', color: '#94a3b8', fontSize: '12.5px' }}>
+                  Surat PDF otomatis tersimpan di arsip cloud dan langsung siap dikirim lewat
+                  WhatsApp guru BK yang sedang jaga.
                 </p>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      color: '#a7f3d0',
+                    }}
+                  >
+                    <UserCheck size={15} /> Guru BK Bertugas:
+                  </span>
+                  <input
+                    type="text"
+                    value={namaGuruBK}
+                    onChange={(e) => handleGuruBKChange(e.target.value)}
+                    placeholder="Isi nama guru BK jaga (misal: Ibu Siti, S.Pd.)"
+                    style={{
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(52, 211, 153, 0.35)',
+                      background: '#064e3b',
+                      color: '#ffffff',
+                      fontSize: '12.5px',
+                      minWidth: '240px',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
               </div>
               <button
                 onClick={() => setShowModal(true)}
@@ -865,126 +1349,138 @@ export default function PanggilanOrtuPage() {
                   </p>
                 </div>
               ) : (
-                filteredPanggilan.map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      backgroundColor: 'rgba(2, 31, 24, 0.88)',
-                      padding: '22px',
-                      borderRadius: '16px',
-                      border: '1px solid rgba(52, 211, 153, 0.25)',
-                      borderLeft: '4px solid #f87171',
-                      boxShadow: '0 8px 25px rgba(0,0,0,0.3)',
-                      boxSizing: 'border-box',
-                    }}
-                  >
+                filteredPanggilan.map((item) => {
+                  const currentPhoneValue =
+                    parentPhoneByCallId[String(item.id)] ??
+                    (typeof item.parent_phone === 'string' ? item.parent_phone : '');
+
+                  return (
                     <div
+                      key={item.id}
                       style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '10px',
-                      }}
-                    >
-                      <strong style={{ color: '#f8fafc', fontSize: '15.5px', fontWeight: '800' }}>
-                        {item.nama_siswa}
-                      </strong>
-                      <span
-                        style={{
-                          backgroundColor: '#451a03',
-                          color: '#f87171',
-                          padding: '3px 10px',
-                          borderRadius: '6px',
-                          fontSize: '11.5px',
-                          fontWeight: 'bold',
-                          border: '1px solid rgba(248,113,113,0.3)',
-                        }}
-                      >
-                        {item.kelas}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '12.5px',
-                        color: '#94a3b8',
-                        marginBottom: '8px',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '6px',
-                      }}
-                    >
-                      <FileText size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
-                      <span>
-                        <strong>Keperluan:</strong> {item.keperluan}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '12.5px',
-                        color: '#38bdf8',
-                        marginBottom: '16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <Calendar size={14} style={{ flexShrink: 0 }} />
-                      <span>
-                        <strong>Jadwal:</strong> {item.tanggal} Pukul {item.pukul} WIB
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleCetakPDF(item)}
-                      style={{
-                        width: '100%',
-                        backgroundColor: '#064e3b',
-                        color: '#a7f3d0',
-                        border: '1px solid rgba(52,211,153,0.3)',
-                        padding: '11px',
-                        borderRadius: '10px',
-                        fontWeight: 'bold',
-                        fontSize: '13px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        transition: 'all 0.2s',
+                        backgroundColor: 'rgba(2, 31, 24, 0.88)',
+                        padding: '22px',
+                        borderRadius: '16px',
+                        border: '1px solid rgba(52, 211, 153, 0.25)',
+                        borderLeft: '4px solid #f87171',
+                        boxShadow: '0 8px 25px rgba(0,0,0,0.3)',
                         boxSizing: 'border-box',
                       }}
                     >
-                      <Printer size={16} /> Cetak Surat PDF Resmi
-                    </button>
-                    <label className="mb-2 mt-3 block text-xs font-semibold text-emerald-200" htmlFor={`parent-phone-${item.id}`}>
-                      Nomor WhatsApp orang tua / wali
-                    </label>
-                    <input
-                      id={`parent-phone-${item.id}`}
-                      type="tel"
-                      value={parentPhoneByCallId[String(item.id)] ?? (typeof item.parent_phone === 'string' ? item.parent_phone : '')}
-                      onChange={(event) => setParentPhoneByCallId((current) => ({
-                        ...current,
-                        [String(item.id)]: event.target.value,
-                      }))}
-                      placeholder="Contoh: 081234567890"
-                      className="mb-2 w-full rounded-lg border border-emerald-800 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void handleSendPdfWhatsApp(
-                        item,
-                        parentPhoneByCallId[String(item.id)] ?? (typeof item.parent_phone === 'string' ? item.parent_phone : ''),
-                      )}
-                      disabled={sendingCallId !== null || !(parentPhoneByCallId[String(item.id)] ?? (typeof item.parent_phone === 'string' ? item.parent_phone : '')).trim()}
-                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-700 px-3 py-2 text-sm font-bold text-emerald-300 hover:bg-emerald-950 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {sendingCallId === String(item.id)
-                        ? <Loader2 size={16} className="animate-spin" />
-                        : <MessageCircle size={16} />}
-                      {sendingCallId === String(item.id) ? 'Mengirim PDF...' : 'Kirim PDF langsung via WhatsApp'}
-                    </button>
-                  </div>
-                ))
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '10px',
+                        }}
+                      >
+                        <strong style={{ color: '#f8fafc', fontSize: '15.5px', fontWeight: '800' }}>
+                          {item.nama_siswa}
+                        </strong>
+                        <span
+                          style={{
+                            backgroundColor: '#451a03',
+                            color: '#f87171',
+                            padding: '3px 10px',
+                            borderRadius: '6px',
+                            fontSize: '11.5px',
+                            fontWeight: 'bold',
+                            border: '1px solid rgba(248,113,113,0.3)',
+                          }}
+                        >
+                          {item.kelas}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '12.5px',
+                          color: '#94a3b8',
+                          marginBottom: '8px',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '6px',
+                        }}
+                      >
+                        <FileText size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+                        <span>
+                          <strong>Keperluan:</strong> {item.keperluan}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '12.5px',
+                          color: '#38bdf8',
+                          marginBottom: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Calendar size={14} style={{ flexShrink: 0 }} />
+                        <span>
+                          <strong>Jadwal:</strong> {item.tanggal} Pukul {item.pukul} WIB
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleCetakPDF(item)}
+                        style={{
+                          width: '100%',
+                          backgroundColor: '#064e3b',
+                          color: '#a7f3d0',
+                          border: '1px solid rgba(52,211,153,0.3)',
+                          padding: '11px',
+                          borderRadius: '10px',
+                          fontWeight: 'bold',
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          transition: 'all 0.2s',
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        <Printer size={16} /> Cetak Surat PDF Resmi
+                      </button>
+                      <label
+                        className="mb-2 mt-3 block text-xs font-semibold text-emerald-200"
+                        htmlFor={`parent-phone-${item.id}`}
+                      >
+                        Nomor WhatsApp orang tua / wali
+                      </label>
+                      <input
+                        id={`parent-phone-${item.id}`}
+                        type="tel"
+                        value={currentPhoneValue}
+                        onChange={(event) =>
+                          setParentPhoneByCallId((current) => ({
+                            ...current,
+                            [String(item.id)]: event.target.value,
+                          }))
+                        }
+                        placeholder="Contoh: 081234567890"
+                        className="mb-2 w-full rounded-lg border border-emerald-800 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleSendPdfWhatsApp(item, currentPhoneValue)}
+                        disabled={sendingCallId !== null || !currentPhoneValue.trim()}
+                        className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-600 bg-emerald-900/50 px-3 py-2 text-sm font-bold text-emerald-200 hover:bg-emerald-800/70 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {sendingCallId === String(item.id) ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <MessageCircle size={16} />
+                        )}
+                        {sendingCallId === String(item.id)
+                          ? 'Menyiapkan PDF & WhatsApp...'
+                          : 'Kirim Surat PDF via WhatsApp BK'}
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -1075,14 +1571,34 @@ export default function PanggilanOrtuPage() {
                         );
                       })}
                     </select>
-                    <p role="status" style={{ margin: '6px 0 0', color: loadingParentPhone ? '#fbbf24' : parentPhone ? '#34d399' : '#94a3b8', fontSize: '11px' }}>
+                    <p
+                      role="status"
+                      style={{
+                        margin: '6px 0 0',
+                        color: loadingParentPhone
+                          ? '#fbbf24'
+                          : parentPhone
+                            ? '#34d399'
+                            : '#94a3b8',
+                        fontSize: '11px',
+                      }}
+                    >
                       {loadingParentPhone
                         ? 'Memuat nomor orang tua...'
                         : parentPhone
                           ? 'Nomor WhatsApp orang tua tersedia untuk pengiriman surat.'
-                          : 'Nomor orang tua belum tersedia; lengkapi data siswa terlebih dahulu.'}
+                          : 'Isi manual nomor WhatsApp orang tua/wali di bawah jika belum terisi otomatis.'}
                     </p>
-                    <label style={{ display: 'grid', gap: '5px', marginTop: '10px', color: '#cbd5e1', fontSize: '12px', fontWeight: '700' }}>
+                    <label
+                      style={{
+                        display: 'grid',
+                        gap: '5px',
+                        marginTop: '10px',
+                        color: '#cbd5e1',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                      }}
+                    >
                       Nomor WhatsApp orang tua / wali
                       <input
                         type="tel"
