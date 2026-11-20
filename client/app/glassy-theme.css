@@ -1,23 +1,23 @@
 /* =========================================================
-   MINDGUARD GLASSY THEME — KHUSUS LANDING PAGE
+   MINDGUARD GLASSY THEME — DEEP EMERALD (LANDING PAGE ONLY)
    ========================================================= */
 
 :root {
-  --mg-bg-start: #1d6b54;
-  --mg-bg-mid: #28866a;
-  --mg-bg-end: #1f7259;
+  --mg-bg-start: #0c352a;
+  --mg-bg-mid: #134c3c;
+  --mg-bg-end: #0e3b2f;
 
   --mg-glass-card: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.22) 0%,
-    rgba(255, 255, 255, 0.12) 58%,
-    rgba(209, 250, 229, 0.1) 100%
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.06) 58%,
+    rgba(10, 44, 34, 0.32) 100%
   );
-  --mg-border-glass: rgba(255, 255, 255, 0.32);
-  --mg-border-top: rgba(255, 255, 255, 0.5);
+  --mg-border-glass: rgba(255, 255, 255, 0.2);
+  --mg-border-top: rgba(255, 255, 255, 0.34);
   --mg-shadow-glass:
-    0 16px 34px -12px rgba(10, 48, 37, 0.22),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.36);
+    0 18px 38px -12px rgba(4, 20, 15, 0.42),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.24);
 }
 
 html body .mindguard-landing {
@@ -26,10 +26,10 @@ html body .mindguard-landing {
   padding-top: 92px !important;
   background-color: var(--mg-bg-mid) !important;
   background-image:
-    radial-gradient(circle at 12% 10%, rgba(110, 231, 183, 0.45), transparent 36%),
-    radial-gradient(circle at 88% 14%, rgba(94, 234, 212, 0.36), transparent 36%),
-    radial-gradient(circle at 48% 58%, rgba(167, 243, 208, 0.24), transparent 44%),
-    linear-gradient(148deg, #1d6b54 0%, #28866a 50%, #1f7259 100%) !important;
+    radial-gradient(circle at 12% 10%, rgba(52, 211, 153, 0.24), transparent 38%),
+    radial-gradient(circle at 88% 14%, rgba(45, 212, 191, 0.18), transparent 38%),
+    radial-gradient(circle at 48% 58%, rgba(110, 231, 183, 0.13), transparent 46%),
+    linear-gradient(148deg, #0c352a 0%, #134c3c 50%, #0e3b2f 100%) !important;
 }
 
 html body .mindguard-landing header.landing-nav {
@@ -54,17 +54,17 @@ html body .mindguard-landing header.landing-nav {
   overflow: hidden !important;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.24) 0%,
-    rgba(36, 122, 96, 0.56) 55%,
-    rgba(24, 92, 72, 0.66) 100%
+    rgba(255, 255, 255, 0.15) 0%,
+    rgba(16, 64, 50, 0.65) 55%,
+    rgba(10, 44, 34, 0.78) 100%
   ) !important;
-  backdrop-filter: blur(24px) saturate(185%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(185%) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
   border: 1px solid var(--mg-border-glass) !important;
   border-top-color: var(--mg-border-top) !important;
   box-shadow:
-    0 18px 40px -10px rgba(10, 48, 37, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.38) !important;
+    0 18px 40px -10px rgba(4, 20, 15, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28) !important;
   transition:
     top 0.35s cubic-bezier(0.22, 1, 0.36, 1),
     width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
@@ -87,14 +87,14 @@ html body .mindguard-landing header.landing-nav.is-compact {
   cursor: pointer !important;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.28) 0%,
-    rgba(31, 111, 88, 0.74) 55%,
-    rgba(20, 82, 64, 0.84) 100%
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(14, 56, 44, 0.8) 55%,
+    rgba(9, 38, 29, 0.9) 100%
   ) !important;
-  border-color: rgba(255, 255, 255, 0.56) !important;
+  border-color: rgba(167, 243, 208, 0.42) !important;
   box-shadow:
-    0 16px 36px -8px rgba(10, 48, 37, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.44) !important;
+    0 16px 36px -8px rgba(4, 20, 15, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34) !important;
 }
 
 html body .mindguard-landing .landing-compact-pill {
@@ -110,8 +110,8 @@ html body .mindguard-landing .landing-compact-dot {
   width: 7px !important;
   height: 7px !important;
   border-radius: 9999px !important;
-  background-color: #a7f3d0 !important;
-  box-shadow: 0 0 10px #a7f3d0 !important;
+  background-color: #6ee7b7 !important;
+  box-shadow: 0 0 10px #6ee7b7 !important;
   flex-shrink: 0 !important;
 }
 
@@ -119,7 +119,7 @@ html body .mindguard-landing .landing-compact-label {
   font-size: 13px !important;
   font-weight: 700 !important;
   letter-spacing: 0.01em !important;
-  color: #ffffff !important;
+  color: #ecfdf5 !important;
 }
 
 @keyframes mgPillTextIn {
@@ -151,12 +151,12 @@ html body .mindguard-landing header.landing-nav nav.landing-nav-links a {
   border-radius: 9999px !important;
   font-size: 13px !important;
   font-weight: 600 !important;
-  color: rgba(255, 255, 255, 0.94) !important;
+  color: rgba(236, 253, 245, 0.9) !important;
   transition: background-color 0.2s ease, color 0.2s ease !important;
 }
 
 html body .mindguard-landing header.landing-nav nav.landing-nav-links a:hover {
-  background: rgba(255, 255, 255, 0.2) !important;
+  background: rgba(255, 255, 255, 0.14) !important;
   color: #ffffff !important;
 }
 
@@ -169,9 +169,9 @@ html body .mindguard-landing header.landing-nav .landing-login-link {
   font-size: 13px !important;
   font-weight: 700 !important;
   color: #06291f !important;
-  background: linear-gradient(135deg, #ecfdf5 0%, #a7f3d0 55%, #6ee7b7 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.72) !important;
-  box-shadow: 0 8px 20px -6px rgba(110, 231, 183, 0.5) !important;
+  background: linear-gradient(135deg, #d1fae5 0%, #6ee7b7 55%, #34d399 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  box-shadow: 0 8px 20px -6px rgba(52, 211, 153, 0.45) !important;
   transition: transform 0.2s ease, filter 0.2s ease !important;
 }
 
