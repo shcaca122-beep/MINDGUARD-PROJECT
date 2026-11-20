@@ -12,6 +12,7 @@ type AccountInput = {
   nisn?: string;
   kelas?: string;
   nip?: string;
+  parentPhone?: string;
 };
 
 const normalizeRole = (role: string, kind: AccountInput['kind']) => {
@@ -21,6 +22,7 @@ const normalizeRole = (role: string, kind: AccountInput['kind']) => {
   if (normalized.includes('piket')) return 'piket';
   if (normalized.includes('osis')) return 'osis';
   if (normalized.includes('mpk')) return 'mpk';
+  if (normalized.includes('kepala sekolah') || normalized.includes('kepala_sekolah')) return 'kepala_sekolah';
   return kind === 'student' ? 'siswa' : null;
 };
 
@@ -78,6 +80,7 @@ function parseAccount(value: unknown): AccountInput | null {
     nisn: typeof account.nisn === 'string' ? account.nisn.trim() : undefined,
     kelas: typeof account.kelas === 'string' ? account.kelas.trim() : undefined,
     nip: typeof account.nip === 'string' ? account.nip.trim() : undefined,
+    parentPhone: typeof account.parentPhone === 'string' ? account.parentPhone.trim() : undefined,
   };
 }
 
@@ -109,6 +112,7 @@ async function createAccount(adminClient: Awaited<ReturnType<typeof getClients>>
         role: 'Siswa',
         nisn: account.nisn || null,
         kelas: account.kelas || null,
+        parent_phone: account.parentPhone || null,
       })
       .select('id')
       .single();
@@ -254,6 +258,7 @@ export async function PATCH(request: Request) {
           role: 'Siswa',
           nisn: account.nisn || null,
           kelas: account.kelas || null,
+          ...(account.parentPhone !== undefined ? { parent_phone: account.parentPhone || null } : {}),
         }).eq('id', legacyId)
       : await adminClient.from('admin_roles').update({
           email: account.email,

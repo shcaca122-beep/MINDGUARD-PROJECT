@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Loader2, Image as ImageIcon, X, Upload, Eye } from 'lucide-react';
+import { Loader2, Image as ImageIcon, X, Upload, Eye, MessageCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { createParentWhatsAppUrl } from '@/lib/parent-whatsapp';
 
 type ViolationRecord = {
   id?: string | number;
+  student_record_id?: string | null;
+  siswa_id?: string | null;
   created_at?: string;
   tanggal?: string;
   nama_siswa?: string;
@@ -20,6 +23,7 @@ type StudentOption = {
   id: string;
   nama: string;
   kelas: string;
+  parent_phone?: string | null;
 };
 
 export default function PelanggaranSiswaPage() {
@@ -82,11 +86,22 @@ export default function PelanggaranSiswaPage() {
         if (isMounted) alert(`Gagal memuat data siswa: ${error.message}`);
         return;
       }
+      const { data: contacts, error: contactError } = await supabase.rpc('get_student_parent_contacts');
+      if (contactError) {
+        console.error('Gagal memuat nomor orang tua:', contactError.message);
+        if (isMounted) alert(`Gagal memuat nomor orang tua: ${contactError.message}`);
+        return;
+      }
+      const contactByStudent = new Map<string, string>();
+      for (const contact of (contacts || []) as Array<{ student_id: string; parent_phone: string | null }>) {
+        if (contact.parent_phone) contactByStudent.set(String(contact.student_id), contact.parent_phone);
+      }
       if (isMounted) {
         setStudentOptions((data || []).map((student) => ({
           id: String(student.id),
           nama: String(student.nama || '').trim(),
           kelas: String(student.kelas || '').trim(),
+          parent_phone: contactByStudent.get(String(student.id)) || null,
         })).filter((student) => student.id && student.nama));
       }
     };
@@ -95,6 +110,17 @@ export default function PelanggaranSiswaPage() {
   }, []);
 
   const selectedStudent = studentOptions.find((student) => student.id === selectedStudentId);
+  const getParentPhone = (record: ViolationRecord) => {
+    const linkedId = String(record.student_record_id || record.siswa_id || '');
+    const matches = studentOptions.filter((student) =>
+      student.nama.trim().toLowerCase() === String(record.nama_siswa || '').trim().toLowerCase()
+      && student.kelas.trim().toLowerCase() === String(record.kelas || '').trim().toLowerCase(),
+    );
+    return studentOptions.find((student) => student.id === linkedId)?.parent_phone
+      || (matches.length === 1 ? matches[0].parent_phone : null);
+  };
+  const getParentMessage = (record: ViolationRecord) =>
+    `Yth. Orang Tua/Wali,\n\nKami informasikan catatan pelanggaran siswa:\nNama: ${record.nama_siswa || '-'}\nKelas: ${record.kelas || '-'}\nPelanggaran: ${record.jenis_pelanggaran || record.keterangan || '-'}\nPoin: ${record.poin ?? '-'}\nTanggal: ${record.tanggal || '-'}\n\nSilakan menghubungi pihak sekolah untuk tindak lanjut.`;
 
   // Submit Data Pelanggaran + File Foto Bukti
   const handleSubmitPelanggaran = async (e: React.FormEvent) => {
@@ -129,7 +155,7 @@ export default function PelanggaranSiswaPage() {
       }
 
       // 2. Simpan Catatan ke Database SQL
-      const { error: insertError } = await supabase.from('pelanggaran').insert([
+      const { data: insertedRecord, error: insertError } = await supabase.from('pelanggaran').insert([
         {
           student_record_id: selectedStudent.id,
           nama_siswa: selectedStudent.nama,
@@ -140,7 +166,7 @@ export default function PelanggaranSiswaPage() {
           foto_bukti_path: fotoBuktiPath,
           tanggal: new Date().toISOString().split('T')[0],
         },
-      ]);
+      ]).select('*').single();
 
       if (insertError) {
         // Rollback photo upload if table insert fails
@@ -149,6 +175,8 @@ export default function PelanggaranSiswaPage() {
         }
         throw new Error(insertError.message);
       }
+
+      setPelanggaranList((current) => [insertedRecord as ViolationRecord, ...current]);
 
       // Reset form & reload
       resetForm();
@@ -209,20 +237,21 @@ export default function PelanggaranSiswaPage() {
               <th style={{ padding: '12px 16px' }}>NAMA SISWA</th>
               <th style={{ padding: '12px 16px' }}>JENIS PELANGGARAN</th>
               <th style={{ padding: '12px 16px' }}>POIN</th>
-              <th style={{ padding: '12px 16px' }}>BUKTI FOTO</th>
+                  <th style={{ padding: '12px 16px' }}>BUKTI FOTO</th>
+                  <th style={{ padding: '12px 16px' }}>KIRIM KE ORANG TUA</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#688c7d' }}>
+                <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#688c7d' }}>
                   <Loader2 size={20} className="animate-spin" style={{ display: 'inline', marginRight: '8px' }} />
                   Memuat data pelanggaran...
                 </td>
               </tr>
             ) : pelanggaranList.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#688c7d' }}>
+                <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#688c7d' }}>
                   Belum ada catatan pelanggaran di Supabase.
                 </td>
               </tr>
@@ -264,6 +293,23 @@ export default function PelanggaranSiswaPage() {
                     ) : (
                       <span style={{ color: '#688c7d', fontSize: '11px' }}>Tidak Ada Foto</span>
                     )}
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    {(() => {
+                      const url = createParentWhatsAppUrl(getParentPhone(item), getParentMessage(item));
+                      return url ? (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-md border border-emerald-700 px-2 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-950"
+                        >
+                          <MessageCircle size={13} /> WhatsApp
+                        </a>
+                      ) : (
+                        <span style={{ color: '#688c7d', fontSize: '11px' }}>Nomor wali belum tersedia</span>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))

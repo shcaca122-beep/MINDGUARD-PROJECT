@@ -116,6 +116,8 @@ export default function LoginPage() {
       // 🔀 4. Redirect Otomatis Berdasarkan Role
       if (isAdminAccount) {
         router.push('/admin1');
+      } else if (userRole === 'kepala_sekolah') {
+        router.push('/kepala-sekolah');
       } else if (userRole.includes('bk')) {
         router.push('/bk');
       } else if (userRole.includes('piket')) {

@@ -60,6 +60,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if ((path.startsWith('/admin1') || path.startsWith('/admin')) && !isAdmin) return forbidden();
+  if (path.startsWith('/kepala-sekolah') && role !== 'kepala_sekolah') return forbidden();
   if (path.startsWith('/bk') && !['bk', 'admin', 'administrator', 'tu'].includes(role)) return forbidden();
   if (path.startsWith('/piket') && !['piket', 'admin', 'administrator', 'tu'].includes(role)) return forbidden();
 
@@ -87,6 +88,7 @@ export const config = {
   matcher: [
     '/admin/:path*',
     '/admin1/:path*',
+    '/kepala-sekolah/:path*',
     '/bk/:path*',
     '/osis/:path*',
     '/piket/:path*',

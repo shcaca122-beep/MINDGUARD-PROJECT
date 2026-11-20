@@ -18,6 +18,7 @@ type StudentRecord = {
   email?: string;
   password?: string;
   no_hp?: string;
+  parent_phone?: string | null;
   role?: string;
   status?: string;
 };
@@ -66,9 +67,13 @@ export default function DataSiswaPage() {
   const [isResetting, setIsResetting] = useState(false);
   const [emailStudent, setEmailStudent] = useState<StudentRecord | null>(null);
   const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [contactStudent, setContactStudent] = useState<StudentRecord | null>(null);
+  const [parentPhone, setParentPhone] = useState('');
+  const [contactError, setContactError] = useState('');
+  const [isSavingContact, setIsSavingContact] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [isSavingEmail, setIsSavingEmail] = useState(false);
-  const [studentForm, setStudentForm] = useState({ nisn: '', nama: '', kelas: '', email: '', password: '' });
+  const [studentForm, setStudentForm] = useState({ nisn: '', nama: '', kelas: '', email: '', password: '', parentPhone: '' });
   const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -89,10 +94,19 @@ export default function DataSiswaPage() {
           allRows.push(...((data || []) as StudentRecord[]));
           if (!data || data.length < pageSize) break;
         }
+        const { data: contacts, error: contactError } = await supabase.rpc('get_student_parent_contacts');
+        if (contactError) throw contactError;
+        const contactByStudent = new Map<string, string>();
+        for (const contact of (contacts || []) as Array<{ student_id: string; parent_phone: string | null }>) {
+          if (contact.parent_phone) contactByStudent.set(String(contact.student_id), contact.parent_phone);
+        }
         const databaseStudents = allRows.filter((student) => {
           const role = (student.role || '').trim().toLowerCase();
           return !role || role.includes('siswa');
-        }).sort(compareStudentsByClass);
+        }).map((student) => ({
+          ...student,
+          parent_phone: contactByStudent.get(String(student.id)) || null,
+        })).sort(compareStudentsByClass);
 
         if (isMounted) {
           setSiswaList(databaseStudents);
@@ -132,12 +146,13 @@ export default function DataSiswaPage() {
     setImportMessage('');
     try {
       const sheetData = [
-        ['NISN / ID', 'Nama Siswa', 'Kelas', 'Email / Kontak', 'Status', 'Role'],
+        ['NISN / ID', 'Nama Siswa', 'Kelas', 'Email / Kontak', 'No. Telepon Orang Tua', 'Status', 'Role'],
         ...siswaList.map((student) => [
           String(student.nisn || student.username || student.id || ''),
           student.nama || student.nama_siswa || student.full_name || '',
           student.kelas || student.class || '',
           student.email || student.no_hp || '',
+          student.parent_phone || '',
           student.status || 'Aktif',
           student.role || 'Siswa',
         ]),
@@ -167,6 +182,7 @@ export default function DataSiswaPage() {
       kelas: studentForm.kelas.trim(),
       email: studentForm.email.trim().toLowerCase(),
       password: studentForm.password,
+      parentPhone: studentForm.parentPhone.trim(),
       role: 'Siswa',
     };
 
@@ -182,6 +198,7 @@ export default function DataSiswaPage() {
             kelas: newStudent.kelas,
             email: newStudent.email,
             password: newStudent.password,
+            parentPhone: newStudent.parentPhone,
           },
         }),
       });
@@ -195,9 +212,12 @@ export default function DataSiswaPage() {
         .single();
       if (error) throw error;
 
-      setSiswaList((current) => [...current.filter((student) => student.nisn !== newStudent.nisn), data as StudentRecord]);
+      setSiswaList((current) => [
+        ...current.filter((student) => student.nisn !== newStudent.nisn),
+        { ...(data as StudentRecord), parent_phone: newStudent.parentPhone || null },
+      ]);
       setDataSource('Supabase dan data sekolah');
-      setStudentForm({ nisn: '', nama: '', kelas: '', email: '', password: '' });
+      setStudentForm({ nisn: '', nama: '', kelas: '', email: '', password: '', parentPhone: '' });
       setIsModalOpen(false);
     } catch (error) {
       setFormError(`Gagal menambahkan siswa: ${error instanceof Error ? error.message : 'Terjadi kesalahan.'}`);
@@ -281,6 +301,50 @@ export default function DataSiswaPage() {
       setEmailError(error instanceof Error ? error.message : 'Gagal memperbarui email siswa.');
     } finally {
       setIsSavingEmail(false);
+    }
+  };
+
+  const handleUpdateParentPhone = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setContactError('');
+    if (!contactStudent?.id) {
+      setContactError('ID siswa tidak tersedia.');
+      return;
+    }
+
+    setIsSavingContact(true);
+    try {
+      const response = await fetch('/api/admin/accounts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          legacyId: contactStudent.id,
+          account: {
+            kind: 'student',
+            email: contactStudent.email || '',
+            nama: contactStudent.nama || contactStudent.nama_siswa || contactStudent.full_name || 'Siswa',
+            role: 'Siswa',
+            nisn: contactStudent.nisn || '',
+            kelas: contactStudent.kelas || contactStudent.class || '',
+            parentPhone: parentPhone.trim(),
+          },
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Gagal memperbarui nomor orang tua.');
+
+      setSiswaList((current) =>
+        current.map((student) => student.id === contactStudent.id
+          ? { ...student, parent_phone: parentPhone.trim() || null }
+          : student),
+      );
+      setImportMessage(`Nomor telepon orang tua ${contactStudent.nama || 'siswa'} berhasil diperbarui.`);
+      setContactStudent(null);
+      setParentPhone('');
+    } catch (error) {
+      setContactError(error instanceof Error ? error.message : 'Gagal memperbarui nomor orang tua.');
+    } finally {
+      setIsSavingContact(false);
     }
   };
 
@@ -406,6 +470,7 @@ export default function DataSiswaPage() {
           kelas,
           email: email.toLowerCase(),
           password: findColumn(row, ['password', 'katasandi']) || nisn,
+          parent_phone: findColumn(row, ['noteleponorangtua', 'nomorteleponorangtua', 'notelponorangtua', 'nomortelponorangtua', 'notelportu', 'whatsapporangtua', 'parentphone']) || null,
           role: 'Siswa',
         });
       }
@@ -443,6 +508,7 @@ export default function DataSiswaPage() {
               kelas: record.kelas,
               email: record.email,
               password: record.password,
+              parentPhone: record.parent_phone || '',
             })),
           }),
         });
@@ -461,7 +527,13 @@ export default function DataSiswaPage() {
             .select('id,nisn,nama,kelas,email,role')
             .in('nisn', successfulRecords.map((record) => record.nisn || ''));
           if (fetchError) throw fetchError;
-          imported.push(...((inserted || []) as StudentRecord[]));
+          const phoneByNisn = new Map(
+            successfulRecords.map((record) => [(record.nisn || '').toLowerCase(), record.parent_phone || null]),
+          );
+          imported.push(...((inserted || []) as StudentRecord[]).map((student) => ({
+            ...student,
+            parent_phone: phoneByNisn.get((student.nisn || '').toLowerCase()) || null,
+          })));
         }
       }
 
@@ -489,7 +561,7 @@ export default function DataSiswaPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #193328', paddingBottom: '16px' }}>
         <div>
           <h1 style={{ fontSize: '20px', fontWeight: '800', color: '#fff', margin: 0 }}>DATA SISWA</h1>
-          <p style={{ fontSize: '12px', color: '#688c7d', margin: '4px 0 0 0' }}>Direktori siswa · Sumber: {dataSource || 'Memuat data...'} · XLSX: NISN, Nama, Kelas</p>
+          <p style={{ fontSize: '12px', color: '#688c7d', margin: '4px 0 0 0' }}>Direktori siswa · Sumber: {dataSource || 'Memuat data...'} · XLSX: NISN, Nama, Kelas, No. Telepon Orang Tua (opsional)</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <input ref={importInputRef} type="file" accept=".xlsx" onChange={handleImportStudents} style={{ display: 'none' }} />
@@ -537,6 +609,7 @@ export default function DataSiswaPage() {
               <th style={{ padding: '12px 16px' }}>NAMA SISWA</th>
               <th style={{ padding: '12px 16px' }}>KELAS</th>
               <th style={{ padding: '12px 16px' }}>EMAIL / KONTAK</th>
+              <th style={{ padding: '12px 16px' }}>NO. TELEPON ORANG TUA</th>
               <th style={{ padding: '12px 16px' }}>STATUS</th>
               <th style={{ padding: '12px 16px' }}>AKSI</th>
             </tr>
@@ -544,14 +617,14 @@ export default function DataSiswaPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#688c7d' }}>
+                <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#688c7d' }}>
                   <Loader2 size={20} className="animate-spin" style={{ display: 'inline', marginRight: '8px' }} />
                   Memuat data siswa...
                 </td>
               </tr>
             ) : filteredSiswa.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#688c7d' }}>
+                <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#688c7d' }}>
                   Tidak ada data siswa ditemukan.
                 </td>
               </tr>
@@ -562,12 +635,25 @@ export default function DataSiswaPage() {
                   <td style={{ padding: '12px 16px', fontWeight: '700', color: '#fff' }}>{item.nama || item.nama_siswa || item.full_name || 'Siswa'}</td>
                   <td style={{ padding: '12px 16px' }}>{item.kelas || item.class || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>{item.email || item.no_hp || '-'}</td>
+                  <td style={{ padding: '12px 16px' }}>{item.parent_phone || '-'}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{ backgroundColor: 'rgba(52, 211, 153, 0.1)', color: '#34d399', padding: '2px 8px', borderRadius: '4px', fontSize: '10px' }}>
                       {item.status || 'Aktif'}
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setContactError('');
+                        setParentPhone(item.parent_phone || '');
+                        setContactStudent(item);
+                      }}
+                      disabled={!item.id}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', marginRight: '6px', padding: '6px 9px', border: '1px solid #1d3d30', borderRadius: '6px', background: '#10201a', color: '#a7f3d0', cursor: item.id ? 'pointer' : 'not-allowed' }}
+                    >
+                      No. telepon orang tua
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -609,6 +695,7 @@ export default function DataSiswaPage() {
                 { key: 'nama', label: 'Nama lengkap', type: 'text' },
                 { key: 'kelas', label: 'Kelas', type: 'text' },
                 { key: 'email', label: 'Email', type: 'email' },
+                { key: 'parentPhone', label: 'No. telepon orang tua (WhatsApp)', type: 'tel' },
                 { key: 'password', label: 'Password awal', type: 'password' },
               ].map((field) => (
                 <label key={field.key} style={{ display: 'grid', gap: '5px', color: '#a7f3d0', fontSize: '12px', fontWeight: 600 }}>
@@ -651,6 +738,33 @@ export default function DataSiswaPage() {
                 <button type="button" onClick={() => setEmailStudent(null)} style={{ padding: '9px 13px', border: '1px solid #1d3d30', borderRadius: '7px', background: 'transparent', color: '#cbd5e1', fontWeight: 600 }}>Batal</button>
                 <button type="submit" disabled={isSavingEmail} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '9px 14px', border: 0, borderRadius: '7px', background: '#34d399', color: '#07100d', fontWeight: 700 }}>
                   {isSavingEmail && <Loader2 size={15} className="animate-spin" />}{isSavingEmail ? 'Menyimpan...' : 'Simpan email'}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {contactStudent && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'grid', placeItems: 'center', padding: '16px', backgroundColor: 'rgba(0, 0, 0, 0.72)' }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="student-parent-phone-title" style={{ width: '100%', maxWidth: '420px', padding: '22px', border: '1px solid #1d3d30', borderRadius: '12px', backgroundColor: '#13261f', color: '#f1f5f9', boxShadow: '0 20px 50px rgba(0,0,0,.4)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 id="student-parent-phone-title" style={{ margin: 0, fontSize: '16px' }}>Nomor telepon orang tua</h2>
+              <button type="button" aria-label="Tutup" onClick={() => setContactStudent(null)} style={{ display: 'grid', placeItems: 'center', padding: '5px', border: '1px solid #1d3d30', borderRadius: '6px', background: 'transparent', color: '#a7f3d0' }}><X size={17} /></button>
+            </div>
+            <p style={{ margin: '0 0 14px', color: '#a7f3d0', fontSize: '13px' }}>
+              {contactStudent.nama || 'Siswa'} · NISN {contactStudent.nisn || '-'}
+            </p>
+            <form onSubmit={handleUpdateParentPhone} style={{ display: 'grid', gap: '12px' }}>
+              <label style={{ display: 'grid', gap: '5px', color: '#a7f3d0', fontSize: '12px', fontWeight: 600 }}>
+                Nomor WhatsApp wali (contoh: 081234567890)
+                <input type="tel" value={parentPhone} onChange={(event) => setParentPhone(event.target.value)} style={{ width: '100%', padding: '10px 11px', border: '1px solid #1d3d30', borderRadius: '7px', outline: 'none', background: '#0a1410', color: '#f1f5f9', boxSizing: 'border-box' }} />
+              </label>
+              {contactError && <p role="alert" style={{ margin: 0, color: '#f87171', fontSize: '12px' }}>{contactError}</p>}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '5px' }}>
+                <button type="button" onClick={() => setContactStudent(null)} style={{ padding: '9px 13px', border: '1px solid #1d3d30', borderRadius: '7px', background: 'transparent', color: '#cbd5e1', fontWeight: 600 }}>Batal</button>
+                <button type="submit" disabled={isSavingContact} style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '9px 14px', border: 0, borderRadius: '7px', background: '#34d399', color: '#07100d', fontWeight: 700 }}>
+                  {isSavingContact && <Loader2 size={15} className="animate-spin" />}{isSavingContact ? 'Menyimpan...' : 'Simpan nomor'}
                 </button>
               </div>
             </form>

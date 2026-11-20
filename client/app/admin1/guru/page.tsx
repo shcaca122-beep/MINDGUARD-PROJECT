@@ -264,7 +264,7 @@ export default function DataGuruPage() {
               <label style={{ display: 'grid', gap: '5px', color: '#a7f3d0', fontSize: '12px', fontWeight: 600 }}>
                 Role
                 <select value={guruForm.role} onChange={(event) => setGuruForm((current) => ({ ...current, role: event.target.value }))} style={{ width: '100%', padding: '10px 11px', border: '1px solid #1d3d30', borderRadius: '7px', background: '#0a1410', color: '#f1f5f9' }}>
-                  {['GURU BK', 'PIKET', 'OSIS', 'MPK', 'TU'].map((role) => <option key={role} value={role}>{role}</option>)}
+                  {['GURU BK', 'PIKET', 'OSIS', 'MPK', 'TU', 'KEPALA SEKOLAH'].map((role) => <option key={role} value={role}>{role}</option>)}
                 </select>
               </label>
               {formError && <p role="alert" style={{ margin: 0, color: '#f87171', fontSize: '12px' }}>{formError}</p>}

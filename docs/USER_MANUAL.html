@@ -179,6 +179,7 @@
         <li><a href="#bk">Panduan Guru BK</a></li>
         <li><a href="#piket-osis">Panduan Piket dan OSIS/MPK</a></li>
         <li><a href="#admin">Panduan Administrator/TU</a></li>
+        <li><a href="#kepala-sekolah">Panduan Kepala Sekolah</a></li>
         <li><a href="#akun">Akun dan keluar</a></li>
         <li><a href="#privasi">Privasi dan keamanan</a></li>
         <li><a href="#masalah">Pemecahan masalah</a></li>
@@ -195,7 +196,7 @@
         <li>Gunakan menu di sisi layar untuk berpindah halaman. Pada ponsel, buka menu navigasi dengan tombol menu.</li>
       </ol>
       <div class="callout">
-        <strong>Panel berdasarkan peran:</strong> siswa masuk ke Beranda, Guru BK ke panel BK, Piket ke halaman tugas yang tersedia, OSIS/MPK ke input keterlambatan dan rekap, sedangkan Administrator/TU ke panel administrasi. Jika peran atau menu tidak sesuai, hubungi pengelola akun.
+        <strong>Panel berdasarkan peran:</strong> siswa masuk ke Beranda, Guru BK ke panel BK, Piket ke halaman tugas yang tersedia, OSIS/MPK ke input keterlambatan dan rekap, Administrator/TU ke panel administrasi, dan Kepala Sekolah ke panel pemantauan. Jika peran atau menu tidak sesuai, hubungi pengelola akun.
       </div>
     </section>
 
@@ -243,7 +244,8 @@
         <li><strong>Perizinan</strong> dan <strong>Pelanggaran:</strong> periksa data, lalu kelola sesuai akses yang diberikan.</li>
         <li><strong>Rekap Mingguan OSIS:</strong> lihat ringkasan yang relevan untuk pemantauan.</li>
       </ul>
-      <p>Sebelum menyimpan perubahan, pastikan siswa dan isi catatan sudah benar. Gunakan catatan layanan hanya untuk kebutuhan pembinaan dan pihak yang berwenang.</p>
+      <p>Isi atau periksa nomor WhatsApp orang tua/wali pada kartu surat, lalu pilih <strong>Kirim PDF langsung via WhatsApp</strong>. Aplikasi membuat PDF surat dan mengirimkannya sebagai dokumen ke nomor tersebut. Tombol <strong>Cetak Surat PDF Resmi</strong> tetap dapat digunakan untuk mencetak atau menyimpan salinan.</p>
+      <p>Pengiriman memerlukan WhatsApp Cloud API yang dikonfigurasi oleh administrator di environment server dan hanya dapat dilakukan tanpa template dalam 24 jam setelah orang tua/wali mengirim pesan ke nomor sekolah. Di luar jendela tersebut, Meta mewajibkan template pesan yang disetujui. Gunakan nomor yang benar dan pastikan orang tua/wali menyetujui komunikasi dari sekolah.</p>
     </section>
 
     <section id="piket-osis">
@@ -265,10 +267,10 @@
       <p>Administrator/TU mengelola data operasional dan akses aplikasi. Masuk dengan akun berwenang, lalu gunakan menu panel Administrator.</p>
       <ul>
         <li><strong>Dashboard:</strong> ringkasan jumlah siswa dan statistik layanan yang tersedia.</li>
-        <li><strong>Data Siswa:</strong> cari, tambah, perbarui, impor atau ekspor data jika fitur tersedia; pastikan file yang digunakan benar dan terlindungi.</li>
+        <li><strong>Data Siswa:</strong> cari, tambah, perbarui, impor atau ekspor data jika fitur tersedia. Isi nomor telepon orang tua/wali agar PDF surat panggilan dapat dikirim melalui WhatsApp.</li>
         <li><strong>Data Guru BK &amp; Staf:</strong> kelola data staf dan peran akun.</li>
         <li><strong>Jenis Layanan BK</strong> dan <strong>Profil Sekolah:</strong> periksa atau kelola informasi terkait sesuai kebutuhan.</li>
-        <li><strong>Sesi Konseling</strong> dan <strong>Pelanggaran Siswa:</strong> tinjau catatan dan konsistensi data.</li>
+        <li><strong>Sesi Konseling</strong> dan <strong>Pelanggaran Siswa:</strong> tinjau catatan dan konsistensi data; kirim pemberitahuan pelanggaran sesuai prosedur sekolah.</li>
         <li><strong>Laporan Konseling</strong> dan <strong>Laporan Pelanggaran:</strong> tinjau laporan; gunakan fungsi cetak pada halaman jika tersedia.</li>
       </ul>
       <div class="callout warning">
@@ -276,8 +278,14 @@
       </div>
     </section>
 
+    <section id="kepala-sekolah">
+      <h2>6. Panduan Kepala Sekolah</h2>
+      <p>Administrator membuat akun staf dengan peran <strong>KEPALA SEKOLAH</strong>. Setelah masuk, panel Kepala Sekolah menampilkan jumlah siswa, layanan, pelanggaran, panggilan orang tua, home visit, keterlambatan, serta permohonan izin.</p>
+      <p>Daftar aktivitas terbaru diperbarui otomatis dan dapat dimuat ulang dengan tombol <strong>Segarkan</strong>. Isi curhat tidak ditampilkan demi privasi siswa. Hubungi administrator jika data gagal dimuat atau peran akun belum tersedia.</p>
+    </section>
+
     <section id="akun">
-      <h2>6. Akun dan keluar</h2>
+      <h2>7. Akun dan keluar</h2>
       <ul>
         <li><strong>Lupa kata sandi:</strong> gunakan halaman lupa kata sandi jika akun memiliki email dan layanan email sekolah sudah dikonfigurasi. Ikuti tautan pemulihan yang dikirim. Siswa yang masuk dengan NISN atau tidak memiliki akses email perlu meminta bantuan administrator.</li>
         <li><strong>Ganti kata sandi:</strong> gunakan menu ganti kata sandi jika tersedia, lalu simpan kata sandi baru di tempat aman. Jangan gunakan kata sandi bersama.</li>
@@ -287,7 +295,7 @@
     </section>
 
     <section id="privasi">
-      <h2>7. Privasi dan keamanan</h2>
+      <h2>8. Privasi dan keamanan</h2>
       <ul>
         <li>Data identitas, konseling, curhat, izin, pelanggaran, serta foto merupakan informasi sensitif. Akses hanya untuk tujuan sekolah dan petugas yang berwenang.</li>
         <li>Jangan mengirim kata sandi, NISN, isi curhat, catatan konseling, atau file siswa ke grup publik, akun media sosial, atau dokumen yang dapat diakses umum.</li>
@@ -299,7 +307,7 @@
     </section>
 
     <section id="masalah">
-      <h2>8. Pemecahan masalah</h2>
+      <h2>9. Pemecahan masalah</h2>
       <ul>
         <li><strong>Login gagal:</strong> periksa email/NISN, kata sandi, dan koneksi. Jika masih gagal, minta administrator memastikan akun aktif dan profil peran sudah terhubung.</li>
         <li><strong>Profil tidak ditemukan atau panel salah:</strong> pengelola akun perlu memeriksa data profil dan peran; jangan mengubah peran sendiri.</li>

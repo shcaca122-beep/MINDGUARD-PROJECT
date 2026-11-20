@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import BKUtilityBar from '../BKUtilityBar';
@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import type { DatabaseRow } from '@/lib/database-row';
 import { formatErrorMessage } from '@/lib/error-utils';
 import { showError, showSuccess } from '@/lib/swal';
-import { PhoneCall, Plus, Printer, ClipboardList, Calendar, FileText } from 'lucide-react';
+import { PhoneCall, Plus, Printer, ClipboardList, Calendar, FileText, MessageCircle, Loader2 } from 'lucide-react';
 
 type ViolationRecord = {
   id?: string | number;
@@ -19,6 +19,7 @@ type ViolationRecord = {
   jenis?: string | null;
   poin?: number | null;
   created_at?: string | null;
+  siswa_id?: string | null;
 };
 
 function formatTanggalIndonesia(raw: unknown, withWeekday = false): string {
@@ -32,6 +33,14 @@ function formatTanggalIndonesia(raw: unknown, withWeekday = false): string {
     month: 'long',
     year: 'numeric',
   });
+}
+
+function isMissingParentPhoneColumn(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const value = error as { code?: string; message?: string };
+  const message = (value.message || '').toLowerCase();
+  return message.includes('parent_phone')
+    && (value.code === 'PGRST204' || message.includes('column') || message.includes('schema cache'));
 }
 
 export default function PanggilanOrtuPage() {
@@ -49,6 +58,11 @@ export default function PanggilanOrtuPage() {
   const [searchText, setSearchText] = useState('');
   const [printItem, setPrintItem] = useState<DatabaseRow | null>(null);
   const [namaGuruBK, setNamaGuruBK] = useState('');
+  const [parentPhone, setParentPhone] = useState('');
+  const [loadingParentPhone, setLoadingParentPhone] = useState(false);
+  const [sendingCallId, setSendingCallId] = useState<string | null>(null);
+  const [parentPhoneByCallId, setParentPhoneByCallId] = useState<Record<string, string>>({});
+  const parentPhonesByCallId = useRef(new Map<string, string>());
 
   const fetchPanggilan = useCallback(async () => {
     setIsLoading(true);
@@ -74,6 +88,9 @@ export default function PanggilanOrtuPage() {
                 : String(row.keperluan ?? row.alasan ?? ''),
           tanggal: typeof row.tanggal === 'string' ? row.tanggal : '',
           pukul: typeof row.pukul === 'string' ? row.pukul : '09:00',
+          parent_phone: typeof row.parent_phone === 'string'
+            ? row.parent_phone
+            : parentPhonesByCallId.current.get(String(row.id)) || '',
         })) as DatabaseRow[];
         setDataPanggilan(
           normalized.sort((a, b) =>
@@ -104,9 +121,10 @@ export default function PanggilanOrtuPage() {
     }
   }, []);
 
-  const handlePilihPelanggaran = (id: string) => {
+  const handlePilihPelanggaran = async (id: string) => {
     setSelectedPelanggaran(id);
     const violation = dataPelanggaran.find((item) => String(item.id) === id);
+    setParentPhone('');
     if (!violation) return;
 
     const name = violation.nama_siswa || violation.nama || '';
@@ -119,6 +137,21 @@ export default function PanggilanOrtuPage() {
         ? `Pemanggilan terkait: ${violationName}${points}`
         : 'Konsultasi Pelanggaran & Pembinaan Siswa'
     );
+
+    if (!violation.siswa_id) return;
+    setLoadingParentPhone(true);
+    try {
+      const { data, error } = await supabase.rpc('get_student_parent_phone', {
+        p_student_id: violation.siswa_id,
+      });
+      if (error) throw error;
+      setParentPhone(typeof data === 'string' ? data : '');
+    } catch (error) {
+      console.error('Gagal mengambil nomor orang tua untuk surat panggilan:', error);
+      showError('Nomor orang tua tidak dapat dimuat', formatErrorMessage(error));
+    } finally {
+      setLoadingParentPhone(false);
+    }
   };
 
   const normalizedSearch = searchText.trim().toLowerCase();
@@ -148,6 +181,7 @@ export default function PanggilanOrtuPage() {
           ortu: 'Orang Tua',
           kelas: safeKelas,
           keperluan: safeKeperluan,
+          parent_phone: parentPhone.trim(),
           tanggal: tanggalPanggilan,
           pukul,
         },
@@ -156,6 +190,7 @@ export default function PanggilanOrtuPage() {
           ortu: 'Orang Tua',
           kelas: safeKelas,
           alasan: safeKeperluan,
+          parent_phone: parentPhone.trim(),
           tanggal: tanggalPanggilan,
           pukul,
         },
@@ -164,6 +199,7 @@ export default function PanggilanOrtuPage() {
           ortu: 'Orang Tua',
           kelas: safeKelas,
           alasan: safeKeperluan,
+          parent_phone: parentPhone.trim(),
           tanggal: tanggalPanggilan,
           pukul,
         },
@@ -172,24 +208,67 @@ export default function PanggilanOrtuPage() {
           ortu: 'Orang Tua',
           kelas: safeKelas,
           keperluan: safeKeperluan,
+          parent_phone: parentPhone.trim(),
           tanggal: tanggalPanggilan,
           pukul,
         },
       ];
 
       let lastError: unknown = null;
+      let savedWithoutParentPhone = false;
+      let insertedCall: DatabaseRow | null = null;
       for (const payload of payloadCandidates) {
-        const { error } = await supabase.from('panggilan_ortu').insert([payload]);
+        const { data, error } = await supabase
+          .from('panggilan_ortu')
+          .insert([payload])
+          .select('*')
+          .single();
         if (!error) {
-          showSuccess('Surat berhasil dibuat', 'Surat panggilan orang tua berhasil disimpan.');
-          setShowModal(false);
-          setNamaSiswa('');
-          setKelas('');
-          setSelectedPelanggaran('');
-          void fetchPanggilan();
-          return;
+          insertedCall = data as DatabaseRow;
+          break;
         }
         lastError = error;
+        if (isMissingParentPhoneColumn(error)) {
+          savedWithoutParentPhone = true;
+          break;
+        }
+      }
+
+      if (savedWithoutParentPhone) {
+        for (const payload of payloadCandidates) {
+          const compatiblePayload = Object.fromEntries(
+            Object.entries(payload).filter(([key]) => key !== 'parent_phone'),
+          );
+          const { data, error } = await supabase
+            .from('panggilan_ortu')
+            .insert([compatiblePayload])
+            .select('*')
+            .single();
+          if (!error) {
+            insertedCall = data as DatabaseRow;
+            break;
+          }
+          lastError = error;
+        }
+      }
+
+      if (insertedCall) {
+        if (savedWithoutParentPhone && parentPhone.trim() && insertedCall.id != null) {
+          parentPhonesByCallId.current.set(String(insertedCall.id), parentPhone.trim());
+        }
+        showSuccess(
+          'Surat berhasil dibuat',
+          savedWithoutParentPhone
+            ? 'Surat tersimpan. Nomor WhatsApp hanya tersedia sampai halaman ini ditutup karena kolom nomor wali belum terbaca. Sinkronkan skema Supabase agar nomor tersimpan permanen.'
+            : 'Surat panggilan orang tua berhasil disimpan.',
+        );
+        setShowModal(false);
+        setNamaSiswa('');
+        setKelas('');
+        setSelectedPelanggaran('');
+        setParentPhone('');
+        void fetchPanggilan();
+        return;
       }
 
       throw lastError ?? new Error('Gagal menyimpan surat panggilan orang tua.');
@@ -203,8 +282,6 @@ export default function PanggilanOrtuPage() {
     setPrintItem(item);
     const originalTitle = document.title;
     const cleanName = String(item.nama_siswa || 'Siswa').replace(/\s+/g, '_');
-    document.title = `Surat_Panggilan_Ortu_${cleanName}`;
-
     window.addEventListener(
       'afterprint',
       () => {
@@ -214,8 +291,46 @@ export default function PanggilanOrtuPage() {
     );
 
     setTimeout(() => {
+      document.title = `Surat_Panggilan_Ortu_${cleanName}`;
       window.print();
     }, 120);
+  };
+
+  const handleSendPdfWhatsApp = async (item: DatabaseRow, phone: string) => {
+    if (item.id == null) {
+      showError('Surat belum tersimpan', 'ID surat panggilan tidak tersedia.');
+      return;
+    }
+    if (!phone.trim()) {
+      showError('Nomor WhatsApp belum diisi', 'Masukkan nomor orang tua/wali terlebih dahulu.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Kirim PDF surat panggilan untuk ${String(item.nama_siswa || 'siswa')} ke ${phone}? Pengiriman langsung memerlukan percakapan aktif dengan nomor sekolah.`,
+    );
+    if (!confirmed) return;
+
+    const callId = String(item.id);
+    setSendingCallId(callId);
+    try {
+      const response = await fetch('/api/bk/panggilan-ortu/send-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callId, namaGuruBK, parentPhone: phone }),
+      });
+      const result = await response.json() as { error?: string; success?: boolean };
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'WhatsApp gagal mengirim PDF surat.');
+      }
+
+      showSuccess('PDF berhasil dikirim', 'PDF surat panggilan telah dikirim ke WhatsApp orang tua/wali.');
+    } catch (error) {
+      console.error('Gagal mengirim PDF surat panggilan:', error);
+      showError('PDF gagal dikirim', error instanceof Error ? error.message : 'Terjadi kesalahan saat mengirim PDF.');
+    } finally {
+      setSendingCallId(null);
+    }
   };
 
   useEffect(() => {
@@ -227,7 +342,7 @@ export default function PanggilanOrtuPage() {
 
     const savedBKName = localStorage.getItem('bk_custom_name') || '';
     if (savedBKName && savedBKName.toLowerCase() !== 'umum') {
-      setNamaGuruBK(savedBKName);
+      queueMicrotask(() => setNamaGuruBK(savedBKName));
     }
 
     queueMicrotask(() => {
@@ -840,6 +955,34 @@ export default function PanggilanOrtuPage() {
                     >
                       <Printer size={16} /> Cetak Surat PDF Resmi
                     </button>
+                    <label className="mb-2 mt-3 block text-xs font-semibold text-emerald-200" htmlFor={`parent-phone-${item.id}`}>
+                      Nomor WhatsApp orang tua / wali
+                    </label>
+                    <input
+                      id={`parent-phone-${item.id}`}
+                      type="tel"
+                      value={parentPhoneByCallId[String(item.id)] ?? (typeof item.parent_phone === 'string' ? item.parent_phone : '')}
+                      onChange={(event) => setParentPhoneByCallId((current) => ({
+                        ...current,
+                        [String(item.id)]: event.target.value,
+                      }))}
+                      placeholder="Contoh: 081234567890"
+                      className="mb-2 w-full rounded-lg border border-emerald-800 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleSendPdfWhatsApp(
+                        item,
+                        parentPhoneByCallId[String(item.id)] ?? (typeof item.parent_phone === 'string' ? item.parent_phone : ''),
+                      )}
+                      disabled={sendingCallId !== null || !(parentPhoneByCallId[String(item.id)] ?? (typeof item.parent_phone === 'string' ? item.parent_phone : '')).trim()}
+                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-700 px-3 py-2 text-sm font-bold text-emerald-300 hover:bg-emerald-950 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {sendingCallId === String(item.id)
+                        ? <Loader2 size={16} className="animate-spin" />
+                        : <MessageCircle size={16} />}
+                      {sendingCallId === String(item.id) ? 'Mengirim PDF...' : 'Kirim PDF langsung via WhatsApp'}
+                    </button>
                   </div>
                 ))
               )}
@@ -932,6 +1075,31 @@ export default function PanggilanOrtuPage() {
                         );
                       })}
                     </select>
+                    <p role="status" style={{ margin: '6px 0 0', color: loadingParentPhone ? '#fbbf24' : parentPhone ? '#34d399' : '#94a3b8', fontSize: '11px' }}>
+                      {loadingParentPhone
+                        ? 'Memuat nomor orang tua...'
+                        : parentPhone
+                          ? 'Nomor WhatsApp orang tua tersedia untuk pengiriman surat.'
+                          : 'Nomor orang tua belum tersedia; lengkapi data siswa terlebih dahulu.'}
+                    </p>
+                    <label style={{ display: 'grid', gap: '5px', marginTop: '10px', color: '#cbd5e1', fontSize: '12px', fontWeight: '700' }}>
+                      Nomor WhatsApp orang tua / wali
+                      <input
+                        type="tel"
+                        value={parentPhone}
+                        onChange={(event) => setParentPhone(event.target.value)}
+                        placeholder="Contoh: 081234567890"
+                        style={{
+                          width: '100%',
+                          padding: '11px 14px',
+                          borderRadius: '10px',
+                          background: '#064e3b',
+                          color: '#fff',
+                          border: '1px solid rgba(52,211,153,0.3)',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </label>
                   </div>
                   <div>
                     <label
