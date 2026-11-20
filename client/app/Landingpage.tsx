@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import MindGuardMark from '@/components/MindGuardMark';
 import {
@@ -36,23 +39,72 @@ const highlights = [
 ];
 
 export default function HomePage() {
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [activeSection, setActiveSection] = useState('Tentang');
+
+  useEffect(() => {
+    const updateScrollState = () => {
+      const scrollY = window.scrollY;
+      setIsScrolled(scrollY > 120);
+
+      const triggerPoint = window.innerHeight * 0.45;
+      const caraKerjaEl = document.getElementById('cara-kerja');
+      const fiturEl = document.getElementById('fitur');
+
+      if (caraKerjaEl && caraKerjaEl.getBoundingClientRect().top <= triggerPoint) {
+        setActiveSection('Cara kerja');
+      } else if (fiturEl && fiturEl.getBoundingClientRect().top <= triggerPoint) {
+        setActiveSection('Layanan');
+      } else {
+        setActiveSection('Tentang');
+      }
+    };
+
+    updateScrollState();
+    window.addEventListener('scroll', updateScrollState, { passive: true });
+    window.addEventListener('resize', updateScrollState, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', updateScrollState);
+      window.removeEventListener('resize', updateScrollState);
+    };
+  }, []);
+
+  const isCompact = isScrolled && !isHovered;
+
   return (
     <main className="mindguard-landing">
-      <header className="landing-nav">
-        <Link className="landing-brand" href="/" aria-label="MindGuard beranda">
-          <span className="landing-brand-logo">
-            <MindGuardMark size={38} />
-          </span>
-          <span>mindguard<span className="landing-brand-period">.</span></span>
-        </Link>
-        <nav className="landing-nav-links" aria-label="Navigasi utama">
-          <a href="#tentang">Tentang</a>
-          <a href="#fitur">Layanan</a>
-          <a href="#cara-kerja">Cara kerja</a>
-        </nav>
-        <Link className="landing-login-link" href="/login">
-          Masuk <ArrowRight size={16} />
-        </Link>
+      <header
+        className={`landing-nav${isCompact ? ' is-compact' : ''}`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        onClick={() => {
+          if (isCompact) setIsHovered(true);
+        }}
+      >
+        {isCompact ? (
+          <div className="landing-compact-pill" role="status" aria-live="polite">
+            <span className="landing-compact-dot" aria-hidden="true" />
+            <span className="landing-compact-label">{activeSection}</span>
+          </div>
+        ) : (
+          <>
+            <Link className="landing-brand" href="/" aria-label="MindGuard beranda">
+              <span className="landing-brand-logo">
+                <MindGuardMark size={34} />
+              </span>
+              <span>mindguard<span className="landing-brand-period">.</span></span>
+            </Link>
+            <nav className="landing-nav-links" aria-label="Navigasi utama">
+              <a href="#tentang">Tentang</a>
+              <a href="#fitur">Layanan</a>
+              <a href="#cara-kerja">Cara kerja</a>
+            </nav>
+            <Link className="landing-login-link" href="/login">
+              Masuk <ArrowRight size={15} />
+            </Link>
+          </>
+        )}
       </header>
 
       <section className="landing-hero">

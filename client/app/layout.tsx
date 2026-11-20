@@ -1,4 +1,5 @@
 import './globals.css';
+import './glassy-theme.css';
 import ConnectionStatus from '@/components/ConnectionStatus';
 
 export const metadata = {
