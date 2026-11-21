@@ -1,0 +1,19 @@
+services:
+  mindguard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
+    env_file:
+      - path: ./client/.env.local
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "${MINDGUARD_PORT:-1003}:3000"
+    restart: unless-stopped
