@@ -106,6 +106,21 @@ Saat live coding, letakkan kode khusus satu halaman di folder halamannya. Pindah
 
 5. Buka [http://localhost:3000](http://localhost:3000).
 
+## Menjalankan dengan Docker
+
+Salin `.env.example` menjadi `.env` lalu isi URL dan key Supabase publik:
+
+```bash
+cp .env.example .env
+docker compose up --build -d
+```
+
+Buat atau pastikan `client/.env.local` berisi `SUPABASE_SERVICE_ROLE_KEY` dan
+variabel Supabase server yang diperlukan. Docker Compose memuat berkas tersebut
+tanpa menyalinnya ke image.
+
+Aplikasi tersedia di port `3000`, atau ubah `MINDGUARD_PORT` di `.env`.
+
 ## Perintah aplikasi
 
 Jalankan dari direktori `client`:
